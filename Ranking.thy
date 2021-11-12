@@ -10,7 +10,7 @@ sledgehammer_params [provers = e z3 spass cvc4 vampire]
 lemma vs_empty[simp]: "Vs {} = {}"
   by (simp add: Vs_def)
 
-lemma vs_union[simp]: "Vs (A \<union> B) = Vs A \<union> Vs B"
+lemma vs_union: "Vs (A \<union> B) = Vs A \<union> Vs B"
   unfolding Vs_def by simp
 
 lemma graph_abs_empty[simp]: "graph_abs {}"
@@ -19,10 +19,10 @@ lemma graph_abs_empty[simp]: "graph_abs {}"
 lemma graph_abs_insert[simp]: "graph_abs M \<Longrightarrow> u \<noteq> v \<Longrightarrow> graph_abs (insert {u,v} M)"
   by (auto simp: graph_abs_def Vs_def)
 
-lemma graph_abs_union[intro]: "graph_abs G \<Longrightarrow> graph_abs H \<Longrightarrow> graph_abs (G \<union> H)"
+lemma graph_abs_union: "graph_abs G \<Longrightarrow> graph_abs H \<Longrightarrow> graph_abs (G \<union> H)"
   by (auto simp: graph_abs_def Vs_def)
 
-lemma graph_abs_compr[intro]: "u \<notin> ns \<Longrightarrow> finite ns \<Longrightarrow> graph_abs {{u, v} |v. v \<in> ns}"
+lemma graph_abs_compr: "u \<notin> ns \<Longrightarrow> finite ns \<Longrightarrow> graph_abs {{u, v} |v. v \<in> ns}"
   unfolding graph_abs_def by (auto simp: Vs_def)
 
 lemma matching_empty[simp]: "matching {}"
@@ -31,7 +31,7 @@ lemma matching_empty[simp]: "matching {}"
 lemma partitioned_bipartite_empty[simp]: "partitioned_bipartite {} X"
   unfolding partitioned_bipartite_def by simp
 
-lemma partitioned_bipartiteI[intro]:
+lemma partitioned_bipartiteI:
   assumes "graph_abs E"
   assumes "\<And>e. e \<in> E \<Longrightarrow> \<exists>u v. e = {u,v} \<and> u \<in> X \<and> v \<in> Vs E - X"
   shows "partitioned_bipartite E X"
@@ -46,7 +46,7 @@ lemma partitioned_bipartite_graph_absD:
   unfolding partitioned_bipartite_def
   by (auto intro: graph_abs.intro)
 
-lemma partitioned_bipartiteE[elim?]:
+lemma partitioned_bipartiteE:
   assumes "partitioned_bipartite E X"
   assumes "e \<in> E"
   obtains u v where "e = {u,v}" "u \<in> X" "v \<in> Vs E - X"
@@ -59,6 +59,15 @@ type_synonym 'a graph = "'a set set"
 text \<open>For now we don't care about distinctness of the "ranking" list, as we only need the order
   induced by the list.\<close>
 abbreviation "rank \<sigma> v \<equiv> index \<sigma> v"
+
+lemma index_Cons_mono: "x \<noteq> y \<Longrightarrow> index xs y \<le> index (x#xs) y"
+  by simp
+
+lemma index_filter_mono: "P x \<Longrightarrow> index (filter P xs) x \<le> index xs x"
+  by (induction xs) auto
+
+lemma index_append_mono: "index xs x \<le> index (xs @ ys) x"
+  by (induction xs) auto
 
 abbreviation "arriving_U us \<equiv> fst ` set us"
 abbreviation "arriving_V us \<equiv> \<Union> (snd ` set us)"
@@ -107,7 +116,7 @@ definition ranking_inv :: "'a list \<Rightarrow> ('a \<times> 'a set) list \<Rig
   "ranking_inv \<sigma> us M \<equiv> wf_input \<sigma> us \<and> matching M \<and> partitioned_bipartite M (set \<sigma>) \<and> 
     Vs M - set \<sigma> \<subseteq> arriving_U us"
 
-lemma ranking_invI[intro?]:
+lemma ranking_invI:
   assumes "wf_input \<sigma> us"
   assumes "matching M"
   assumes "partitioned_bipartite M (set \<sigma>)"
@@ -180,8 +189,8 @@ lemma vs_step': "v \<in> Vs (step \<sigma> M u ns) \<Longrightarrow> v \<in> Vs 
 lemma vs_ranking_aux: "v \<in> Vs (ranking_aux \<sigma> us M) \<Longrightarrow> v \<in> Vs M \<or> v \<in> Vs (offline_graph us)"
 proof (induction \<sigma> us M rule: ranking_aux.induct)
   case (2 \<sigma> u ns us M)
-  then show ?case 
-    by (auto dest: vs_step')
+  then show ?case
+    by (auto dest: vs_step' simp: vs_union)
 qed simp
 
 lemma vs_offline_graph: "v \<in> Vs (offline_graph us) \<Longrightarrow> v \<in> arriving_U us \<or> v \<in> arriving_V us"
@@ -216,10 +225,10 @@ proof (induction \<sigma>)
     by (auto dest: partitioned_bipartite_graph_absD intro: graph_abs_step)
   show ?case
     apply (rule step_ConsI)
-    apply rule
+    apply (rule partitioned_bipartiteI)
       apply (metis Cons.prems(2) assms(1) graph_abs_insert list.set_intros(1) partitioned_bipartite_graph_absD)
      apply (smt (verit, del_insts) Cons.prems(1) Cons.prems(2) Diff_iff edges_are_Vs insert_commute insert_iff list.set(2) partitioned_bipartiteE)
-    apply rule
+    apply (rule partitioned_bipartiteI)
      apply (rule graph_abs)
     by (smt (verit, del_insts) Cons.prems(1) Cons.prems(2) Diff_iff IntE edge_in_step edges_are_Vs insertCI insert_commute list.set(2) partitioned_bipartiteE)
 qed simp
@@ -306,7 +315,8 @@ lemma wf_input_graph_abs_offline_graph:
   assumes "wf_input \<sigma> us"
   shows "graph_abs (offline_graph us)"
   using assms
-  by (induction us rule: offline_graph.induct) (auto dest: wf_input_tl wf_input_hd)
+  by (induction us rule: offline_graph.induct) 
+     (auto dest: wf_input_tl wf_input_hd intro: graph_abs_union graph_abs_compr)
 
 lemma wf_input_partitioned_bipartite_offline_graph:
   assumes "wf_input \<sigma> us"
@@ -368,9 +378,9 @@ lemma "x \<in> ranking \<sigma> us \<Longrightarrow> x \<in> offline_graph us"
 lemma step_lowest_rank:
   assumes "u \<notin> set \<sigma>"
   assumes "u \<notin> Vs M"
-  assumes "w \<in> set \<sigma>" "w \<in> ns" "w \<notin> Vs M"
+  assumes "w \<in> set \<sigma>" "w \<in> ns" "w \<notin> Vs M" "w \<noteq> v"
   assumes "{u,v} \<in> step \<sigma> M u ns"
-  shows "rank \<sigma> v \<le> rank \<sigma> w"
+  shows "rank \<sigma> v < rank \<sigma> w"
   using assms
   apply (induction \<sigma>)
    apply simp_all
@@ -478,13 +488,16 @@ lemma ranking_aux_lowest_rank:
   assumes "partitioned_bipartite M (set \<sigma>)"
   assumes "matching M"
   assumes "arriving_U us \<inter> Vs M = {}"
-  shows "rank \<sigma> v \<le> rank \<sigma> w"
+  shows "rank \<sigma> v < rank \<sigma> w"
   using assms
 proof (induction \<sigma> us M rule: ranking_aux.induct)
   case (2 \<sigma> u' ns us M)
 
   have "u \<notin> set \<sigma>"
     by (meson "2.prems"(1) "2.prems"(2) "2.prems"(3) "2.prems"(8) "2.prems"(9) u_in_ranking_aux)
+
+  have "w \<noteq> v"
+    using assms(7) assms(8) insert_commute by auto
 
   consider (ind) "u \<notin> Vs (step \<sigma> M u' ns)" | (new) "u \<in> Vs (step \<sigma> M u' ns)" by blast
   then show ?case
@@ -518,7 +531,7 @@ proof (induction \<sigma> us M rule: ranking_aux.induct)
     have "w \<in> ns"
       using "2.prems"(5) \<open>u' = u\<close> by auto
     show ?thesis
-      by (meson "2.prems"(2) "2.prems"(4) "2.prems"(6) \<open>u \<notin> set \<sigma>\<close> \<open>w \<in> ns\<close> \<open>{u, v} \<in> step \<sigma> M u ns\<close> step_lowest_rank)
+      by (meson "2.prems"(2) "2.prems"(4) "2.prems"(6) \<open>u \<notin> set \<sigma>\<close> \<open>w \<in> ns\<close> \<open>w \<noteq> v\<close> \<open>{u, v} \<in> step \<sigma> M u ns\<close> step_lowest_rank)
   qed
 qed simp
 
@@ -528,8 +541,255 @@ lemma ranking_lowest_rank:
   assumes "v \<in> set \<sigma>"
   assumes "w \<in> set \<sigma>" "w \<in> neighbors_of u us" "w \<notin> Vs (ranking \<sigma> us)"
   assumes "{u,v} \<in> ranking \<sigma> us"
-  shows "rank \<sigma> v \<le> rank \<sigma> w"
+  shows "rank \<sigma> v < rank \<sigma> w"
   using assms
   by (intro ranking_aux_lowest_rank[where u = u and M = "{}"]) (simp_all add: ranking_def)
+
+
+definition move_to :: "'a list \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a list" ("_ \<mapsto>\<index> _" [100,100] 40) where 
+  "move_to xs v i \<equiv> (take i [x <- xs. x \<noteq> v]) @ v # (drop i [x <- xs. x \<noteq> v])"
+
+lemma append_cong: "xs = xs' \<Longrightarrow> ys = ys' \<Longrightarrow> xs @ ys = xs' @ ys'"
+  by simp
+
+lemma move_to_gt_length:
+  "length xs \<le> i \<Longrightarrow> (v \<mapsto>\<^bsub>xs\<^esub> i) = (v \<mapsto>\<^bsub>xs\<^esub> length xs)"
+  unfolding move_to_def
+  by (auto intro!: append_cong dest: le_trans[OF length_filter_le])
+
+lemma move_to_Cons_Suc:
+  assumes "x \<noteq> v"
+  assumes "Suc n = i"
+  shows "(v \<mapsto>\<^bsub>x#xs\<^esub> i) = x # (v \<mapsto>\<^bsub>xs\<^esub> n)"
+  using assms
+  unfolding move_to_def
+  by auto
+
+lemma move_to_neq_0_Cons:
+  assumes "x \<noteq> v"
+  assumes "i \<noteq> 0"
+  shows "(v \<mapsto>\<^bsub>x#xs\<^esub> i) = x # (v \<mapsto>\<^bsub>xs\<^esub> (i - 1))"
+  using assms
+  unfolding move_to_def
+  by (auto simp: drop_Cons' take_Cons')
+
+lemma move_to_0:
+  shows "(v \<mapsto>\<^bsub>xs\<^esub> 0) = v # [x <- xs. x \<noteq> v]"
+  unfolding move_to_def
+  by simp
+
+lemma move_to_last:
+  shows "(v \<mapsto>\<^bsub>xs\<^esub> (length xs)) = [x <- xs. x \<noteq> v] @ [v]"
+  unfolding move_to_def
+  by simp
+
+lemma move_to_Cons_eq:
+  "(v \<mapsto>\<^bsub>v#xs\<^esub> i) = (v \<mapsto>\<^bsub>xs\<^esub> i)"
+  unfolding move_to_def
+  by simp
+
+lemma move_to_distinct:
+  "distinct xs \<Longrightarrow> distinct (x \<mapsto>\<^bsub>xs\<^esub> i)"
+  unfolding move_to_def
+  by (auto dest: in_set_dropD in_set_takeD distinct_filter set_take_disj_set_drop_if_distinct)
+
+
+lemma rank_less_filter: "rank xs w < rank xs v \<Longrightarrow> rank [x <- xs. x \<noteq> v] w = rank xs w"
+  by (induction xs) (auto)
+
+lemma not_in_take: "x \<notin> set xs \<Longrightarrow> x \<notin> set (take i xs)"
+  by (auto dest: in_set_takeD)
+
+lemma not_in_set_filter_length_eq: "v \<notin> set xs \<Longrightarrow> length [x <- xs. x \<noteq> v] = length xs"
+  by (induction xs) auto
+
+lemma in_set_distinct_filter_length_eq: "v \<in> set xs \<Longrightarrow> distinct xs \<Longrightarrow> length [x <- xs. x \<noteq> v] = length xs - 1"
+  by (induction xs) (auto simp: not_in_set_filter_length_eq intro!: Suc_pred)
+
+lemma distinct_filter_length: "distinct xs \<Longrightarrow> (length [x <- xs. x \<noteq> v] = length xs \<and> v \<notin> set xs) \<or> (length [x <- xs. x \<noteq> v] = length xs - 1 \<and> v \<in> set xs)"
+  by (metis in_set_distinct_filter_length_eq not_in_set_filter_length_eq)
+
+
+lemma filter_removeAll: "[x <- xs. x \<noteq> v] = removeAll v xs"
+  by (induction xs) auto
+
+lemma not_in_set_filter_id: "v \<notin> set xs \<Longrightarrow> [x <- xs. x \<noteq> v] = xs"
+  by (simp add: filter_removeAll)
+
+lemma count_zero: "count_list xs v = 0 \<Longrightarrow>  v \<notin> set xs"
+  by (induction xs) (auto split: if_splits)
+
+lemma count_in: "v \<in> set xs \<Longrightarrow> count_list xs v \<noteq> 0"
+  by (induction xs) auto
+
+lemma Suc_rank_filter: "rank xs v < rank xs w \<Longrightarrow> v \<in> set xs \<Longrightarrow> count_list xs v = 1 \<Longrightarrow> Suc (rank [x <- xs. x \<noteq> v] w) = rank xs w"
+  by (induction xs) (auto simp: not_in_set_filter_id[OF count_zero])
+
+lemma not_Nil_length_SucE: "xs \<noteq> [] \<Longrightarrow> (\<And>n. length xs = Suc n \<Longrightarrow> P) \<Longrightarrow> P"
+  by (induction xs) auto
+
+
+lemma move_to_id:
+  "count_list \<sigma> v = 1 \<Longrightarrow> (v \<mapsto>\<^bsub>\<sigma>\<^esub> (rank \<sigma> v)) = \<sigma>"
+  by (induction \<sigma>) (auto simp: move_to_0 filter_id_conv move_to_Cons_Suc count_zero)
+
+lemma move_to_front_less:
+  assumes "i < rank \<sigma> v"
+  assumes "rank \<sigma> w < i"
+  shows "rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) w = rank \<sigma> w"
+  using assms
+  by (induction \<sigma> arbitrary: i)
+     (auto split: if_splits elim: less_natE simp: move_to_Cons_Suc)
+
+lemma move_to_front_between:
+  assumes "count_list \<sigma> v \<le> 1"
+  assumes "i < rank \<sigma> v"
+  assumes "i \<le> rank \<sigma> w" "rank \<sigma> w < rank \<sigma> v"
+  shows "rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) w = Suc (rank \<sigma> w)"
+  using assms
+  apply (induction \<sigma> arbitrary: i)
+   apply (auto split: if_splits simp: move_to_0)
+  subgoal for _ _ i
+    by
+      (auto intro: nat.exhaust[of i] simp add: move_to_0 rank_less_filter move_to_Cons_Suc)
+  done
+
+
+lemma move_to_front_gr:
+  assumes "count_list \<sigma> v = 1"
+  assumes "i < rank \<sigma> v" 
+  assumes "rank \<sigma> v < rank \<sigma> w"
+  shows "rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) w = rank \<sigma> w"
+proof -
+  have "v \<in> set \<sigma>"
+    using assms count_notin by fastforce
+  then have "count_list \<sigma> v = 1"
+    using assms count_zero by blast
+
+  with assms \<open>v \<in> set \<sigma>\<close> show ?thesis
+  apply (induction \<sigma> arbitrary: i)
+   apply (auto split: if_splits)
+  subgoal for a \<sigma> i
+    by (auto intro: nat.exhaust[of i] simp: move_to_0 move_to_Cons_Suc Suc_rank_filter)
+  done
+qed
+
+lemma move_to_back_less:
+  assumes "rank \<sigma> v < i"
+  assumes "rank \<sigma> w < rank \<sigma> v"
+  shows "rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) w = rank \<sigma> w"
+  using assms
+  by (induction \<sigma> arbitrary: i) (auto split: if_splits simp: move_to_neq_0_Cons)
+
+
+lemma move_to_back_between:
+  assumes "count_list \<sigma> v = 1"
+  assumes "rank \<sigma> v < i"  
+  assumes "i < length \<sigma>"
+  assumes "rank \<sigma> v < rank \<sigma> w" "rank \<sigma> w \<le> i"
+  shows "rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) w + 1 = rank \<sigma> w"
+proof -
+  have "v \<in> set \<sigma>"
+    using assms count_notin by fastforce
+  then have "count_list \<sigma> v = 1"
+    using assms count_zero by blast
+  with \<open>v \<in> set \<sigma>\<close> assms show ?thesis
+    apply (induction \<sigma> arbitrary: i)
+     apply (auto simp: move_to_Cons_eq move_to_neq_0_Cons split: if_splits)
+    by (metis Suc_leD Suc_le_lessD count_zero index_append index_take_if_index less_Suc_eq_le move_to_def not_in_set_filter_id set_take_if_index)
+qed
+
+
+lemma move_to_insert_before: "i \<le> rank \<sigma> w \<Longrightarrow> v \<noteq> w \<Longrightarrow> v \<notin> set \<sigma> \<Longrightarrow> rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) w = Suc (rank \<sigma> w)"
+  apply (induction \<sigma> arbitrary: i)
+   apply (simp add: move_to_def)
+  apply (auto simp: move_to_0)
+  subgoal for a \<sigma> i
+    by (auto intro: nat.exhaust[of i] simp: move_to_0 not_in_set_filter_id move_to_Cons_Suc)
+  done
+
+lemma move_to_back_gr:
+  assumes "count_list \<sigma> v = 1"
+  assumes "rank \<sigma> v < i" "i < length \<sigma>"
+  assumes "i < rank \<sigma> w"
+  shows "rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) w = rank \<sigma> w"
+  using assms
+  apply (induction \<sigma> arbitrary: i)
+   apply (auto split: if_splits simp: move_to_Cons_eq move_to_insert_before dest: count_zero)
+  subgoal for a \<sigma> i
+    by (auto simp: move_to_Cons_Suc intro: nat.exhaust[of i])
+  done
+
+
+lemma distinct_count_list_le: "distinct xs \<Longrightarrow> count_list xs x \<le> 1"
+  by (induction xs) auto
+
+
+lemma move_to_rank_v:
+  assumes "distinct \<sigma>"
+  assumes "i < length \<sigma>"
+  shows "rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) v = i"
+  using assms
+proof (induction \<sigma> arbitrary: i)
+  case (Cons a \<sigma>)
+  then consider (eq) "i = length \<sigma>" | (less) "i < length \<sigma>" by fastforce
+  then show ?case 
+  proof (cases)
+    case eq
+    then show ?thesis
+      using Cons.prems
+      unfolding move_to_def
+      by (auto simp: index_append not_in_take distinct_filter_length not_in_set_filter_length_eq 
+               dest: distinct_filter_length[of _ v])
+  next
+    case less
+    then show ?thesis
+    proof (cases i)
+      case 0
+      then show ?thesis by (simp add: move_to_0)
+    next
+     case (Suc nat)
+     then show ?thesis 
+       using Cons less
+       by (cases "a = v") (auto simp: move_to_Cons_eq move_to_Cons_Suc)
+   qed
+  qed
+qed simp
+
+lemma move_to_rank_less:
+  assumes "distinct \<sigma>"
+  assumes "i < length \<sigma>"
+  assumes "v \<noteq> w"
+  assumes "rank \<sigma> w < i"
+  shows "rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) w \<le> rank \<sigma> w"
+  using assms
+proof (induction \<sigma> arbitrary: i)
+  case (Cons a \<sigma>)
+  then consider (eq) "length \<sigma> = i" | (less) "i < length \<sigma>" by fastforce
+  then show ?case 
+  proof (cases)
+    case eq
+    then show ?thesis 
+      using Cons
+      apply (cases "a = v")
+       apply (auto elim!: not_Nil_length_SucE simp: move_to_Cons_Suc move_to_Cons_eq move_to_last index_append index_filter_mono le_Suc_eq)
+      apply (cases i)
+       apply (simp_all add: move_to_Cons_Suc)
+        by (metis eq_iff lessI not_less_eq not_less_eq_eq)
+   next
+    case less
+    then show ?thesis
+    proof (cases i)
+      case 0
+      then show ?thesis using Cons by simp
+    next
+      case (Suc nat)
+      then show ?thesis
+        using Cons less
+        by (cases "a = v") (fastforce simp: move_to_Cons_eq move_to_Cons_Suc)+
+    qed
+  qed
+qed simp
+
 
 end
