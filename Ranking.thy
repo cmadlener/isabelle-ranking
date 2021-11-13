@@ -594,6 +594,24 @@ lemma move_to_distinct:
   by (auto dest: in_set_dropD in_set_takeD distinct_filter set_take_disj_set_drop_if_distinct)
 
 
+lemma induct_list_nat[case_names nil_zero nil_suc cons_zero cons_suc]:
+  assumes "P [] 0"
+  assumes "\<And>n. P [] n \<Longrightarrow> P [] (Suc n)"
+  assumes "\<And>x xs. P xs 0 \<Longrightarrow> P (x#xs) 0" 
+  assumes "\<And>x xs n. P xs n \<Longrightarrow> P (x#xs) (Suc n)"
+  shows "P xs n"
+  using assms
+  by (induction_schema) (pat_completeness, lexicographic_order)
+
+lemma move_to_insert_before: "i \<le> rank \<sigma> w \<Longrightarrow> v \<noteq> w \<Longrightarrow> v \<notin> set \<sigma> \<Longrightarrow> rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) w = Suc (rank \<sigma> w)"
+  by (induction \<sigma> i rule: induct_list_nat)
+     (auto simp: move_to_0 move_to_Cons_Suc)
+
+lemma move_to_insert_after: "rank \<sigma> w < i \<Longrightarrow> i \<le> length \<sigma> \<Longrightarrow> v \<noteq> w \<Longrightarrow> v \<notin> set \<sigma> \<Longrightarrow> rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) w = rank \<sigma> w"
+  by (induction \<sigma> i rule: induct_list_nat)
+     (auto simp: move_to_Cons_Suc)
+
+
 lemma rank_less_filter: "rank xs w < rank xs v \<Longrightarrow> rank [x <- xs. x \<noteq> v] w = rank xs w"
   by (induction xs) (auto)
 
@@ -641,19 +659,16 @@ lemma move_to_front_less:
   by (induction \<sigma> arbitrary: i)
      (auto split: if_splits elim: less_natE simp: move_to_Cons_Suc)
 
+
+
 lemma move_to_front_between:
   assumes "count_list \<sigma> v \<le> 1"
   assumes "i < rank \<sigma> v"
   assumes "i \<le> rank \<sigma> w" "rank \<sigma> w < rank \<sigma> v"
   shows "rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) w = Suc (rank \<sigma> w)"
   using assms
-  apply (induction \<sigma> arbitrary: i)
-   apply (auto split: if_splits simp: move_to_0)
-  subgoal for _ _ i
-    by
-      (auto intro: nat.exhaust[of i] simp add: move_to_0 rank_less_filter move_to_Cons_Suc)
-  done
-
+  by (induction \<sigma> i rule: induct_list_nat)
+     (auto split: if_splits simp: move_to_0 move_to_Cons_Suc)
 
 lemma move_to_front_gr:
   assumes "count_list \<sigma> v = 1"
@@ -667,11 +682,8 @@ proof -
     using assms count_zero by blast
 
   with assms \<open>v \<in> set \<sigma>\<close> show ?thesis
-  apply (induction \<sigma> arbitrary: i)
-   apply (auto split: if_splits)
-  subgoal for a \<sigma> i
-    by (auto intro: nat.exhaust[of i] simp: move_to_0 move_to_Cons_Suc Suc_rank_filter)
-  done
+    by (induction \<sigma> i rule: induct_list_nat)
+       (auto split: if_splits simp: move_to_0 move_to_Cons_Suc Suc_rank_filter)
 qed
 
 lemma move_to_back_less:
@@ -694,19 +706,9 @@ proof -
   then have "count_list \<sigma> v = 1"
     using assms count_zero by blast
   with \<open>v \<in> set \<sigma>\<close> assms show ?thesis
-    apply (induction \<sigma> arbitrary: i)
-     apply (auto simp: move_to_Cons_eq move_to_neq_0_Cons split: if_splits)
-    by (metis Suc_leD Suc_le_lessD count_zero index_append index_take_if_index less_Suc_eq_le move_to_def not_in_set_filter_id set_take_if_index)
+    by (induction \<sigma> arbitrary: i)
+       (auto simp: move_to_Cons_eq move_to_neq_0_Cons move_to_insert_after split: if_splits dest!: count_zero)
 qed
-
-
-lemma move_to_insert_before: "i \<le> rank \<sigma> w \<Longrightarrow> v \<noteq> w \<Longrightarrow> v \<notin> set \<sigma> \<Longrightarrow> rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) w = Suc (rank \<sigma> w)"
-  apply (induction \<sigma> arbitrary: i)
-   apply (simp add: move_to_def)
-  apply (auto simp: move_to_0)
-  subgoal for a \<sigma> i
-    by (auto intro: nat.exhaust[of i] simp: move_to_0 not_in_set_filter_id move_to_Cons_Suc)
-  done
 
 lemma move_to_back_gr:
   assumes "count_list \<sigma> v = 1"
@@ -714,11 +716,10 @@ lemma move_to_back_gr:
   assumes "i < rank \<sigma> w"
   shows "rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) w = rank \<sigma> w"
   using assms
-  apply (induction \<sigma> arbitrary: i)
-   apply (auto split: if_splits simp: move_to_Cons_eq move_to_insert_before dest: count_zero)
-  subgoal for a \<sigma> i
-    by (auto simp: move_to_Cons_Suc intro: nat.exhaust[of i])
-  done
+  by (induction \<sigma> i rule: induct_list_nat)
+     (auto split: if_splits dest: count_zero
+           simp: move_to_Cons_eq move_to_Cons_Suc move_to_insert_before)
+
 
 
 lemma distinct_count_list_le: "distinct xs \<Longrightarrow> count_list xs x \<le> 1"
@@ -730,31 +731,13 @@ lemma move_to_rank_v:
   assumes "i < length \<sigma>"
   shows "rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) v = i"
   using assms
-proof (induction \<sigma> arbitrary: i)
-  case (Cons a \<sigma>)
-  then consider (eq) "i = length \<sigma>" | (less) "i < length \<sigma>" by fastforce
+proof (induction \<sigma> i rule: induct_list_nat)
+  case (cons_suc x xs n)
   then show ?case 
-  proof (cases)
-    case eq
-    then show ?thesis
-      using Cons.prems
-      unfolding move_to_def
-      by (auto simp: index_append not_in_take distinct_filter_length not_in_set_filter_length_eq 
-               dest: distinct_filter_length[of _ v])
-  next
-    case less
-    then show ?thesis
-    proof (cases i)
-      case 0
-      then show ?thesis by (simp add: move_to_0)
-    next
-     case (Suc nat)
-     then show ?thesis 
-       using Cons less
-       by (cases "a = v") (auto simp: move_to_Cons_eq move_to_Cons_Suc)
-   qed
-  qed
-qed simp
+    by (cases "x = v")
+       (auto simp: move_to_Cons_Suc move_to_Cons_eq move_to_def index_append not_in_set_filter_id 
+             dest: in_set_takeD split: if_splits)
+qed (auto simp add: move_to_0)
 
 lemma move_to_rank_less:
   assumes "distinct \<sigma>"
@@ -763,33 +746,13 @@ lemma move_to_rank_less:
   assumes "rank \<sigma> w < i"
   shows "rank (v \<mapsto>\<^bsub>\<sigma>\<^esub> i) w \<le> rank \<sigma> w"
   using assms
-proof (induction \<sigma> arbitrary: i)
-  case (Cons a \<sigma>)
-  then consider (eq) "length \<sigma> = i" | (less) "i < length \<sigma>" by fastforce
+proof (induction \<sigma> i rule: induct_list_nat)
+  case (cons_suc x xs n)
   then show ?case 
-  proof (cases)
-    case eq
-    then show ?thesis 
-      using Cons
-      apply (cases "a = v")
-       apply (auto elim!: not_Nil_length_SucE simp: move_to_Cons_Suc move_to_Cons_eq move_to_last index_append index_filter_mono le_Suc_eq)
-      apply (cases i)
-       apply (simp_all add: move_to_Cons_Suc)
-        by (metis eq_iff lessI not_less_eq not_less_eq_eq)
-   next
-    case less
-    then show ?thesis
-    proof (cases i)
-      case 0
-      then show ?thesis using Cons by simp
-    next
-      case (Suc nat)
-      then show ?thesis
-        using Cons less
-        by (cases "a = v") (fastforce simp: move_to_Cons_eq move_to_Cons_Suc)+
-    qed
-  qed
-qed simp
+    by (auto simp: move_to_Cons_Suc move_to_def index_append not_in_set_filter_id set_take_if_index
+             dest: in_set_takeD index_take_if_set  split: if_splits)
+qed auto
+
 
 
 end
