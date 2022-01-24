@@ -112,7 +112,9 @@ and zag :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> 'a \<Rightarrow> 'a li
   "zig G M v \<sigma> \<pi> = v # (
                     if \<exists>u. {u,v} \<in> M 
                     then zag G M (THE u. {u,v} \<in> M) \<sigma> \<pi>
-                    else [])"
+                    else [])" if "ranking_matching G M \<pi> \<sigma>"
+| "zig G M v \<sigma> \<pi> = []" if "\<not>ranking_matching G M \<pi> \<sigma>"
+
 | "zag G M u \<sigma> \<pi> =  u # (if \<exists>v. {u,v} \<in> M 
                       then 
                       (let v = THE v. {u,v} \<in> M in (
@@ -121,18 +123,15 @@ and zag :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> 'a \<Rightarrow> 'a li
                         else [])
                       )
                       else []
-                    )"
-     apply auto
-  apply (case_tac x)
-   apply (case_tac a)
-   apply blast
-  apply (case_tac b)
-  apply blast
-  done
+                    )" if "ranking_matching G M \<pi> \<sigma>"
+| "zag G M u \<sigma> \<pi> = []" if "\<not>ranking_matching G M \<pi> \<sigma>"
+  by auto (smt (z3) prod_cases5 sum.collapse)
 
-termination sorry
-thm zig_zag.induct
-declare zig.simps[simp del] zag.simps[simp del]
+definition zig_zag_relation where
+  "zig_zag_relation \<equiv> 
+    {(Inr (G, M, u, \<sigma>, \<pi>), Inl (G, M, v, \<sigma>, \<pi>)) | (G :: 'a graph) M u v \<sigma> \<pi>. ranking_matching G M \<pi> \<sigma> \<and> {u,v} \<in> M \<and> ((\<exists>v'. shifts_to G M u v v' \<sigma> \<pi>) \<longrightarrow> index \<sigma> v < index \<sigma> (THE v'. shifts_to G M u v v' \<sigma> \<pi>))} \<union>
+    {(Inl (G, M, v', \<sigma>, \<pi>), Inr (G, M, u, \<sigma>, \<pi>)) | (G :: 'a graph) M u v' \<sigma> \<pi>. ranking_matching G M \<pi> \<sigma> \<and> (\<exists>v. {u,v} \<in> M \<and> shifts_to G M u (THE v. {u,v} \<in> M) v' \<sigma> \<pi>) \<and> index \<sigma> (THE v. {u,v} \<in> M) < index \<sigma> v'}"
+
 
 lemma the_match: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE u. {u,v} \<in> M) = u"
   apply (auto intro!: the_equality )
@@ -164,11 +163,187 @@ lemma the_shifts_to:
   using assms
   by (auto dest: shifts_to_inj)
 
+lemma zig_zag_relation_unique:
+  "(y,x) \<in> zig_zag_relation \<Longrightarrow> (y',x) \<in> zig_zag_relation \<Longrightarrow> y = y'"
+  unfolding zig_zag_relation_def
+  apply (auto dest: ranking_matchingD the_match shifts_to_inj)
+  by (metis ranking_matchingD(1) the_match)
+
+lemma index_gt_induct: 
+  assumes "\<And>x. (\<And>y. (index xs y > index xs x \<Longrightarrow> P y)) \<Longrightarrow> P x"
+  shows "P x"
+  using assms
+  by (induction "length xs - index xs x" arbitrary: x rule: less_induct)
+     (metis diff_less_mono2 index_le_size le_less not_le)
+
+lemma zig_zag_relation_increasing_rank:
+  assumes "(Inr (G, M, u, \<sigma>, \<pi>), Inl (G, M, v, \<sigma>, \<pi>)) \<in> zig_zag_relation"
+  assumes "(Inl (G, M, v', \<sigma>, \<pi>), Inr (G, M, u, \<sigma>, \<pi>)) \<in> zig_zag_relation"
+  shows "index \<sigma> v < index \<sigma> v'"
+proof -
+  from \<open>(Inr (G, M, u, \<sigma>, \<pi>), Inl (G, M, v, \<sigma>, \<pi>)) \<in> zig_zag_relation\<close> have "ranking_matching G M \<pi> \<sigma>"
+    "{u,v} \<in> M"
+    "(\<exists>v'. shifts_to G M u v v' \<sigma> \<pi>) \<longrightarrow> index \<sigma> v < index \<sigma> (THE v'. shifts_to G M u v v' \<sigma> \<pi>)"
+    unfolding zig_zag_relation_def
+    by auto
+
+  then have "(THE v. {u,v} \<in> M) = v" by (auto intro: the_match' dest: ranking_matchingD)
+
+  with \<open>(Inl (G, M, v', \<sigma>, \<pi>), Inr (G, M, u, \<sigma>, \<pi>)) \<in> zig_zag_relation\<close> show ?thesis
+    unfolding zig_zag_relation_def
+    by simp
+qed
+
+lemma length_minus_index_less_index_gt:
+  "length xs - index xs x < length xs - index xs x' \<longleftrightarrow> index xs x' < index xs x"
+  by (induction xs) auto
+
+lemma wf_zig_zag_relation_Inl_aux:
+  assumes "\<forall>x. (\<forall>y. (y,x) \<in> zig_zag_relation \<longrightarrow> P y) \<longrightarrow> P x"
+  shows "P (Inl a)"
+proof (cases a)
+  case (fields G M v \<sigma> \<pi>)
+  have PI: "\<And>x. (\<And>y. (y,x) \<in> zig_zag_relation \<Longrightarrow> P y) \<Longrightarrow> P x" using assms by blast
+
+  have "P (Inl (G, M, v, \<sigma>, \<pi>))"
+  proof (induction "length \<sigma> - index \<sigma> v" arbitrary: v rule: less_induct)
+    case less
+    then show ?case
+    proof (cases "\<exists>y. (y, Inl (G, M, v, \<sigma>, \<pi>)) \<in> zig_zag_relation")
+      case True
+      then obtain u where "(Inr (G, M, u, \<sigma>, \<pi>), Inl (G, M, v, \<sigma>, \<pi>)) \<in> zig_zag_relation"
+        unfolding zig_zag_relation_def by auto
+
+      then have "\<And>y. (y, Inl (G, M, v, \<sigma>, \<pi>)) \<in> zig_zag_relation \<Longrightarrow> y = Inr (G, M, u, \<sigma>, \<pi>)"
+        by (simp add: zig_zag_relation_unique)
+
+      show ?thesis
+      proof (cases "\<exists>x'. (x', Inr (G, M, u, \<sigma>, \<pi>)) \<in> zig_zag_relation")
+        case True
+        then obtain v' where "(Inl (G, M, v', \<sigma>, \<pi>), Inr (G, M, u, \<sigma>, \<pi>)) \<in> zig_zag_relation"
+          unfolding zig_zag_relation_def by auto
+
+        then have "\<And>x'. (x', Inr (G, M, u, \<sigma>, \<pi>)) \<in> zig_zag_relation \<Longrightarrow> x' = Inl (G, M, v', \<sigma>, \<pi>)"
+          by (simp add: zig_zag_relation_unique)
+
+        have "P (Inl (G, M, v', \<sigma>, \<pi>))"
+          using \<open>(Inr (G, M, u, \<sigma>, \<pi>), Inl (G, M, v, \<sigma>, \<pi>)) \<in> zig_zag_relation\<close>
+            \<open>(Inl (G, M, v', \<sigma>, \<pi>), Inr (G, M, u, \<sigma>, \<pi>)) \<in> zig_zag_relation\<close>
+          by (auto intro!: less zig_zag_relation_increasing_rank simp: length_minus_index_less_index_gt)
+
+        then have "P (Inr (G, M, u, \<sigma>, \<pi>))"
+          using PI \<open>\<And>x'. (x', Inr (G, M, u, \<sigma>, \<pi>)) \<in> zig_zag_relation \<Longrightarrow> x' = Inl (G, M, v', \<sigma>, \<pi>)\<close> by blast
+
+        then show ?thesis
+          using PI \<open>\<And>y. (y, Inl (G, M, v, \<sigma>, \<pi>)) \<in> zig_zag_relation \<Longrightarrow> y = Inr (G, M, u, \<sigma>, \<pi>)\<close> by blast
+      next
+        case False
+        then show ?thesis
+          using PI \<open>(Inr (G, M, u, \<sigma>, \<pi>), Inl (G, M, v, \<sigma>, \<pi>)) \<in> zig_zag_relation\<close> zig_zag_relation_unique by blast
+      qed
+    next
+      case False
+      then show ?thesis
+        using \<open>\<forall>x. (\<forall>y. (y, x) \<in> zig_zag_relation \<longrightarrow> P y) \<longrightarrow> P x\<close> by blast
+    qed
+  qed
+  with fields show ?thesis by simp
+qed
+
+lemma wf_zig_zag_relation_aux:
+  assumes "\<forall>x. (\<forall>y. (y,x) \<in> zig_zag_relation \<longrightarrow> P y) \<longrightarrow> P x"
+  shows "P x"
+proof -
+  have PI: "\<And>x. (\<And>y. (y,x) \<in> zig_zag_relation \<Longrightarrow> P y) \<Longrightarrow> P x" using assms by blast
+  show "P x"
+  proof (cases x)
+    case Inl
+    with assms wf_zig_zag_relation_Inl_aux show ?thesis by blast
+  next
+    case (Inr b)
+    then show ?thesis
+    proof (cases "\<exists>y. (y, Inr b) \<in> zig_zag_relation")
+      case True
+      then obtain a where "(Inl a, Inr b) \<in> zig_zag_relation" 
+        unfolding zig_zag_relation_def by blast
+
+      then have "\<And>y. (y, Inr b) \<in> zig_zag_relation \<Longrightarrow> y = Inl a"
+        by (simp add: zig_zag_relation_unique)
+
+      have "P (Inl a)" using assms wf_zig_zag_relation_Inl_aux by blast
+
+      then show ?thesis
+        using Inr PI \<open>\<And>y. (y, Inr b) \<in> zig_zag_relation \<Longrightarrow> y = Inl a\<close> by blast
+    next
+      case False
+      then show ?thesis
+        using Inr PI by blast
+    qed
+  qed
+qed
+
+lemma wf_zig_zag_relation: "wf zig_zag_relation"
+  using wf_def wf_zig_zag_relation_aux by auto
+
+termination zig
+  apply (relation zig_zag_relation)
+  apply (rule wf_zig_zag_relation)
+  unfolding zig_zag_relation_def
+  apply auto
+  subgoal by (auto dest: ranking_matchingD simp: the_match)
+  subgoal for G M \<pi> \<sigma> v u v'
+  proof -
+    assume assms: "ranking_matching G M \<pi> \<sigma>" "{u,v} \<in> M" "shifts_to G M (THE u. {u, v} \<in> M) v v' \<sigma> \<pi>"
+    then have the_u: "(THE u. {u,v} \<in> M) = u" 
+      by (auto dest: ranking_matchingD intro: the_match)
+
+    with assms have "(THE v'. shifts_to G M u v v' \<sigma> \<pi>) = v'"
+      using the_shifts_to by fastforce
+
+    with the_u show ?thesis
+      by (metis assms(3) shifts_to_def)
+  qed
+  subgoal for G M \<pi> \<sigma> u v v'
+  proof -
+    assume assms: "ranking_matching G M \<pi> \<sigma>" "{u,v} \<in> M" "shifts_to G M u (THE v. {u,v} \<in> M) v' \<sigma> \<pi>"
+
+    then have the_v: "(THE v. {u,v} \<in> M) = v"
+      by (auto dest: ranking_matchingD intro: the_match')
+
+    with assms have "(THE v'. shifts_to G M u v v' \<sigma> \<pi>) = v'"
+      using the_shifts_to by fastforce
+
+    with assms the_v show ?thesis
+      using shifts_to_def the_v by fastforce
+  qed
+  subgoal for G M \<pi> \<sigma> u v v'
+  proof -
+    assume assms: "ranking_matching G M \<pi> \<sigma>" "{u,v} \<in> M" "shifts_to G M u (THE v. {u,v} \<in> M) v' \<sigma> \<pi>"
+    then have the_v: "(THE v. {u,v} \<in> M) = v" 
+      by (auto dest: ranking_matchingD intro: the_match')
+
+    with assms have "(THE v'. shifts_to G M u v v' \<sigma> \<pi>) = v'"
+      using the_shifts_to by fastforce
+    with the_v assms show ?thesis
+      by (simp add: shifts_to_def)
+  qed
+  done
+
+thm zig_zag.induct
+declare zig.simps[simp del] zag.simps[simp del]
+
+fun_cases zig_ConsE: "zig G M v \<sigma> \<pi> = v' # uvs"
+fun_cases zig_NilE: "zig G M v \<sigma> \<pi> = []"
+thm zig_ConsE zig_NilE
+
+fun_cases zag_ConsE: "zag G M u \<sigma> \<pi> = u' # uvs"
+fun_cases zag_NilE: "zag G M u \<sigma> \<pi> = []"
+thm zag_ConsE zag_NilE
+
 
 lemma zig_matching_edge: "matching M \<Longrightarrow> zig G M v \<sigma> \<pi> = v # u # uvs \<Longrightarrow> {u,v} \<in> M"
   apply (rule ccontr)
-  unfolding zig.simps
-  apply (auto split: if_splits simp: the_match)
+  apply (auto elim!: zig_ConsE split: if_splits simp: the_match)
   unfolding zag.simps
   by (simp add: Let_def)
 
@@ -188,9 +363,9 @@ proof -
     by fastforce
 
   with assms the_v has_shift have "v'' = v'"
-    unfolding zag.simps
+    apply (auto elim!: zag_ConsE split: if_splits simp: Let_def)
     unfolding zig.simps
-    by (auto split: if_splits)
+    by simp
 
   with shifts_to show ?thesis by simp
 qed
