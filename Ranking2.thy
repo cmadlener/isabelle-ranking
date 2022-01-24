@@ -112,8 +112,8 @@ and zag :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> 'a \<Rightarrow> 'a li
   "zig G M v \<sigma> \<pi> = v # (
                     if \<exists>u. {u,v} \<in> M 
                     then zag G M (THE u. {u,v} \<in> M) \<sigma> \<pi>
-                    else [])" if "ranking_matching G M \<pi> \<sigma>"
-| "zig G M v \<sigma> \<pi> = []" if "\<not>ranking_matching G M \<pi> \<sigma>"
+                    else [])" if "matching M"
+| "zig G M v \<sigma> \<pi> = []" if "\<not>matching M"
 
 | "zag G M u \<sigma> \<pi> =  u # (if \<exists>v. {u,v} \<in> M 
                       then 
@@ -123,14 +123,14 @@ and zag :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> 'a \<Rightarrow> 'a li
                         else [])
                       )
                       else []
-                    )" if "ranking_matching G M \<pi> \<sigma>"
-| "zag G M u \<sigma> \<pi> = []" if "\<not>ranking_matching G M \<pi> \<sigma>"
+                    )" if "matching M"
+| "zag G M u \<sigma> \<pi> = []" if "\<not>matching M"
   by auto (smt (z3) prod_cases5 sum.collapse)
 
 definition zig_zag_relation where
   "zig_zag_relation \<equiv> 
-    {(Inr (G, M, u, \<sigma>, \<pi>), Inl (G, M, v, \<sigma>, \<pi>)) | (G :: 'a graph) M u v \<sigma> \<pi>. ranking_matching G M \<pi> \<sigma> \<and> {u,v} \<in> M \<and> ((\<exists>v'. shifts_to G M u v v' \<sigma> \<pi>) \<longrightarrow> index \<sigma> v < index \<sigma> (THE v'. shifts_to G M u v v' \<sigma> \<pi>))} \<union>
-    {(Inl (G, M, v', \<sigma>, \<pi>), Inr (G, M, u, \<sigma>, \<pi>)) | (G :: 'a graph) M u v' \<sigma> \<pi>. ranking_matching G M \<pi> \<sigma> \<and> (\<exists>v. {u,v} \<in> M \<and> shifts_to G M u (THE v. {u,v} \<in> M) v' \<sigma> \<pi>) \<and> index \<sigma> (THE v. {u,v} \<in> M) < index \<sigma> v'}"
+    {(Inr (G, M, u, \<sigma>, \<pi>), Inl (G, M, v, \<sigma>, \<pi>)) | (G :: 'a graph) M u v \<sigma> \<pi>. matching M \<and> {u,v} \<in> M \<and> ((\<exists>v'. shifts_to G M u v v' \<sigma> \<pi>) \<longrightarrow> index \<sigma> v < index \<sigma> (THE v'. shifts_to G M u v v' \<sigma> \<pi>))} \<union>
+    {(Inl (G, M, v', \<sigma>, \<pi>), Inr (G, M, u, \<sigma>, \<pi>)) | (G :: 'a graph) M u v' \<sigma> \<pi>. matching M \<and> (\<exists>v. {u,v} \<in> M \<and> shifts_to G M u (THE v. {u,v} \<in> M) v' \<sigma> \<pi>) \<and> index \<sigma> (THE v. {u,v} \<in> M) < index \<sigma> v'}"
 
 
 lemma the_match: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE u. {u,v} \<in> M) = u"
@@ -166,8 +166,7 @@ lemma the_shifts_to:
 lemma zig_zag_relation_unique:
   "(y,x) \<in> zig_zag_relation \<Longrightarrow> (y',x) \<in> zig_zag_relation \<Longrightarrow> y = y'"
   unfolding zig_zag_relation_def
-  apply (auto dest: ranking_matchingD the_match shifts_to_inj)
-  by (metis ranking_matchingD(1) the_match)
+  by (auto dest: the_match shifts_to_inj)
 
 lemma index_gt_induct: 
   assumes "\<And>x. (\<And>y. (index xs y > index xs x \<Longrightarrow> P y)) \<Longrightarrow> P x"
@@ -181,13 +180,12 @@ lemma zig_zag_relation_increasing_rank:
   assumes "(Inl (G, M, v', \<sigma>, \<pi>), Inr (G, M, u, \<sigma>, \<pi>)) \<in> zig_zag_relation"
   shows "index \<sigma> v < index \<sigma> v'"
 proof -
-  from \<open>(Inr (G, M, u, \<sigma>, \<pi>), Inl (G, M, v, \<sigma>, \<pi>)) \<in> zig_zag_relation\<close> have "ranking_matching G M \<pi> \<sigma>"
+  from \<open>(Inr (G, M, u, \<sigma>, \<pi>), Inl (G, M, v, \<sigma>, \<pi>)) \<in> zig_zag_relation\<close> have "matching M"
     "{u,v} \<in> M"
-    "(\<exists>v'. shifts_to G M u v v' \<sigma> \<pi>) \<longrightarrow> index \<sigma> v < index \<sigma> (THE v'. shifts_to G M u v v' \<sigma> \<pi>)"
     unfolding zig_zag_relation_def
     by auto
 
-  then have "(THE v. {u,v} \<in> M) = v" by (auto intro: the_match' dest: ranking_matchingD)
+  then have "(THE v. {u,v} \<in> M) = v" by (auto intro: the_match')
 
   with \<open>(Inl (G, M, v', \<sigma>, \<pi>), Inr (G, M, u, \<sigma>, \<pi>)) \<in> zig_zag_relation\<close> show ?thesis
     unfolding zig_zag_relation_def
@@ -290,12 +288,12 @@ termination zig
   apply (rule wf_zig_zag_relation)
   unfolding zig_zag_relation_def
   apply auto
-  subgoal by (auto dest: ranking_matchingD simp: the_match)
-  subgoal for G M \<pi> \<sigma> v u v'
+  subgoal by (auto simp: the_match)
+  subgoal for M G v \<sigma> \<pi> u v'
   proof -
-    assume assms: "ranking_matching G M \<pi> \<sigma>" "{u,v} \<in> M" "shifts_to G M (THE u. {u, v} \<in> M) v v' \<sigma> \<pi>"
+    assume assms: "matching M" "{u,v} \<in> M" "shifts_to G M (THE u. {u, v} \<in> M) v v' \<sigma> \<pi>"
     then have the_u: "(THE u. {u,v} \<in> M) = u" 
-      by (auto dest: ranking_matchingD intro: the_match)
+      by (auto intro: the_match)
 
     with assms have "(THE v'. shifts_to G M u v v' \<sigma> \<pi>) = v'"
       using the_shifts_to by fastforce
@@ -303,12 +301,12 @@ termination zig
     with the_u show ?thesis
       by (metis assms(3) shifts_to_def)
   qed
-  subgoal for G M \<pi> \<sigma> u v v'
+  subgoal for M G u \<sigma> \<pi> v v'
   proof -
-    assume assms: "ranking_matching G M \<pi> \<sigma>" "{u,v} \<in> M" "shifts_to G M u (THE v. {u,v} \<in> M) v' \<sigma> \<pi>"
+    assume assms: "matching M" "{u,v} \<in> M" "shifts_to G M u (THE v. {u,v} \<in> M) v' \<sigma> \<pi>"
 
     then have the_v: "(THE v. {u,v} \<in> M) = v"
-      by (auto dest: ranking_matchingD intro: the_match')
+      by (auto intro: the_match')
 
     with assms have "(THE v'. shifts_to G M u v v' \<sigma> \<pi>) = v'"
       using the_shifts_to by fastforce
@@ -316,11 +314,11 @@ termination zig
     with assms the_v show ?thesis
       using shifts_to_def the_v by fastforce
   qed
-  subgoal for G M \<pi> \<sigma> u v v'
+  subgoal for M G u \<sigma> \<pi> v v'
   proof -
-    assume assms: "ranking_matching G M \<pi> \<sigma>" "{u,v} \<in> M" "shifts_to G M u (THE v. {u,v} \<in> M) v' \<sigma> \<pi>"
+    assume assms: "matching M" "{u,v} \<in> M" "shifts_to G M u (THE v. {u,v} \<in> M) v' \<sigma> \<pi>"
     then have the_v: "(THE v. {u,v} \<in> M) = v" 
-      by (auto dest: ranking_matchingD intro: the_match')
+      by (auto intro: the_match')
 
     with assms have "(THE v'. shifts_to G M u v v' \<sigma> \<pi>) = v'"
       using the_shifts_to by fastforce
