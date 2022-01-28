@@ -29,8 +29,12 @@ lemma graph_abs_union: "graph_abs G \<Longrightarrow> graph_abs H \<Longrightarr
 lemma graph_abs_compr: "u \<notin> ns \<Longrightarrow> finite ns \<Longrightarrow> graph_abs {{u, v} |v. v \<in> ns}"
   unfolding graph_abs_def by (auto simp: Vs_def)
 
+lemma graph_abs_subgraph: "graph_abs G \<Longrightarrow> G' \<subseteq> G \<Longrightarrow> graph_abs G'"
+  unfolding graph_abs_def by (auto dest: Vs_subset intro: finite_subset)
+
 lemma graph_abs_edgeD: "graph_abs G \<Longrightarrow> {u,v} \<in> G \<Longrightarrow> u \<noteq> v"
   unfolding graph_abs_def by auto
+
 
 subsection \<open>Matchings\<close>
 lemma matching_empty[simp]: "matching {}"
@@ -43,19 +47,24 @@ lemma partitioned_bipartite_empty[simp]: "partitioned_bipartite {} X"
 
 
 lemma partitioned_bipartiteI:
-  assumes "graph_abs E"
+  assumes "finite E"
   assumes "\<And>e. e \<in> E \<Longrightarrow> \<exists>u v. e = {u,v} \<and> u \<in> X \<and> v \<in> Vs E - X"
   shows "partitioned_bipartite E X"
   using assms
   unfolding partitioned_bipartite_def
-  by (auto simp: graph_abs_def)
+  by auto
 
 lemma partitioned_bipartite_graph_absD:
   assumes "partitioned_bipartite E X"
   shows "graph_abs E"
   using assms
-  unfolding partitioned_bipartite_def
-  by (auto intro: graph_abs.intro)
+  by (auto dest: partitioned_bipartite_graph_invar intro: graph_abs.intro)
+
+lemma partitioned_bipartite_finiteD:
+  assumes "partitioned_bipartite E X"
+  shows "finite E"
+  using assms
+  unfolding partitioned_bipartite_def by blast
 
 lemma partitioned_bipartiteE:
   assumes "partitioned_bipartite E X"
@@ -70,17 +79,18 @@ lemma partitioned_bipartite_insertI:
   assumes "u \<notin> X" "v \<in> X"
   shows "partitioned_bipartite (insert {u,v} E) X"
   using assms
-  apply (intro partitioned_bipartiteI)
-   apply (drule partitioned_bipartite_graph_absD)
-  by (auto simp: vs_insert elim!: partitioned_bipartiteE intro: graph_abs_insert dest: partitioned_bipartite_graph_absD)
+  apply (auto intro!: partitioned_bipartiteI dest: partitioned_bipartite_finiteD 
+              simp: partitioned_bipartite_def vs_insert)
+  by meson
 
 lemma partitioned_bipartite_union:
   assumes "partitioned_bipartite G X"
   assumes "partitioned_bipartite H X"
   shows "partitioned_bipartite (G \<union> H) X"
-  using assms partitioned_bipartite_graph_absD
-  by (auto intro!: partitioned_bipartiteI intro: graph_abs_union simp: vs_union)
-     (meson DiffD1 DiffD2 partitioned_bipartiteE)+
+  using assms
+  apply (auto intro!: partitioned_bipartiteI intro: graph_abs_union simp: vs_union partitioned_bipartite_def
+              dest: partitioned_bipartite_finiteD)
+  by meson+
 
 lemma partitioned_bipartite_compr:
   assumes "u \<notin> X" "u \<notin> Y" "finite X" "X \<subseteq> Y"
@@ -89,6 +99,15 @@ lemma partitioned_bipartite_compr:
   by (intro partitioned_bipartiteI)
      (auto simp: graph_abs_compr vs_compr)
 
+lemma partitioned_bipartite_subgraph:
+  assumes "partitioned_bipartite G X"
+  assumes "G' \<subseteq> G"
+  shows "partitioned_bipartite G' X"
+  using assms
+  unfolding partitioned_bipartite_def
+  apply (auto simp: finite_subset)
+  by (metis insertI1 subsetD subset_insertI vs_member_intro)
+
 lemma partitioned_bipartite_swap:
   assumes bipartite: "partitioned_bipartite G X"
       and vertices_subset: "Vs G \<subseteq> X \<union> Y"
@@ -96,7 +115,7 @@ lemma partitioned_bipartite_swap:
     shows "partitioned_bipartite G Y" 
   using assms
 proof -
-  from bipartite have "graph_abs G" by (auto dest: partitioned_bipartite_graph_absD)
+  have "finite G" using bipartite by (auto dest: partitioned_bipartite_finiteD)
 
   {
     fix e
@@ -115,7 +134,7 @@ proof -
       by blast
   }
 
-  with \<open>graph_abs G\<close> show "partitioned_bipartite G Y" 
+  with \<open>finite G\<close> show "partitioned_bipartite G Y" 
     by (auto intro: partitioned_bipartiteI)
 qed
 
