@@ -4,6 +4,8 @@ theory More_Graph
     "AGF.Bipartite"
 begin
 
+type_synonym 'a graph = "'a set set"
+
 subsection \<open>Graphs\<close>
 lemma vs_empty[simp]: "Vs {} = {}"
   by (simp add: Vs_def)
@@ -35,6 +37,11 @@ lemma graph_abs_subgraph: "graph_abs G \<Longrightarrow> G' \<subseteq> G \<Long
 lemma graph_abs_edgeD: "graph_abs G \<Longrightarrow> {u,v} \<in> G \<Longrightarrow> u \<noteq> v"
   unfolding graph_abs_def by auto
 
+lemma graph_abs_no_edge_no_vertex:
+  "graph_abs G \<Longrightarrow> \<forall>v. {u,v} \<notin> G \<Longrightarrow> u \<notin> Vs G"
+  unfolding graph_abs_def Vs_def
+  by (auto simp: insert_commute)
+
 
 subsection \<open>Matchings\<close>
 lemma matching_empty[simp]: "matching {}"
@@ -42,6 +49,78 @@ lemma matching_empty[simp]: "matching {}"
 
 
 subsection \<open>Bipartite graphs\<close>
+definition bipartite :: "'a graph \<Rightarrow> 'a set \<Rightarrow> 'a set \<Rightarrow> bool" where
+  "bipartite G X Y \<equiv> X \<inter> Y = {} \<and> (\<forall>e \<in> G. \<exists>u v. e = {u,v} \<and> u \<in> X \<and> v \<in> Y)"
+
+lemma bipartiteI:
+  assumes "X \<inter> Y = {}"
+  assumes "\<And>e. e \<in> G \<Longrightarrow> \<exists>u v. e = {u,v} \<and> u \<in> X \<and> v \<in> Y"
+  shows "bipartite G X Y"
+  using assms
+  unfolding bipartite_def
+  by auto
+
+lemma bipartite_disjointD:
+  assumes "bipartite G X Y"
+  shows "X \<inter> Y = {}"
+  using assms
+  unfolding bipartite_def
+  by blast
+
+lemma bipartite_edgeE:
+  assumes "e \<in> G"
+  assumes "bipartite G X Y"
+  obtains x y where "x \<in> X" "y \<in> Y" "e = {x,y}" "x \<noteq> y"
+  using assms
+  unfolding bipartite_def
+  by fast
+
+lemma bipartite_empty[simp]: "X \<inter> Y = {} \<Longrightarrow> bipartite {} X Y"
+  unfolding bipartite_def by blast
+
+lemma bipartite_empty_part_iff_empty: "bipartite G {} Y \<longleftrightarrow> G = {}"
+  unfolding bipartite_def by blast
+
+lemma bipartite_commute:
+  "bipartite G X Y \<Longrightarrow> bipartite G Y X"
+  unfolding bipartite_def
+  by fast
+
+lemma bipartite_subgraph:
+  "bipartite G X Y \<Longrightarrow> G' \<subseteq> G \<Longrightarrow> bipartite G' X Y"
+  unfolding bipartite_def
+  by blast
+
+lemma bipartite_vs_subset: "bipartite G X Y \<Longrightarrow> Vs G \<subseteq> X \<union> Y"
+  unfolding bipartite_def Vs_def
+  by auto
+
+lemma finite_bipartite_graph_abs:
+  "finite X \<Longrightarrow> finite Y \<Longrightarrow> bipartite G X Y \<Longrightarrow> graph_abs G"
+  unfolding graph_abs_def
+  by (auto dest: bipartite_vs_subset intro: finite_subset elim!: bipartite_edgeE)
+
+lemma bipartite_insertI:
+  assumes "bipartite G X Y"
+  assumes "u \<in> X" "v \<in> Y"
+  shows "bipartite (insert {u,v} G) X Y"
+  using assms
+  unfolding bipartite_def
+  by auto
+
+lemma bipartite_unionI:
+  assumes "bipartite G X Y"
+  assumes "bipartite H X Y"
+  shows "bipartite (G \<union> H) X Y"
+  using assms
+  unfolding bipartite_def
+  by auto
+
+lemma bipartite_reduced_to_vs:
+  "bipartite G X Y \<Longrightarrow> bipartite G (X \<inter> Vs G) (Y \<inter> Vs G)"
+  unfolding bipartite_def
+  by auto (metis edges_are_Vs insert_commute)
+
 lemma partitioned_bipartite_empty[simp]: "partitioned_bipartite {} X"
   unfolding partitioned_bipartite_def by simp
 
