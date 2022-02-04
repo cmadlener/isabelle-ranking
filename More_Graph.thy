@@ -47,6 +47,10 @@ subsection \<open>Matchings\<close>
 lemma matching_empty[simp]: "matching {}"
   unfolding matching_def by simp
 
+lemma matching_subgraph: "matching M \<Longrightarrow> M' \<subseteq> M \<Longrightarrow> matching M'"
+  unfolding matching_def
+  by auto
+
 
 subsection \<open>Bipartite graphs\<close>
 definition bipartite :: "'a graph \<Rightarrow> 'a set \<Rightarrow> 'a set \<Rightarrow> bool" where
