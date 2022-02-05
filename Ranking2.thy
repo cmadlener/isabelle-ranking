@@ -40,6 +40,14 @@ lemma ranking_matchingD:
   unfolding ranking_matching_def
   by (auto intro: bipartite_subgraph graph_abs_subgraph finite_bipartite_graph_abs)
 
+lemma ranking_matching_commute:
+  assumes "ranking_matching G M \<pi> \<sigma>"
+  shows "ranking_matching G M \<sigma> \<pi>"
+  using assms
+  unfolding ranking_matching_def
+  apply (auto simp: insert_commute bipartite_commute)
+  by (metis (no_types, hide_lams) insert_commute)
+
 lemma ranking_matching_bipartite_edges:
   assumes "ranking_matching G M \<pi> \<sigma>"
   assumes "{u,v} \<in> M"
@@ -86,6 +94,88 @@ lemma ranking_matching_earlier_match_offlineE:
   using assms
   unfolding ranking_matching_def
   by (meson edges_are_Vs edges_are_walks walk_endpoints(2))
+
+lemma ranking_matching_unique_match:
+  assumes rm_M: "ranking_matching G M \<pi> \<sigma>"
+  assumes rm_M': "ranking_matching G M' \<pi> \<sigma>"
+  assumes v_M: "{u,v} \<in> M"
+  assumes v'_M': "{u,v'} \<in> M'"
+  assumes before: "index \<sigma> v' < index \<sigma> v"
+  shows False
+  using v_M v'_M' before
+proof (induction "index \<pi> u" arbitrary: u v v' rule: less_induct)
+  case less
+  with rm_M rm_M' obtain u' where u': "{u',v'} \<in> M" "index \<pi> u' < index \<pi> u"
+    by (meson ranking_matchingD ranking_matching_earlier_match_onlineE subsetD)
+
+  with rm_M rm_M' \<open>{u,v'} \<in> M'\<close> obtain v'' where "{u',v''} \<in> M'" "index \<sigma> v'' < index \<sigma> v'"
+    by (meson ranking_matchingD ranking_matching_earlier_match_offlineE subsetD)
+
+  with less u' show ?case
+    by blast
+qed
+
+lemma ranking_matching_unique_match':
+  assumes rm_M: "ranking_matching G M \<pi> \<sigma>"
+  assumes rm_M': "ranking_matching G M' \<pi> \<sigma>"
+  assumes u_M: "{u,v} \<in> M"
+  assumes u'_M': "{u',v} \<in> M'"
+  assumes before: "index \<pi> u' < index \<pi> u"
+  shows False
+  using assms
+  by (auto intro!: ranking_matching_unique_match dest: edge_commute ranking_matching_commute)
+
+
+lemma ranking_matching_unique':
+  assumes rm_M: "ranking_matching G M \<pi> \<sigma>"
+  assumes rm_M': "ranking_matching G M' \<pi> \<sigma>"
+  assumes "u \<in> set \<pi>" "v \<in> set \<sigma>"
+  assumes "{u,v} \<in> M"
+  shows "{u,v} \<in>  M'"
+proof (rule ccontr)
+  assume "{u,v} \<notin> M'"
+  with rm_M' rm_M \<open>{u,v} \<in> M\<close> consider (u_matched) "u \<in> Vs M'" | (v_matched) "v \<in> Vs M'"
+    unfolding ranking_matching_def
+    by (meson in_mono)
+
+  then show False
+  proof cases
+    case u_matched
+    then obtain v' where "{u,v'} \<in> M'"
+      by (meson graph_abs_no_edge_no_vertex ranking_matchingD rm_M')
+
+    with assms \<open>{u,v} \<notin> M'\<close> show False
+      by (metis index_eq_index_conv nat_neq_iff ranking_matching_unique_match)    
+  next
+    case v_matched
+    then obtain u' where "{u',v} \<in> M'"
+      by (metis graph_abs_no_edge_no_vertex insert_commute ranking_matchingD rm_M')
+
+    with assms \<open>{u,v} \<notin> M'\<close> show ?thesis
+      by (metis index_eq_index_conv nat_neq_iff ranking_matching_unique_match')    
+  qed
+qed
+
+lemma ranking_matching_unique'':
+  assumes rm_M: "ranking_matching G M \<pi> \<sigma>"
+  assumes "ranking_matching G M' \<pi> \<sigma>"
+  assumes "e \<in> M"
+  shows "e \<in> M'"
+  using assms
+proof -
+  from rm_M \<open>e \<in> M\<close> obtain u v where "e = {u,v}" "u \<in> set \<pi>" "v \<in> set \<sigma>"
+    by (auto dest: ranking_matchingD elim: bipartite_edgeE)
+
+  with assms show ?thesis
+    by (auto intro: ranking_matching_unique')
+qed
+
+lemma ranking_matching_unique:
+  assumes "ranking_matching G M \<pi> \<sigma>"
+  assumes "ranking_matching G M' \<pi> \<sigma>"
+  shows "M = M'"
+  using assms
+  by (auto intro: ranking_matching_unique'')
 
 
 definition remove_vertices_graph :: "'a graph \<Rightarrow> 'a set \<Rightarrow> 'a graph" (infixl "\<setminus>" 60) where
@@ -1123,13 +1213,6 @@ next
   qed
 qed blast+
 
-lemma ranking_matching_commute:
-  assumes "ranking_matching G M \<pi> \<sigma>"
-  shows "ranking_matching G M \<sigma> \<pi>"
-  using assms
-  unfolding ranking_matching_def
-  apply (auto simp: insert_commute bipartite_commute)
-  by (metis (no_types, hide_lams) insert_commute)
 
 lemma ranking_matching_shifts_to_reduced_edges:
   assumes "ranking_matching G M \<pi> \<sigma>"
@@ -1886,7 +1969,7 @@ proof (rule ccontr)
 qed
 
 
-lemma
+lemma ranking_matching_zig_zag_eq:
   assumes "{u,x} \<in> M"
   assumes "x \<in> set \<sigma>"
   assumes "ranking_matching G M \<pi> \<sigma>"

@@ -7,6 +7,9 @@ begin
 type_synonym 'a graph = "'a set set"
 
 subsection \<open>Graphs\<close>
+lemma edge_commute: "{u,v} \<in> G \<Longrightarrow> {v,u} \<in> G"
+  by (simp add: insert_commute)
+
 lemma vs_empty[simp]: "Vs {} = {}"
   by (simp add: Vs_def)
 
