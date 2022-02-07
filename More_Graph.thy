@@ -45,6 +45,11 @@ lemma graph_abs_no_edge_no_vertex:
   unfolding graph_abs_def Vs_def
   by (auto simp: insert_commute)
 
+lemma symm_diff_empty[simp]:
+  "G = G' \<Longrightarrow> G \<oplus> G' = {}"
+  unfolding symmetric_diff_def
+  by simp
+
 
 subsection \<open>Matchings\<close>
 lemma matching_empty[simp]: "matching {}"
@@ -52,6 +57,47 @@ lemma matching_empty[simp]: "matching {}"
 
 lemma matching_subgraph: "matching M \<Longrightarrow> M' \<subseteq> M \<Longrightarrow> matching M'"
   unfolding matching_def
+  by auto
+
+definition maximal_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> bool" where
+  "maximal_matching G M \<equiv> matching M \<and> (\<forall>u v. {u,v} \<in> G \<longrightarrow> u \<in> Vs M \<or> v \<in> Vs M)"
+
+lemma maximal_matchingI:
+  assumes "matching M"
+  assumes "\<And>u v. {u,v} \<in> G \<Longrightarrow> u \<in> Vs M \<or> v \<in> Vs M"
+  shows "maximal_matching G M"
+  using assms
+  unfolding maximal_matching_def
+  by auto
+
+lemma maximal_matching_edgeE:
+  assumes "maximal_matching G M"
+  assumes "{u,v} \<in> G"
+  obtains e where "e \<in> M" "u \<in> e \<or> v \<in> e"
+  using assms
+  unfolding maximal_matching_def
+  by (meson vs_member)
+
+lemma maximal_matchingD:
+  assumes "maximal_matching G M"
+  shows "matching M"
+  using assms
+  unfolding maximal_matching_def
+  by auto
+
+lemma maximal_matching_edgeD:
+  assumes "maximal_matching G M"
+  assumes "{u,v} \<in> G"
+  shows "u \<in> Vs M \<or> v \<in> Vs M"
+  using assms
+  by (auto elim: maximal_matching_edgeE)
+
+lemma not_maximal_matchingE:
+  assumes "matching M"
+  assumes "\<not>maximal_matching G M"
+  obtains u v where "{u,v} \<in> G" "u \<notin> Vs M" "v \<notin> Vs M"
+  using assms
+  unfolding maximal_matching_def graph_abs_def
   by auto
 
 

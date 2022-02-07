@@ -4,7 +4,7 @@ theory Ranking2
     More_List_Index
 begin
 
-sledgehammer_params [provers = e z3 spass cvc4 vampire]
+sledgehammer_params [provers = cvc4 vampire verit e spass z3 zipperposition]
 
 
 fun step :: "'a graph \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a graph \<Rightarrow> 'a graph" where
@@ -26,15 +26,13 @@ abbreviation "ranking G \<pi> \<sigma> \<equiv> ranking' G \<pi> \<sigma> {}"
 
 definition ranking_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> bool" where
   "ranking_matching G M \<pi> \<sigma> \<equiv> matching M \<and> M \<subseteq> G \<and>
-    bipartite G (set \<pi>) (set \<sigma>) \<and>
-    \<comment> \<open>M is maximal\<close>
-    (\<forall>u v. {u,v} \<in> G \<longrightarrow> u \<in> Vs M \<or> v \<in> Vs M) \<and>
+    bipartite G (set \<pi>) (set \<sigma>) \<and> maximal_matching G M \<and>
     (\<forall>u v v'. ({u,v}\<in>M \<and> {u,v'}\<in>G \<and> index \<sigma> v' < index \<sigma> v) \<longrightarrow> (\<exists>u'. {u',v'}\<in>M \<and> index \<pi> u' < index \<pi> u)) \<and>
     (\<forall>u v u'. ({u,v}\<in>M \<and> {u',v}\<in>G \<and> index \<pi> u' < index \<pi> u) \<longrightarrow> (\<exists>v'. {u',v'}\<in>M \<and> index \<sigma> v' < index \<sigma> v))"
 
 lemma ranking_matchingD:
   assumes "ranking_matching G M \<pi> \<sigma>"
-  shows "matching M \<and> graph_abs G \<and> M \<subseteq> G \<and> bipartite G (set \<pi>) (set \<sigma>) \<and> 
+  shows "graph_abs G \<and> M \<subseteq> G \<and> bipartite G (set \<pi>) (set \<sigma>) \<and> maximal_matching G M \<and>
     bipartite M (set \<pi>) (set \<sigma>) \<and> graph_abs M"
   using assms
   unfolding ranking_matching_def
@@ -46,7 +44,7 @@ lemma ranking_matching_commute:
   using assms
   unfolding ranking_matching_def
   apply (auto simp: insert_commute bipartite_commute)
-  by (metis (no_types, hide_lams) insert_commute)
+  by (metis (no_types, opaque_lifting) insert_commute)
 
 lemma ranking_matching_bipartite_edges:
   assumes "ranking_matching G M \<pi> \<sigma>"
@@ -72,8 +70,7 @@ lemma ranking_matching_maximalE:
   assumes "{u,v} \<in> G"
   obtains e where "e \<in> M" "u \<in> e \<or> v \<in> e"
   using assms
-  unfolding ranking_matching_def
-  by (metis insertI1 insert_commute vs_member)
+  by (auto dest: ranking_matchingD elim!: maximal_matching_edgeE)
 
 lemma ranking_matching_earlier_match_onlineE:
   assumes "ranking_matching G M \<pi> \<sigma>"
@@ -135,8 +132,7 @@ lemma ranking_matching_unique':
 proof (rule ccontr)
   assume "{u,v} \<notin> M'"
   with rm_M' rm_M \<open>{u,v} \<in> M\<close> consider (u_matched) "u \<in> Vs M'" | (v_matched) "v \<in> Vs M'"
-    unfolding ranking_matching_def
-    by (meson in_mono)
+    by (auto dest!: ranking_matchingD elim!: maximal_matching_edgeE)
 
   then show False
   proof cases
@@ -284,7 +280,7 @@ lemma remove_edge_ranking_matching:
        apply (meson matching_subgraph remove_vertices_subgraph)
       apply (meson remove_vertices_mono subsetI)
      apply (meson bipartite_remove_vertices)
-    apply (metis DiffI edges_are_Vs edges_are_walks remove_edge_matching_vs remove_vertices_not_vs remove_vertices_subgraph' walk_endpoints(2))
+  apply (smt (verit, ccfv_threshold) DiffI edges_are_walks insertI1 matching_subgraph maximal_matching_def remove_edge_matching_vs remove_vertices_not_vs remove_vertices_subgraph subset_eq vs_member_intro walk_endpoints(2))
    apply (metis edges_are_walks in_remove_verticesI insert_subset matching_def remove_vertices_not_vs remove_vertices_subgraph' subset_insertI walk_endpoints(2))
   by (metis edges_are_Vs in_remove_verticesI insertI1 matching_def remove_vertices_not_vs remove_vertices_subgraph')
   
@@ -572,13 +568,14 @@ lemma step_already_matched:
   "u \<in> Vs M \<Longrightarrow> step G u \<sigma> M = M"
   by (induction \<sigma>) auto
 
-lemma step_mono_edge:
-  "{x,y} \<in> M \<Longrightarrow> {x,y} \<in> step G u \<sigma> M"
+lemma step_mono:
+  "e \<in> M \<Longrightarrow> e \<in> step G u \<sigma> M"
   by (induction \<sigma>) auto
 
 lemma step_mono_vs:
   "v \<in> Vs M \<Longrightarrow> v \<in> Vs (step G u \<sigma> M)"
   by (induction \<sigma>) (auto simp: Vs_def)
+
 
 lemma step_ConsI:
   assumes "v \<notin> Vs M \<Longrightarrow> u \<notin> Vs M \<Longrightarrow> {u,v} \<in> G \<Longrightarrow> P (insert {u,v} M)"
@@ -633,6 +630,28 @@ lemma step_no_match_id:
   using assms
   by (induction G u \<sigma> M rule: step.induct) auto
 
+lemma step_matches_if_possible:
+  assumes "u \<notin> Vs M"
+  assumes "v \<in> set \<sigma>" "v \<notin> Vs M"
+  assumes "{u,v} \<in> G"
+  shows "\<exists>v. {u,v} \<in> step G u \<sigma> M"
+  using assms
+proof (induction G u \<sigma> M rule: step.induct)
+  case (2 G u v' vs M)
+  then show ?case
+  proof (cases "v = v'")
+    case True
+    with 2 show ?thesis
+      by auto
+  next
+    case False
+    then consider (match) "v' \<notin> Vs M \<and> {u,v'} \<in> G" | (prev_match) "v' \<in> Vs M" | (not_connected) "{u,v'} \<notin> G" by blast
+
+    then show ?thesis
+      by cases (use 2 in auto)
+  qed
+qed simp
+
 lemma graph_abs_step:
   assumes "graph_abs G"
   assumes "graph_abs M"
@@ -652,6 +671,13 @@ lemma step_matches_graph_edge:
   shows "step G u \<sigma> M \<subseteq> G"
   using assms
   by (induction \<sigma>) auto
+
+lemma ranking_mono: "e \<in> M \<Longrightarrow> e \<in> ranking' G \<pi> \<sigma> M"
+  by (induction G \<pi> \<sigma> M rule: ranking'.induct)
+     (auto simp: step_mono)
+
+lemma ranking_mono_vs: "x \<in> Vs M \<Longrightarrow> x \<in> Vs (ranking' G \<pi> \<sigma> M)"
+  by (meson ranking_mono vs_member)
 
 lemma bipartite_step:
   assumes "bipartite G (set \<pi>) (set \<sigma>)"
@@ -674,6 +700,9 @@ lemma matching_ranking':
   using assms
   by (induction \<pi> arbitrary: M) (auto dest: matching_step)
 
+lemma matching_ranking: "set \<pi> \<inter> set \<sigma> = {} \<Longrightarrow> matching (ranking G \<pi> \<sigma>)"
+  by (auto intro: matching_ranking')
+
 lemma subgraph_ranking':
   assumes "M \<subseteq> G"
   shows "ranking' G \<pi> \<sigma> M \<subseteq> G"
@@ -686,6 +715,52 @@ lemma bipartite_ranking':
   shows "bipartite (ranking' G \<pi> \<sigma> M) (set \<pi>) (set \<sigma>)"
   using assms
   by (auto intro: bipartite_subgraph dest: subgraph_ranking')
+
+
+lemma maximal_ranking_aux:
+  assumes "{u,v} \<in> G"
+  assumes "u \<in> set \<pi>" "v \<in> set \<sigma>"
+  assumes "set \<pi> \<inter> set \<sigma> = {}"
+  assumes "u \<notin> Vs (ranking G \<pi> \<sigma>)" "v \<notin> Vs (ranking G \<pi> \<sigma>)"
+  shows False
+proof -
+  from \<open>u \<in> set \<pi>\<close> obtain us us' where "\<pi> = us @ u # us'"
+    by (auto dest: split_list)
+
+  then have ranking_unfold: "ranking G \<pi> \<sigma> = ranking' G us' \<sigma> (step G u \<sigma> (ranking G us \<sigma>))"
+    by (simp add: ranking_foldl)
+
+  with \<open>u \<notin> Vs (ranking G \<pi> \<sigma>)\<close> \<open>v \<notin> Vs (ranking G \<pi> \<sigma>)\<close> have "u \<notin> Vs (ranking G us \<sigma>)" "v \<notin> Vs (ranking G us \<sigma>)"
+    by (auto dest: ranking_mono_vs step_mono_vs)
+
+  with \<open>{u,v} \<in> G\<close> \<open>u \<in> set \<pi>\<close> \<open>v \<in> set \<sigma>\<close> obtain v' where "{u,v'} \<in> step G u \<sigma> (ranking G us \<sigma>)"
+    by (auto dest: step_matches_if_possible)
+
+  then have "{u,v'} \<in> ranking G \<pi> \<sigma>"
+    by (simp add: ranking_unfold ranking_mono)
+
+  with \<open>u \<notin> Vs (ranking G \<pi> \<sigma>)\<close> show False by auto
+qed
+
+lemma maximal_ranking:
+  assumes bipartite: "bipartite G (set \<pi>) (set \<sigma>)"
+  shows "maximal_matching G (ranking G \<pi> \<sigma>)"
+proof (rule ccontr)
+  assume "\<not>maximal_matching G (ranking G \<pi> \<sigma>)"
+
+  with bipartite_disjointD[OF assms] matching_ranking[of \<pi> \<sigma> G]
+  obtain u v where unmatched: "{u,v} \<in> G" "u \<notin> Vs (ranking G \<pi> \<sigma>)" "v \<notin> Vs (ranking G \<pi> \<sigma>)"
+    by (auto elim: not_maximal_matchingE)
+
+  with bipartite consider "u \<in> set \<pi>" "v \<in> set \<sigma>" | "u \<in> set \<sigma>" "v \<in> set \<pi>"
+    by (metis bipartite_edgeE doubleton_eq_iff)
+
+  then show False
+    by cases 
+       (use unmatched \<open>set \<pi> \<inter> set \<sigma> = {}\<close> in \<open>auto intro: maximal_ranking_aux dest: edge_commute\<close>)
+qed
+
+
 
 subsection \<open>Removing vertices\<close>
 lemma remove_vertices_graph_disjoint: "X \<inter> Vs G = {} \<Longrightarrow> G \<setminus> X = G"
@@ -1215,17 +1290,17 @@ qed blast+
 
 
 lemma ranking_matching_shifts_to_reduced_edges:
-  assumes "ranking_matching G M \<pi> \<sigma>"
+  assumes rm_M: "ranking_matching G M \<pi> \<sigma>"
   assumes "ranking_matching (G \<setminus> {x}) M' \<sigma> \<pi>"
   assumes "x \<in> set \<sigma>"
   assumes "{u,x} \<in> M"
   assumes "{u,x'} \<in> M'"
   shows "shifts_to G M u x x' \<pi> \<sigma>"
 proof -
-  have disjoint: "set \<pi> \<inter> set \<sigma> = {}" using \<open>ranking_matching G M \<pi> \<sigma>\<close>
+  have disjoint: "set \<pi> \<inter> set \<sigma> = {}" using rm_M
     by (auto dest: ranking_matchingD bipartite_disjointD)
 
-  have "u \<in> set \<pi>" using \<open>x \<in> set \<sigma>\<close> \<open>{u,x} \<in> M\<close> \<open>ranking_matching G M \<pi> \<sigma>\<close>
+  have "u \<in> set \<pi>" using \<open>x \<in> set \<sigma>\<close> \<open>{u,x} \<in> M\<close> rm_M
     by (auto intro: ranking_matching_bipartite_edges')
 
   have "x \<notin> Vs M'" using \<open>ranking_matching (G \<setminus> {x}) M' \<sigma> \<pi>\<close>
@@ -1234,19 +1309,19 @@ proof -
   then have "x \<noteq> x'"
     using assms(5) insert_commute by auto
 
-  have "ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>"
+  have rm_M': "ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>"
     using \<open>ranking_matching (G \<setminus> {x}) M' \<sigma> \<pi>\<close> ranking_matching_commute
     by blast
 
   have "{u,x'} \<in> G"
-    using \<open>{u,x'} \<in> M'\<close> \<open>ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>\<close> ranking_matchingD remove_vertices_subgraph by blast
+    using \<open>{u,x'} \<in> M'\<close> rm_M' ranking_matchingD remove_vertices_subgraph by blast
 
   have no_u'_for_x': "\<nexists>u'. index \<pi> u' < index \<pi> u \<and> {u',x'} \<in> M"
   proof (rule ccontr, simp)
     assume "\<exists>u'. index \<pi> u' < index \<pi> u \<and> {u',x'} \<in> M"
     then obtain u' where earlier_match: "index \<pi> u' < index \<pi> u" "{u',x'} \<in> M" by blast
 
-    with \<open>ranking_matching G M \<pi> \<sigma>\<close> \<open>ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>\<close> \<open>{u,x'} \<in> M'\<close> \<open>x \<noteq> x'\<close>
+    with rm_M rm_M' \<open>{u,x'} \<in> M'\<close> \<open>x \<noteq> x'\<close>
     show False
     proof (induction "index \<pi> u'" arbitrary: u u' x' rule: less_induct)
       case less
@@ -1278,7 +1353,7 @@ proof -
   proof (intro conjI)
     show \<open>u \<in> set \<pi>\<close> using \<open>u \<in> set \<pi>\<close> by blast
   next
-    show "x' \<in> set \<sigma>" using \<open>u \<in> set \<pi>\<close> \<open>{u,x'} \<in> G\<close> \<open>ranking_matching G M \<pi> \<sigma>\<close> disjoint
+    show "x' \<in> set \<sigma>" using \<open>u \<in> set \<pi>\<close> \<open>{u,x'} \<in> G\<close> rm_M disjoint
       by (auto dest: ranking_matchingD elim!: bipartite_edgeE)
   next
     show "index \<sigma> x < index \<sigma> x'"
@@ -1287,7 +1362,7 @@ proof -
       with \<open>x \<noteq> x'\<close> \<open>x \<in> set \<sigma>\<close> index_eq_index_conv have "index \<sigma> x' < index \<sigma> x"
         by fastforce
 
-      with \<open>ranking_matching G M \<pi> \<sigma>\<close> \<open>{u,x} \<in> M\<close> \<open>{u,x'} \<in> G\<close> have "\<exists>u'. {u',x'} \<in> M \<and> index \<pi> u' < index \<pi> u"
+      with rm_M \<open>{u,x} \<in> M\<close> \<open>{u,x'} \<in> G\<close> have "\<exists>u'. {u',x'} \<in> M \<and> index \<pi> u' < index \<pi> u"
         unfolding ranking_matching_def
         by blast
 
@@ -1312,11 +1387,11 @@ proof -
       from \<open>index \<sigma> x < index \<sigma> x''\<close> have "x \<noteq> x''"
         by blast
 
-      with \<open>ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>\<close> \<open>{u,x'} \<in> M'\<close> \<open>{u,x''} \<in> G \<setminus> {x}\<close> \<open>index \<sigma> x'' < index \<sigma> x'\<close>
+      with rm_M' \<open>{u,x'} \<in> M'\<close> \<open>{u,x''} \<in> G \<setminus> {x}\<close> \<open>index \<sigma> x'' < index \<sigma> x'\<close>
       obtain u' where "{u',x''} \<in> M'" "index \<pi> u' < index \<pi> u"
         by (auto elim: ranking_matching_earlier_match_onlineE)
 
-      with \<open>ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>\<close> have "{u',x''} \<in> G"
+      with rm_M' have "{u',x''} \<in> G"
         by (auto dest: ranking_matchingD remove_vertices_subgraph')
 
       have "u \<noteq> u'"
@@ -1329,15 +1404,15 @@ proof -
       proof (cases "\<exists>u''. {u'',x''} \<in> M")
         case True
         then obtain u'' where "{u'',x''} \<in> M" by blast
-        with \<open>{u,x} \<in> M\<close> \<open>x \<noteq> x''\<close> \<open>ranking_matching G M \<pi> \<sigma>\<close> have "u'' \<noteq> u"
-          by (metis ranking_matchingD the_match')
-
+        with x'' \<open>{u,x} \<in> M\<close> \<open>x \<noteq> x''\<close> rm_M have "u'' \<noteq> u"
+          by (auto dest: ranking_matching_unique_match)
+                                      
         with no_earlier_u_for_x'' \<open>{u'',x''} \<in> M\<close> have "index \<pi> u < index \<pi> u''"
           by (meson \<open>u \<in> set \<pi>\<close> index_eq_index_conv less_linear)
 
         with \<open>index \<pi> u' < index \<pi> u\<close> have "index \<pi> u' < index \<pi> u''" by linarith
 
-        with \<open>{u'',x''} \<in> M\<close> \<open>{u',x''} \<in> G\<close> \<open>ranking_matching G M \<pi> \<sigma>\<close>
+        with \<open>{u'',x''} \<in> M\<close> \<open>{u',x''} \<in> G\<close> rm_M
         obtain x3 where x3: "{u',x3} \<in> M" "index \<sigma> x3 < index \<sigma> x''"
           by (auto elim: ranking_matching_earlier_match_offlineE)
 
@@ -1354,23 +1429,23 @@ proof -
           have "p \<noteq> x"
             using \<open>x \<in> set \<sigma>\<close> disjoint \<open>p \<in> set \<pi>\<close> by blast
 
-          with \<open>p \<noteq> u\<close> \<open>{u,x} \<in> M\<close> \<open>{p,s} \<in> M\<close> \<open>ranking_matching G M \<pi> \<sigma>\<close> have "s \<noteq> x"
-            by (metis ranking_matchingD the_match)
+          with \<open>p \<noteq> u\<close> \<open>{u,x} \<in> M\<close> \<open>{p,s} \<in> M\<close> \<open>index \<pi> p < index \<pi> u\<close> rm_M have "s \<noteq> x"
+            by (auto dest: ranking_matching_unique_match')
 
-          with less \<open>p \<noteq> x\<close> \<open>x \<notin> Vs M'\<close> \<open>ranking_matching G M \<pi> \<sigma>\<close> have "{p,s} \<in> G \<setminus> {x}"
+          with less \<open>p \<noteq> x\<close> \<open>x \<notin> Vs M'\<close> rm_M have "{p,s} \<in> G \<setminus> {x}"
             by (auto intro!: in_remove_verticesI dest: ranking_matchingD)
 
-          with less \<open>ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>\<close> obtain p' where p': "{p',s} \<in> M'" "index \<pi> p' < index \<pi> p"
+          with less rm_M' obtain p' where p': "{p',s} \<in> M'" "index \<pi> p' < index \<pi> p"
             by (auto elim: ranking_matching_earlier_match_onlineE)
 
           with \<open>index \<pi> p < index \<pi> u\<close> have \<open>index \<pi> p' < index \<pi> u\<close> by linarith
 
           with index_less_in_set have "p' \<in> set \<pi>" by fast
 
-          from p' \<open>ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>\<close> have "{p',s} \<in> G"
+          from p' rm_M' have "{p',s} \<in> G"
             by (auto dest: ranking_matchingD remove_vertices_subgraph')
 
-          with \<open>{p,s} \<in> M\<close> \<open>index \<pi> p' < index \<pi> p\<close> \<open>ranking_matching G M \<pi> \<sigma>\<close>
+          with \<open>{p,s} \<in> M\<close> \<open>index \<pi> p' < index \<pi> p\<close> rm_M
           obtain s' where "{p',s'} \<in> M" "index \<sigma> s' < index \<sigma> s"
             by (auto elim: ranking_matching_earlier_match_offlineE)
 
@@ -1388,9 +1463,8 @@ proof -
           case True
           then obtain x3 where x3: "{u',x3} \<in> M" by blast
 
-          with \<open>u \<noteq> u'\<close> \<open>ranking_matching G M \<pi> \<sigma>\<close> \<open>{u,x} \<in> M\<close> have "x \<noteq> x3"
-            by (metis ranking_matchingD the_match)
-
+          with \<open>index \<pi> u' < index \<pi> u\<close> \<open>u \<noteq> u'\<close> rm_M \<open>{u,x} \<in> M\<close> have "x \<noteq> x3"
+            by (auto dest: ranking_matching_unique_match')
 
           consider (before_x'') "index \<sigma> x3 < index \<sigma> x''" | (x'') "index \<sigma> x3 = index \<sigma> x''" | (after_x'') "index \<sigma> x'' < index \<sigma> x3"
             by linarith
@@ -1401,10 +1475,10 @@ proof -
             with x3 \<open>{u',x''} \<in> M'\<close> \<open>x \<noteq> x3\<close> \<open>u' \<in> set \<pi>\<close> \<open>index \<pi> u' < index \<pi> u\<close> show ?thesis
             proof (induction "index \<sigma> x3" arbitrary: x3 u' x'' rule: less_induct)
               case (less s p)
-              with \<open>ranking_matching G M \<pi> \<sigma>\<close> \<open>x \<in> set \<sigma>\<close> disjoint have "{p,s} \<in> G \<setminus> {x}"
+              with rm_M \<open>x \<in> set \<sigma>\<close> disjoint have "{p,s} \<in> G \<setminus> {x}"
                 by (auto intro: in_remove_verticesI dest: ranking_matchingD)
 
-              with less \<open>ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>\<close>
+              with less rm_M'
               obtain p' where p': "{p',s} \<in> M'" "index \<pi> p' < index \<pi> p"
                 by (auto elim: ranking_matching_earlier_match_onlineE)
 
@@ -1412,18 +1486,18 @@ proof -
 
               from p' \<open>index \<pi> p < index \<pi> u\<close> have "index \<pi> p' < index \<pi> u" by linarith
 
-              from p' \<open>ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>\<close> have "{p',s} \<in> G"
+              from p' rm_M' have "{p',s} \<in> G"
                 by (auto dest: ranking_matchingD remove_vertices_subgraph')
 
-              with \<open>ranking_matching G M \<pi> \<sigma>\<close> \<open>{p,s} \<in> M\<close> \<open>index \<pi> p' < index \<pi> p\<close>
+              with rm_M \<open>{p,s} \<in> M\<close> \<open>index \<pi> p' < index \<pi> p\<close>
               obtain s' where "{p',s'} \<in> M" "index \<sigma> s' < index \<sigma> s"
                 by (auto elim: ranking_matching_earlier_match_offlineE)
 
               have "u \<noteq> p'"
                 using \<open>index \<pi> p' < index \<pi> p\<close> less.prems(5) less_asym' by blast
-              with \<open>ranking_matching G M \<pi> \<sigma>\<close> \<open>{u,x} \<in> M\<close> \<open>{p',s'} \<in> M\<close> have "x \<noteq> s'"
-                by (metis ranking_matchingD the_match)
 
+              with rm_M \<open>index \<pi> p' < index \<pi> u\<close> \<open>{u,x} \<in> M\<close> \<open>{p',s'} \<in> M\<close> have "x \<noteq> s'"
+                by (auto dest:  ranking_matching_unique_match')
 
               with less \<open>index \<sigma> s' < index \<sigma> s\<close> \<open>{p',s'} \<in> M\<close> \<open>{p',s} \<in> M'\<close> \<open>x \<noteq> s'\<close> \<open>p' \<in> set \<pi>\<close>
                 \<open>index \<pi> p' < index \<pi> u\<close>
@@ -1441,12 +1515,11 @@ proof -
           qed
         next
           case False
-          with \<open>\<nexists>u''. {u'', x''} \<in> M\<close> \<open>ranking_matching G M \<pi> \<sigma>\<close> have "u' \<notin> Vs M" "x'' \<notin> Vs M"
+          with \<open>\<nexists>u''. {u'', x''} \<in> M\<close> rm_M have "u' \<notin> Vs M" "x'' \<notin> Vs M"
             by (auto dest: ranking_matchingD simp: graph_abs_no_edge_no_vertex insert_commute)
 
-          with \<open>{u',x''} \<in> G\<close> \<open>ranking_matching G M \<pi> \<sigma>\<close> show ?thesis
-            unfolding ranking_matching_def
-            by (metis edges_are_Vs insert_commute)
+          with \<open>{u',x''} \<in> G\<close> rm_M show ?thesis
+            by (auto dest: ranking_matchingD maximal_matching_edgeD)
         qed
       qed
     qed
@@ -1480,8 +1553,8 @@ proof -
 
   with disjoint \<open>x \<in> set \<sigma>\<close> have "x \<noteq> u'" by blast
 
-  have "x \<noteq> x'"
-    by (metis assms less_not_refl3 ranking_matchingD the_match u_before_u')
+  from assms have "x \<noteq> x'"
+    by (auto dest: ranking_matching_unique_match')
 
   have "u' \<noteq> u"
     using u_before_u' by blast
@@ -1553,8 +1626,8 @@ proof -
       obtain x'' where x'': "{u'',x''} \<in> M" "index \<sigma> x'' < index \<sigma> x'"
         by (auto elim: ranking_matching_earlier_match_offlineE dest: remove_vertices_subgraph')
 
-      have "x \<noteq> x''"
-        by (metis \<open>u \<noteq> u''\<close> assms(4) ranking_matchingD rm_G the_match x''(1))
+      from rm_G u'' x'' \<open>{u,x} \<in> M\<close> have "x \<noteq> x''"
+        by (auto dest: ranking_matching_unique_match')
 
       from x'' no_x''_before_x'_for_u'' have "{u'',x''} \<notin> M'" by blast
 
@@ -1586,11 +1659,11 @@ proof -
             have "x \<noteq> x3"
               by (metis \<open>{u'', x3} \<in> M'\<close> edges_are_Vs insert_commute ranking_matchingD remove_vertices_not_vs rm_G' singletonI subset_iff)
 
-            then have "u \<noteq> u3"
-              by (metis \<open>{u3, x3} \<in> M\<close> assms(4) doubleton_eq_iff insertI1 matching_unique_match ranking_matchingD rm_G)
+            with rm_G \<open>{u3,x3} \<in> M\<close> \<open>{u,x} \<in> M\<close> have "u \<noteq> u3"
+              by (metis ranking_matching_def the_match')
 
-            have "{u3,x3} \<notin> M'"
-              by (metis \<open>index \<pi> u3 < index \<pi> u''\<close> \<open>{u'', x3} \<in> M'\<close> order.strict_implies_not_eq ranking_matchingD rm_G' the_match)
+            from rm_G' \<open>{u'',x3} \<in> M'\<close> \<open>index \<pi> u3 < index \<pi> u''\<close> have "{u3,x3} \<notin> M'"
+              by (auto dest: ranking_matching_unique_match')
 
 
             with less before_x'' \<open>{u3,x3} \<in> M\<close> \<open>u \<noteq> u3\<close> \<open>x \<noteq> x3\<close> show ?thesis 
@@ -1608,13 +1681,13 @@ proof -
               by (auto elim: ranking_matching_earlier_match_offlineE)
 
             have "x \<noteq> x4"
-              by (metis \<open>{u3, x''} \<in> M'\<close> \<open>{u3, x4} \<in> M\<close> assms(2) assms(4) assms(5) dual_order.strict_implies_not_eq less.prems(2) ranking_matchingD rm_G the_match the_match')
+              by (metis (no_types, lifting) \<open>{u3, x''} \<in> M'\<close> \<open>{u3, x4} \<in> M\<close> assms(4) assms(5) less.prems(2) neq_iff ranking_matching_def rm_G rm_G' the_match the_match')
 
-            then have "u \<noteq> u3"
-              by (metis \<open>{u3, x4} \<in> M\<close> assms(4) doubleton_eq_iff insertI1 matching_unique_match ranking_matchingD rm_G)
+            with rm_G' \<open>{u3,x''} \<in> M'\<close> \<open>{u,x'} \<in> M'\<close> \<open>index \<sigma> x'' < index \<sigma> x'\<close> have "u \<noteq> u3"
+              by (auto dest: ranking_matching_unique_match)
 
-            have "{u3,x4} \<notin> M'"
-              by (metis \<open>index \<sigma> x4 < index \<sigma> x''\<close> \<open>{u3, x''} \<in> M'\<close> less_asym' ranking_matchingD rm_G' the_match')
+            from rm_G' \<open>{u3,x''} \<in> M'\<close> \<open>index \<sigma> x4 < index \<sigma> x''\<close> have "{u3,x4} \<notin> M'"
+              by (auto dest: ranking_matching_unique_match)
 
             with less \<open>index \<sigma> x4 < index \<sigma> x''\<close> \<open>{u3,x4} \<in> M\<close> \<open>u \<noteq> u3\<close> \<open>x \<noteq> x4\<close> show ?thesis
               by auto
@@ -1625,8 +1698,8 @@ proof -
             by (intro graph_abs_no_edge_no_vertex) (auto dest: ranking_matchingD graph_abs_subgraph)
 
           with rm_G' \<open>{u'',x''} \<in> G \<setminus> {x}\<close> obtain u3 where "{u3,x''} \<in> M'"
-            unfolding ranking_matching_def            
-            by (metis assms(2) graph_abs_no_edge_no_vertex insert_commute ranking_matchingD)
+            unfolding ranking_matching_def
+            by (metis graph_abs_no_edge_no_vertex insert_commute maximal_matching_def ranking_matchingD rm_G')
 
           with rm_G' have "index \<pi> u3 < index \<pi> u''"
             by (smt (verit, ccfv_SIG) \<open>u'' \<notin> Vs M'\<close> \<open>{u'', x''} \<in> G \<setminus> {x}\<close> edges_are_Vs index_eq_index_conv index_less_in_set less.prems(2) not_less_iff_gr_or_eq ranking_matching_bipartite_edges' ranking_matching_def)
@@ -1637,15 +1710,14 @@ proof -
           with rm_G \<open>{u'',x''} \<in> M\<close> \<open>index \<pi> u3 < index \<pi> u''\<close> obtain x3 where x3: "{u3,x3} \<in> M" "index \<sigma> x3 < index \<sigma> x''"
             by (auto elim: ranking_matching_earlier_match_offlineE)
 
-          have "u \<noteq> u3"
-            by (metis \<open>{u3, x''} \<in> M'\<close> assms(5) doubleton_eq_iff insertI1 less.prems(2) less_not_refl3 matching_unique_match ranking_matchingD rm_G')
+          from rm_G' \<open>{u,x'} \<in> M'\<close> \<open>index \<sigma> x'' < index \<sigma> x'\<close> \<open>{u3, x''} \<in> M'\<close> have "u \<noteq> u3"
+            by (auto dest: ranking_matching_unique_match)
 
           then have "x \<noteq> x3"
-            by (metis assms(4) ranking_matchingD rm_G the_match x3(1))
+            by (metis assms(4) ranking_matching_def rm_G the_match x3(1))
 
-          have "{u3,x3} \<notin> M'"
-            by (metis \<open>{u3, x''} \<in> M'\<close> less_imp_neq ranking_matchingD rm_G' the_match' x3(2))
-
+          from rm_G' x3 \<open>{u3,x''} \<in> M'\<close> have "{u3,x3} \<notin> M'"            
+            by (auto dest: ranking_matching_unique_match)
 
           with less x3 \<open>u \<noteq> u3\<close> \<open>x \<noteq> x3\<close> show ?thesis
             by auto
@@ -1672,7 +1744,7 @@ proof (rule ccontr)
     by (auto intro!: in_remove_verticesI simp: shifts_to_def dest: ranking_matchingD bipartite_disjointD)
 
   with \<open>{u,x'} \<notin> M'\<close> rm_G' consider (u_matched) "\<exists>x''. {u,x''} \<in> M'" | (u_unmatched) "\<exists>u'. {u',x'} \<in> M'"
-    by (metis graph_abs_no_edge_no_vertex insert_commute ranking_matchingD ranking_matching_def)
+    by (metis graph_abs_no_edge_no_vertex insert_commute maximal_matching_def ranking_matchingD)
 
   then show False
   proof cases
@@ -1697,7 +1769,7 @@ proof (rule ccontr)
         assume \<open>{u',x'} \<notin> M\<close>
 
         with rm_G \<open>{u',x'} \<in> G\<close> consider (u'_matched) "\<exists>x''. {u',x''} \<in> M" | (u'_unmatched) "\<exists>u''. {u'',x'} \<in> M"
-          by (metis graph_abs_no_edge_no_vertex insert_commute ranking_matchingD ranking_matching_def)
+          by (metis graph_abs_no_edge_no_vertex insert_commute maximal_matching_def ranking_matchingD)
 
         then show False
         proof cases
@@ -1720,8 +1792,8 @@ proof (rule ccontr)
               have "u \<noteq> u'"
                 using less.prems(1) by blast
 
-              with rm_G \<open>{u,x} \<in> M\<close> \<open>{u',x''} \<in> M\<close> have "x \<noteq> x''"
-                by (metis ranking_matchingD the_match)
+              with rm_G \<open>{u,x} \<in> M\<close> \<open>{u',x''} \<in> M\<close> \<open>index \<pi> u' < index \<pi> u\<close> have "x \<noteq> x''"
+                by (auto dest: ranking_matching_unique_match')
 
               with rm_G \<open>{u',x''} \<in> M\<close> \<open>x \<noteq> u'\<close> have "{u',x''} \<in> G \<setminus> {x}"
                 by (auto intro: in_remove_verticesI dest: ranking_matchingD)
@@ -1773,8 +1845,8 @@ proof (rule ccontr)
               have "u \<noteq> u'"
                 using \<open>index \<pi> u' < index \<pi> u\<close> by blast
 
-              then have "x \<noteq> x''"
-                by (metis \<open>{u', x''} \<in> M\<close> assms(4) ranking_matchingD rm_G the_match)
+              with rm_G \<open>{u,x} \<in> M\<close> \<open>index \<pi> u' < index \<pi> u\<close> \<open>{u',x''} \<in> M\<close> have "x \<noteq> x''"
+                by (auto dest: ranking_matching_unique_match')
 
               with rm_G \<open>{u',x''} \<in> M\<close> \<open>x \<noteq> u'\<close> have "{u',x''} \<in> G \<setminus> {x}"
                 by (auto intro: in_remove_verticesI dest: ranking_matchingD)
@@ -1824,7 +1896,7 @@ proof (rule ccontr)
   from u_to_u' have \<open>index \<pi> u < index \<pi> u'\<close> unfolding shifts_to_def by blast
 
   with \<open>{u',x'} \<notin> M\<close> rm_G consider (u'_matched) "\<exists>x''. {u',x''} \<in> M" | (u'_unmatched) "\<exists>u''. {u'',x'} \<in> M"
-    by (metis \<open>{u', x'} \<in> G\<close> graph_abs_no_edge_no_vertex insert_commute ranking_matchingD ranking_matching_def)
+    by (metis \<open>{u', x'} \<in> G\<close> graph_abs_no_edge_no_vertex insert_commute maximal_matching_def ranking_matchingD)
 
   then show False
   proof cases
@@ -1834,8 +1906,8 @@ proof (rule ccontr)
     have "x \<noteq> u'"
       by (metis edges_are_Vs insertI1 insert_commute remove_vertices_not_vs shifts_to_def u_to_u')
 
-    have "x \<noteq> x''"
-      by (metis \<open>{u', x''} \<in> M\<close> assms(4) ranking_matchingD rm_G shifts_to_def the_match u_to_u')
+    from rm_G \<open>{u,x} \<in> M\<close> \<open>{u',x''} \<in> M\<close> \<open>index \<pi> u < index \<pi> u'\<close> have "x \<noteq> x''"
+      by (auto dest: ranking_matching_unique_match')
 
     with rm_G \<open>{u',x''} \<in> M\<close> \<open>x \<noteq> u'\<close> have "{u',x''} \<in> G \<setminus> {x}"
       by (auto intro: in_remove_verticesI dest: ranking_matchingD)
@@ -1850,7 +1922,7 @@ proof (rule ccontr)
       proof (rule ccontr)
         assume "{u',x''} \<notin> M'"
         with rm_G' \<open>{u',x''} \<in> G \<setminus> {x}\<close> consider (u'_matched') "\<exists>x3. {u',x3} \<in> M'" | (u'_unmatched') "\<exists>u''. {u'',x''} \<in> M'"
-          by (metis graph_abs_no_edge_no_vertex insert_commute ranking_matchingD ranking_matching_def)
+          by (metis graph_abs_no_edge_no_vertex insert_commute maximal_matching_def ranking_matchingD)
 
         then show False
         proof cases
@@ -1880,11 +1952,11 @@ proof (rule ccontr)
               have "x \<noteq> u''"
                 by (metis \<open>index \<pi> u'' < index \<pi> u'\<close> assms(3) bipartite_disjointD index_less_in_set insert_absorb insert_disjoint(2) ranking_matchingD rm_G)
 
-              have "u \<noteq> u''"
-                by (metis \<open>{u'', x''} \<in> M'\<close> assms(2) assms(5) less.prems(4) less_not_refl3 ranking_matchingD the_match')
+              from rm_G' \<open>{u,x'} \<in> M'\<close> \<open>{u'',x''} \<in> M'\<close> \<open>index \<sigma> x'' < index \<sigma> x'\<close> have "u \<noteq> u''"
+                by (auto dest: ranking_matching_unique_match)
 
               have "x \<noteq> x4"
-                by (metis \<open>u \<noteq> u''\<close> \<open>{u'', x4} \<in> M\<close> assms(4) ranking_matchingD rm_G the_match)
+                by (metis \<open>u \<noteq> u''\<close> \<open>{u'', x4} \<in> M\<close> assms(4) ranking_matching_def rm_G the_match)
 
               with rm_G \<open>{u'',x4} \<in> M\<close> \<open>x \<noteq> u''\<close> have "{u'',x4} \<in> G \<setminus> {x}"
                 by (auto intro: in_remove_verticesI dest: ranking_matchingD)
@@ -1915,10 +1987,11 @@ proof (rule ccontr)
               have "x \<noteq> u''"
                 by (metis IntI assms(4) bipartite_disjointD empty_iff index_less_in_set less.prems(4) ranking_matchingD ranking_matching_bipartite_edges' ranking_matching_commute rm_G shifts_to_only_from_input(1) u_to_u')
 
-              have "u \<noteq> u''"
-                by (metis assms(2) assms(5) less.prems(1) less.prems(3) nat_neq_iff ranking_matchingD the_match')
+              from rm_G' \<open>{u, x'} \<in> M'\<close> \<open>{u'', x''} \<in> M'\<close> \<open>index \<sigma> x'' < index \<sigma> x'\<close> have "u \<noteq> u''"
+                by (auto dest: ranking_matching_unique_match)
+
               then have "x \<noteq> x3"
-                by (metis \<open>{u'', x3} \<in> M\<close> assms(4) ranking_matchingD rm_G the_match)
+                by (metis (no_types, lifting) assms(4) ranking_matching_def rm_G the_match x3(1))
 
               with rm_G \<open>{u'',x3} \<in> M\<close> \<open>x \<noteq> u''\<close> have "{u'',x3} \<in> G \<setminus> {x}"
                 by (auto intro: in_remove_verticesI dest: ranking_matchingD)
@@ -1947,13 +2020,13 @@ proof (rule ccontr)
         by (auto elim: ranking_matching_earlier_match_onlineE)
 
       then consider (before_u) "index \<pi> u'' < index \<pi> u" | (after_u) "index \<pi> u < index \<pi> u''"
-        by (metis (no_types, lifting) \<open>{u', x'} \<in> G \<setminus> {x}\<close> assms(4) edges_are_walks index_eq_index_conv index_less_in_set neqE ranking_matchingD remove_vertices_not_vs rm_G singletonI the_match' walk_endpoints(2))
+        by (metis (no_types, lifting) \<open>{u', x'} \<in> G \<setminus> {x}\<close> assms(4) edges_are_Vs(2) index_eq_index_conv linorder_neqE_nat ranking_matching_def remove_vertices_not_vs rm_G shifts_to_only_from_input(1) singletonI the_match' u_to_u')
 
       then show ?thesis
       proof cases
         case before_u
         then show ?thesis
-          by (metis \<open>index \<pi> u < index \<pi> u'\<close> \<open>{u'', x'} \<in> M\<close> assms(1) assms(2) assms(3) assms(4) assms(5) index_less_in_set not_less_iff_gr_or_eq ranking_matchingD ranking_matching_shifts_to_reduced_edges shifts_to_matched_vertex_later_match)
+          by (metis \<open>index \<pi> u < index \<pi> u'\<close> \<open>{u'', x'} \<in> M\<close> assms(2) assms(3) assms(4) assms(5) index_less_in_set not_less_iff_gr_or_eq ranking_matching_def ranking_matching_shifts_to_reduced_edges rm_G shifts_to_matched_vertex_later_match)
       next
         case after_u
         then show ?thesis
@@ -1964,7 +2037,7 @@ proof (rule ccontr)
     case u'_unmatched
     then obtain u'' where "{u'',x'} \<in> M" by blast
     then show ?thesis
-      by (metis \<open>index \<pi> u < index \<pi> u'\<close> \<open>{u', x'} \<notin> M\<close> assms(2) assms(3) assms(4) assms(5) index_less_in_set ranking_matchingD ranking_matching_shifts_to_original_edges ranking_matching_shifts_to_reduced_edges rm_G shifts_to_inj shifts_to_matched_vertex_later_match u_to_u')
+      by (smt (verit, best) \<open>index \<pi> u < index \<pi> u'\<close> \<open>{u', x'} \<notin> M\<close> assms(2) assms(3) assms(4) assms(5) index_less_in_set ranking_matching_def ranking_matching_shifts_to_original_edges ranking_matching_shifts_to_reduced_edges rm_G shifts_to_inj shifts_to_matched_vertex_later_match u_to_u')
   qed
 qed
 
@@ -1974,7 +2047,6 @@ lemma ranking_matching_zig_zag_eq:
   assumes "x \<in> set \<sigma>"
   assumes "ranking_matching G M \<pi> \<sigma>"
   assumes "ranking_matching (G \<setminus> {x}) M' \<sigma> \<pi>"
-  assumes "set \<sigma> \<inter> set \<pi> = {}"
   shows "zig (G \<setminus> {x}) M' u \<sigma> \<pi> = zag G M u \<pi> \<sigma>"
   using assms
 proof (induction "length \<pi> - index \<pi> u" arbitrary: u x G M M' rule: less_induct)
@@ -1983,7 +2055,7 @@ proof (induction "length \<pi> - index \<pi> u" arbitrary: u x G M M' rule: less
   and ?rhs = "zag G M u \<pi> \<sigma>"
 
   have matching_M: "matching M" and matching_M': "matching M'" using less
-    by (auto dest: ranking_matchingD)
+    by (auto dest: ranking_matchingD maximal_matchingD)
 
   with \<open>{u,x} \<in> M\<close> have x_unique_match: "(THE x. {u,x} \<in> M) = x"
     by (auto simp: insert_commute intro: the_match)
@@ -2006,7 +2078,7 @@ proof (induction "length \<pi> - index \<pi> u" arbitrary: u x G M M' rule: less
    
 
     from \<open>ranking_matching G M \<pi> \<sigma>\<close> \<open>ranking_matching (G \<setminus> {x}) M' \<sigma> \<pi>\<close> \<open>x \<in> set \<sigma>\<close> \<open>{u,x} \<in> M\<close>
-      \<open>{x',u} \<in> M'\<close> \<open>set \<sigma> \<inter> set \<pi> = {}\<close>
+      \<open>{x',u} \<in> M'\<close>
     have x_to_x': "shifts_to G M u x x' \<pi> \<sigma>"
       by (auto intro!: ranking_matching_shifts_to_reduced_edges simp: insert_commute)
 
@@ -2035,7 +2107,7 @@ proof (induction "length \<pi> - index \<pi> u" arbitrary: u x G M M' rule: less
         by (auto intro!: shifts_to_matched_vertex_later_match simp: shifts_to_def)
 
       with \<open>ranking_matching G M \<pi> \<sigma>\<close> \<open>ranking_matching (G \<setminus> {x}) M' \<sigma> \<pi>\<close> \<open>x \<in> set \<sigma>\<close> \<open>{u,x} \<in> M\<close>
-        \<open>{x',u} \<in> M'\<close> \<open>{u',x'} \<in> M\<close> \<open>set \<sigma> \<inter> set \<pi> = {}\<close>
+        \<open>{x',u} \<in> M'\<close> \<open>{u',x'} \<in> M\<close>
       have u_to_u': "shifts_to (G \<setminus> {x}) M' x' u u' \<sigma> \<pi>"
         by (auto intro!: ranking_matching_shifts_to_original_edges simp: insert_commute)
 
@@ -2081,7 +2153,7 @@ proof (induction "length \<pi> - index \<pi> u" arbitrary: u x G M M' rule: less
 
       also have "\<dots> = zig (G \<setminus> {x} \<setminus> {x'}) (M' \<setminus> {x} \<setminus> {x'}) u' \<sigma> \<pi>"
         apply (rule remove_offline_vertices_zig_zig_eq)
-            apply (metis Int_lower2 insert_subset less.prems(5) shifts_to_only_from_input(1) u_to_u')
+            apply (meson empty_subsetI insert_subset shifts_to_only_from_input(1) u_to_u')
            apply (simp add: matching_M' matching_remove_vertices)
         using bipartite_remove_vertices less.prems(4) ranking_matchingD apply blast
          apply (metis shifts_to_def u_to_u')
@@ -2125,7 +2197,7 @@ proof (induction "length \<pi> - index \<pi> u" arbitrary: u x G M M' rule: less
       finally have zag_zag_eq: "zag (G \<setminus> {u, x}) (M \<setminus> {u, x}) u' \<pi> \<sigma> = zag G M u' \<pi> \<sigma>" .
       
       with zig_zig_eq zag_zag_eq \<open>M' \<setminus> {x} = M'\<close>
-        less.hyps[OF less_prem \<open>{u',x'} \<in> M \<setminus> {u,x}\<close> \<open>x' \<in> set \<sigma>\<close> ranking_matching_reduced ranking_matching_reduced' \<open>set \<sigma> \<inter> set \<pi> = {}\<close>]
+        less.hyps[OF less_prem \<open>{u',x'} \<in> M \<setminus> {u,x}\<close> \<open>x' \<in> set \<sigma>\<close> ranking_matching_reduced ranking_matching_reduced']
       show ?thesis
         unfolding lhs_Cons rhs_Cons lhs rhs
         by auto
