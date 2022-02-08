@@ -24,6 +24,12 @@ lemma ranking_foldl: "ranking' G \<pi> \<sigma> M = foldl (\<lambda>M u. step G 
 
 abbreviation "ranking G \<pi> \<sigma> \<equiv> ranking' G \<pi> \<sigma> {}"
 
+lemma ranking'_append: "ranking' G (us@us') \<sigma> M = ranking' G us' \<sigma> (ranking' G us \<sigma> M)"
+  by (simp add: ranking_foldl)
+
+lemma ranking_append: "ranking G (us@us') \<sigma> = ranking' G us' \<sigma> (ranking G us \<sigma>)"
+  by (simp add: ranking'_append)
+
 definition ranking_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> bool" where
   "ranking_matching G M \<pi> \<sigma> \<equiv> matching M \<and> M \<subseteq> G \<and>
     bipartite G (set \<pi>) (set \<sigma>) \<and> maximal_matching G M \<and>
@@ -576,6 +582,9 @@ lemma step_mono_vs:
   "v \<in> Vs M \<Longrightarrow> v \<in> Vs (step G u \<sigma> M)"
   by (induction \<sigma>) (auto simp: Vs_def)
 
+lemma step_Vs_subset: "x \<in> Vs (step G u \<sigma> M) \<Longrightarrow> x = u \<or> x \<in> set \<sigma> \<or> x \<in> Vs M"
+  by (induction G u \<sigma> M rule: step.induct)
+     (auto split: if_splits simp: Vs_def)
 
 lemma step_ConsI:
   assumes "v \<notin> Vs M \<Longrightarrow> u \<notin> Vs M \<Longrightarrow> {u,v} \<in> G \<Longrightarrow> P (insert {u,v} M)"
@@ -679,6 +688,13 @@ lemma ranking_mono: "e \<in> M \<Longrightarrow> e \<in> ranking' G \<pi> \<sigm
 lemma ranking_mono_vs: "x \<in> Vs M \<Longrightarrow> x \<in> Vs (ranking' G \<pi> \<sigma> M)"
   by (meson ranking_mono vs_member)
 
+lemma ranking'_Vs_subset: "x \<in> Vs (ranking' G \<pi> \<sigma> M) \<Longrightarrow> x \<in> Vs M \<or> x \<in> set \<pi> \<or> x \<in> set \<sigma>"
+  by (induction G \<pi> \<sigma> M rule: ranking'.induct)
+     (auto dest: step_Vs_subset)
+
+lemma ranking_Vs_subset: "x \<in> Vs (ranking G \<pi> \<sigma>) \<Longrightarrow> x \<in> set \<pi> \<or> x \<in> set \<sigma>"
+  by (auto dest: ranking'_Vs_subset)
+
 lemma bipartite_step:
   assumes "bipartite G (set \<pi>) (set \<sigma>)"
   assumes "M \<subseteq> G"
@@ -693,6 +709,12 @@ lemma graph_abs_ranking':
   using assms
   by (induction \<pi> arbitrary: M) (auto dest: graph_abs_step)
 
+lemma graph_abs_ranking:
+  assumes "graph_abs G"
+  shows "graph_abs (ranking G \<pi> \<sigma>)"
+  using assms
+  by (auto intro: graph_abs_ranking')
+
 lemma matching_ranking':
   assumes "matching M"
   assumes "set \<pi> \<inter> set \<sigma> = {}"
@@ -705,9 +727,12 @@ lemma matching_ranking: "set \<pi> \<inter> set \<sigma> = {} \<Longrightarrow> 
 
 lemma subgraph_ranking':
   assumes "M \<subseteq> G"
-  shows "ranking' G \<pi> \<sigma> M \<subseteq> G"
+  shows "e \<in> ranking' G \<pi> \<sigma> M \<Longrightarrow> e \<in> G"
   using assms
   by (induction \<pi> arbitrary: M) (auto simp: step_matches_graph_edge)
+
+lemma subgraph_ranking: "e \<in> ranking G \<pi> \<sigma> \<Longrightarrow> e \<in> G"
+  by (auto intro: subgraph_ranking')
 
 lemma bipartite_ranking':
   assumes "bipartite G (set \<pi>) (set \<sigma>)"
@@ -715,6 +740,18 @@ lemma bipartite_ranking':
   shows "bipartite (ranking' G \<pi> \<sigma> M) (set \<pi>) (set \<sigma>)"
   using assms
   by (auto intro: bipartite_subgraph dest: subgraph_ranking')
+
+lemma bipartite_ranking:
+  assumes "bipartite G (set \<pi>) (set \<sigma>)"
+  shows "bipartite (ranking G \<pi> \<sigma>) (set \<pi>) (set \<sigma>)"
+  using assms
+  by (auto intro: bipartite_ranking')
+
+lemma not_matched_in_prefix:
+  assumes "x \<notin> Vs (ranking G \<pi> \<sigma>)"
+  assumes "\<pi> = us @ us'"
+  shows "x \<notin> Vs (ranking G us \<sigma>)"
+  sorry
 
 
 lemma maximal_ranking_aux:
@@ -724,20 +761,17 @@ lemma maximal_ranking_aux:
   assumes "u \<notin> Vs (ranking G \<pi> \<sigma>)" "v \<notin> Vs (ranking G \<pi> \<sigma>)"
   shows False
 proof -
-  from \<open>u \<in> set \<pi>\<close> obtain us us' where "\<pi> = us @ u # us'"
+  from \<open>u \<in> set \<pi>\<close> obtain us us' where split_pi: "\<pi> = us @ u # us'"
     by (auto dest: split_list)
 
-  then have ranking_unfold: "ranking G \<pi> \<sigma> = ranking' G us' \<sigma> (step G u \<sigma> (ranking G us \<sigma>))"
-    by (simp add: ranking_foldl)
-
   with \<open>u \<notin> Vs (ranking G \<pi> \<sigma>)\<close> \<open>v \<notin> Vs (ranking G \<pi> \<sigma>)\<close> have "u \<notin> Vs (ranking G us \<sigma>)" "v \<notin> Vs (ranking G us \<sigma>)"
-    by (auto dest: ranking_mono_vs step_mono_vs)
+    by (auto dest: not_matched_in_prefix)
 
   with \<open>{u,v} \<in> G\<close> \<open>u \<in> set \<pi>\<close> \<open>v \<in> set \<sigma>\<close> obtain v' where "{u,v'} \<in> step G u \<sigma> (ranking G us \<sigma>)"
     by (auto dest: step_matches_if_possible)
 
-  then have "{u,v'} \<in> ranking G \<pi> \<sigma>"
-    by (simp add: ranking_unfold ranking_mono)
+  with split_pi have "{u,v'} \<in> ranking G \<pi> \<sigma>"
+    by (simp add: ranking_append ranking_mono)
 
   with \<open>u \<notin> Vs (ranking G \<pi> \<sigma>)\<close> show False by auto
 qed
@@ -760,7 +794,180 @@ proof (rule ccontr)
        (use unmatched \<open>set \<pi> \<inter> set \<sigma> = {}\<close> in \<open>auto intro: maximal_ranking_aux dest: edge_commute\<close>)
 qed
 
+lemma ranking_matched_together:
+  assumes bipartite: "bipartite G (set \<pi>) (set \<sigma>)"
+  assumes "{u,v} \<in> ranking G \<pi> \<sigma>"
+  assumes "u \<in> set \<pi>" "u \<notin> set us" "\<pi> = us @ us'"
+  shows "v \<notin> Vs (ranking G us \<sigma>)"
+proof
+  assume "v \<in> Vs (ranking G us \<sigma>)"
+  then obtain u' where u': "{u',v} \<in> ranking G us \<sigma>"
+    by (smt (verit, del_insts) More_Graph.bipartite_def assms(1) insert_commute insert_iff singletonD subgraph_ranking vs_member)
 
+  with \<open>\<pi> = us @ us'\<close> have "{u',v} \<in> ranking G \<pi> \<sigma>"
+    by (simp add: ranking_append ranking_mono)
+
+  from bipartite \<open>u \<notin> set us\<close> \<open>u \<in> set \<pi>\<close> have "u \<notin> Vs (ranking G us \<sigma>)"
+    by (auto dest: ranking_Vs_subset bipartite_disjointD)
+
+  with u' have "u \<noteq> u'" by auto
+
+  with bipartite \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> \<open>{u',v} \<in> ranking G \<pi> \<sigma>\<close> show False
+    by (auto dest!: bipartite_disjointD dest: matching_ranking the_match)
+qed
+
+lemma ranking_lowest_free_rank_match:
+  assumes bipartite: "bipartite G (set \<pi>) (set \<sigma>)"
+  assumes "{u,v} \<in> ranking G \<pi> \<sigma>"
+  assumes "{u,v'} \<in> G"
+  assumes v'_before_v: "index \<sigma> v' < index \<sigma> v"
+  shows "\<exists>u'. {u',v'} \<in> ranking G \<pi> \<sigma> \<and> index \<pi> u' < index \<pi> u"
+proof (rule ccontr)
+  assume contr: "\<nexists>u'. {u', v'} \<in> ranking G \<pi> \<sigma> \<and> index \<pi> u' < index \<pi> u"
+
+  from \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> have "{u,v} \<in> G"
+    by (auto intro: subgraph_ranking)
+
+  from v'_before_v have "v' \<in> set \<sigma>"
+    by (auto dest: index_less_in_set)
+
+  with bipartite \<open>{u,v'} \<in> G\<close> have "u \<in> set \<pi>"
+    by (auto dest: bipartite_edgeD edge_commute)
+
+  with bipartite \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> have "v \<in> set \<sigma>"
+    by (auto dest: bipartite_edgeD bipartite_ranking)
+
+  from \<open>u \<in> set \<pi>\<close> obtain us us' where split_pi: "\<pi> = us @ u # us' \<and> u \<notin> set us"
+    by (auto dest: split_list_first)
+
+  with bipartite \<open>u \<in> set \<pi>\<close> \<open>{u,v} \<in> G\<close> have "u \<notin> Vs (ranking G us \<sigma>)"
+    by (auto dest: ranking_Vs_subset bipartite_edgeD)
+
+  then have no_v': "\<And>v'. {u,v'} \<notin> ranking G us \<sigma>"
+    by (auto dest: edges_are_Vs)
+
+  from bipartite \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> \<open>u \<in> set \<pi>\<close> split_pi have "v \<notin> Vs (ranking G us \<sigma>)"
+    by (intro ranking_matched_together) auto
+
+  with \<open>u \<notin> Vs (ranking G us \<sigma>)\<close> \<open>v \<in> set \<sigma>\<close> \<open>{u,v} \<in> G\<close>
+  obtain v'' where v'': "{u,v''} \<in> step G u \<sigma> (ranking G us \<sigma>)"
+    by (auto dest: step_matches_if_possible)
+
+  show False
+  proof (cases "v = v''")
+    case True
+
+    from v'' no_v' have v_lowest_rank: "\<forall>v'\<in>set \<sigma> \<inter> {v''. {u, v''} \<in> G} - Vs (ranking G us \<sigma>) - {v''}. index \<sigma> v'' < index \<sigma> v'"
+      by (auto elim!: edge_matched_in_stepE simp: doubleton_eq_iff)
+
+    from v'_before_v have "v \<noteq> v'" by blast
+
+    have "v' \<notin> Vs (ranking G us \<sigma>)"
+    proof
+      assume "v' \<in> Vs (ranking G us \<sigma>)"
+      then obtain e where "e \<in> ranking G us \<sigma>" "v' \<in> e"
+        by (auto elim: vs_member_elim)
+
+      with \<open>v' \<in> set \<sigma>\<close> obtain u' where "e = {u',v'}" "u' \<in> set us"
+        by (smt (verit, ccfv_threshold) bipartite bipartite_disjointD bipartite_edgeE disjoint_iff_not_equal edges_are_Vs(1) insert_iff ranking_Vs_subset singletonD subgraph_ranking)
+
+      with split_pi have "index \<pi> u' < index \<pi> u"
+        by (auto simp: index_append)
+
+      with contr split_pi \<open>e \<in> ranking G us \<sigma>\<close> \<open>e = {u',v'}\<close> show False
+        using ranking_append ranking_mono by blast
+    qed
+
+    with True \<open>v' \<in> set \<sigma>\<close> \<open>{u,v'} \<in> G\<close> \<open>v \<noteq> v'\<close> have "v'\<in>set \<sigma> \<inter> {v''. {u, v''} \<in> G} - Vs (ranking G us \<sigma>) - {v''}"
+      by blast
+
+    with True v_lowest_rank v'_before_v show ?thesis
+      by (meson not_less_iff_gr_or_eq)
+  next
+    case False
+
+    from split_pi have "ranking G \<pi> \<sigma> = ranking' G us' \<sigma> (step G u \<sigma> (ranking G us \<sigma>))"
+      by (simp add: ranking_foldl)
+
+    with \<open>{u,v''} \<in> step G u \<sigma> (ranking G us \<sigma>)\<close> have "{u,v''} \<in> ranking G \<pi> \<sigma>"
+      by (auto intro: ranking_mono)
+
+    with bipartite False \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> the_match' show ?thesis
+      by (metis bipartite_disjointD matching_ranking)
+  qed
+qed
+
+lemma ranking_earliest_match:
+  assumes bipartite: "bipartite G (set \<pi>) (set \<sigma>)"
+  assumes "{u,v} \<in> ranking G \<pi> \<sigma>"
+  assumes "{u',v} \<in> G"
+  assumes u'_before_u: "index \<pi> u' < index \<pi> u"
+  shows "\<exists>v'. {u',v'} \<in> ranking G \<pi> \<sigma> \<and> index \<sigma> v' < index \<sigma> v"
+proof (rule ccontr)
+  assume contr: "\<nexists>v'. {u',v'} \<in> ranking G \<pi> \<sigma> \<and> index \<sigma> v' < index \<sigma> v"
+
+  from u'_before_u have "u' \<in> set \<pi>"
+    by (auto intro: index_less_in_set)
+
+  with bipartite \<open>{u',v} \<in> G\<close> have "v \<in> set \<sigma>"
+    by (auto dest: bipartite_edgeD)
+
+  with bipartite \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> have "u \<in> set \<pi>"
+    by (auto dest: bipartite_ranking bipartite_edgeD)
+
+  from \<open>u' \<in> set \<pi>\<close> obtain us us' where split_pi: "\<pi> = us @ u' # us' \<and> u' \<notin> set us"
+    by (auto dest: split_list_first)
+
+  with u'_before_u have "u \<notin> set us"
+    by (auto simp: index_append index_le_size leD)
+
+  with bipartite \<open>u \<in> set \<pi>\<close> have  "u \<notin> Vs (ranking G us \<sigma>)"
+    by (auto dest: bipartite_disjointD ranking_Vs_subset)
+
+  with bipartite \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> \<open>u \<in> set \<pi>\<close> \<open>u \<notin> set us\<close> split_pi have "v \<notin> Vs (ranking G us \<sigma>)"
+    by (meson ranking_matched_together)
+
+  from bipartite \<open>u' \<in> set \<pi>\<close> split_pi have "u' \<notin> Vs (ranking G us \<sigma>)"
+    by (auto dest: bipartite_disjointD ranking_Vs_subset)
+
+  with \<open>v \<notin> Vs (ranking G us \<sigma>)\<close> \<open>v \<in> set \<sigma>\<close> \<open>{u',v} \<in> G\<close>
+  obtain v' where v': "{u',v'} \<in> step G u' \<sigma> (ranking G us \<sigma>)"
+    by (auto dest: step_matches_if_possible)
+
+  show False
+  proof (cases "v' = v")
+    case True
+    from u'_before_u have "u \<noteq> u'" by blast
+
+    from v' split_pi have "{u',v'} \<in> ranking G \<pi> \<sigma>"
+      by (auto simp: ranking_append dest: ranking_mono)
+
+    with True bipartite \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> \<open>u \<noteq> u'\<close> show ?thesis
+      by (metis bipartite_disjointD matching_ranking the_match)
+  next
+    case False
+
+    from \<open>u' \<notin> Vs (ranking G us \<sigma>)\<close> have "{u',v'} \<notin> ranking G us \<sigma>"
+      by (auto dest: edges_are_Vs)
+
+    with v' have v'_lowest_rank: "\<forall>v\<in>set \<sigma> \<inter> {v''. {u', v''} \<in> G} - Vs (ranking G us \<sigma>) - {v'}. index \<sigma> v' < index \<sigma> v"
+      by (auto elim!: edge_matched_in_stepE simp: doubleton_eq_iff)
+
+    from False \<open>v \<in> set \<sigma>\<close> \<open>{u',v} \<in> G\<close> \<open>v \<notin> Vs (ranking G us \<sigma>)\<close>
+    have "v \<in> set \<sigma> \<inter> {v''. {u',v''} \<in> G} - Vs (ranking G us \<sigma>) - {v'}" by blast
+
+    with v'_lowest_rank have "index \<sigma> v' < index \<sigma> v" by blast
+
+    with contr split_pi \<open>{u',v'} \<in> step G u' \<sigma> (ranking G us \<sigma>)\<close> show ?thesis
+      by (auto simp: ranking_append dest: ranking_mono)
+  qed
+qed
+
+lemma ranking_matching_ranking:
+  "bipartite G (set \<pi>) (set \<sigma>) \<Longrightarrow> ranking_matching G (ranking G \<pi> \<sigma>) \<pi> \<sigma>"
+  unfolding ranking_matching_def
+  by (auto dest: bipartite_disjointD ranking_lowest_free_rank_match ranking_earliest_match
+           intro: matching_ranking subgraph_ranking maximal_ranking)
 
 subsection \<open>Removing vertices\<close>
 lemma remove_vertices_graph_disjoint: "X \<inter> Vs G = {} \<Longrightarrow> G \<setminus> X = G"
@@ -824,17 +1031,11 @@ lemma bipartite_graph': "partitioned_bipartite G (set \<pi>)"
 
 end
 
-lemma ranking'_rank_empty: "ranking' G \<pi> [] M = M"
-  by (induction \<pi>) auto
-
-lemma ranking'_Cons_rank_commute:
-  "ranking' G \<sigma> (u # us) M = ranking' G us \<sigma> (step G u \<sigma> M)"
-  oops
-
-lemma ranking'_commute:
-  "ranking' G \<pi> \<sigma> M = ranking' G \<sigma> \<pi> M"
-  sorry
-
+lemma ranking_commute:
+  assumes "bipartite G (set \<pi>) (set \<sigma>)"
+  shows "ranking G \<pi> \<sigma> = ranking G \<sigma> \<pi>"
+  using assms
+  by (auto intro!: ranking_matching_unique intro: ranking_matching_commute dest: ranking_matching_ranking bipartite_commute)
 
 lemma shifts_to_mono: 
   assumes "G' \<subseteq> G"

@@ -128,6 +128,18 @@ lemma bipartite_edgeE:
   unfolding bipartite_def
   by fast
 
+lemma bipartite_edgeD:
+  assumes "{u,v} \<in> G"
+  assumes "bipartite G X Y"
+  shows
+    "u \<in> X \<Longrightarrow> v \<in> Y - X"
+    "u \<in> Y \<Longrightarrow> v \<in> X - Y"
+    "v \<in> X \<Longrightarrow> u \<in> Y - X"
+    "v \<in> Y \<Longrightarrow> u \<in> X - Y"
+  using assms
+  unfolding bipartite_def
+  by fast+
+
 lemma bipartite_empty[simp]: "X \<inter> Y = {} \<Longrightarrow> bipartite {} X Y"
   unfolding bipartite_def by blast
 
