@@ -191,6 +191,10 @@ lemma remove_vertices_not_vs:
   "v \<in> X \<Longrightarrow> v \<notin> Vs (G \<setminus> X)"
   unfolding Vs_def remove_vertices_graph_def by blast
 
+lemma remove_vertices_not_vs':
+  "v \<in> X \<Longrightarrow> v \<in> Vs (G \<setminus> X) \<Longrightarrow> False"
+  using remove_vertices_not_vs by force
+
 lemma remove_vertices_subgraph:
   "G \<setminus> X \<subseteq> G"
   unfolding remove_vertices_graph_def
@@ -751,7 +755,8 @@ lemma not_matched_in_prefix:
   assumes "x \<notin> Vs (ranking G \<pi> \<sigma>)"
   assumes "\<pi> = us @ us'"
   shows "x \<notin> Vs (ranking G us \<sigma>)"
-  sorry
+  using assms
+  by (auto simp: ranking_append dest: ranking_mono_vs)
 
 
 lemma maximal_ranking_aux:
@@ -969,6 +974,13 @@ lemma ranking_matching_ranking:
   by (auto dest: bipartite_disjointD ranking_lowest_free_rank_match ranking_earliest_match
            intro: matching_ranking subgraph_ranking maximal_ranking)
 
+lemma ranking_commute:
+  assumes "bipartite G (set \<pi>) (set \<sigma>)"
+  shows "ranking G \<pi> \<sigma> = ranking G \<sigma> \<pi>"
+  using assms
+  by (auto intro!: ranking_matching_unique intro: ranking_matching_commute dest: ranking_matching_ranking bipartite_commute)
+
+
 subsection \<open>Removing vertices\<close>
 lemma remove_vertices_graph_disjoint: "X \<inter> Vs G = {} \<Longrightarrow> G \<setminus> X = G"
   unfolding Vs_def remove_vertices_graph_def by blast
@@ -1013,29 +1025,22 @@ lemma ranking_remove_vertices_graph_remove_vertices_rank:
   using ranking'_remove_vertices_graph_remove_vertices_rank
   by blast
 
-locale wf_ranking =
-  fixes G :: "'a graph"
-    and \<pi> :: "'a list"
-    and \<sigma> :: "'a list"
-  assumes "graph_abs G"
-      and bipartite_graph: "partitioned_bipartite G (set \<sigma>)"
-      and "distinct \<sigma>"
-      and "distinct \<pi>"
-      and bipartite_input: "set \<sigma> \<inter> set \<pi> = {}"
-      and vs_subset: "Vs G \<subseteq> set \<sigma> \<union> set \<pi>"
-begin
-
-lemma bipartite_graph': "partitioned_bipartite G (set \<pi>)"
-  using partitioned_bipartite_swap[OF bipartite_graph vs_subset bipartite_input] .
-  
-
-end
-
-lemma ranking_commute:
-  assumes "bipartite G (set \<pi>) (set \<sigma>)"
-  shows "ranking G \<pi> \<sigma> = ranking G \<sigma> \<pi>"
+lemma step_remove_unmatched_vertex_same:
+  assumes "x \<notin> Vs (step G u \<sigma> M)"
+  shows "step G u \<sigma> M = step (G \<setminus> {x}) u \<sigma> M"
   using assms
-  by (auto intro!: ranking_matching_unique intro: ranking_matching_commute dest: ranking_matching_ranking bipartite_commute)
+  apply (induction G u \<sigma> M rule: step.induct)
+   apply simp_all
+  by (smt (verit, ccfv_SIG) disjoint_insert(1) inf_bot_right insertCI mem_Collect_eq remove_vertices_graph_def vs_member)
+
+lemma ranking_remove_unmatched_vertex_same:
+  assumes "x \<notin> Vs (ranking' G \<pi> \<sigma> M)"
+  shows "ranking' G \<pi> \<sigma> M = ranking' (G \<setminus> {x}) \<pi> \<sigma> M"
+  using assms
+  apply (induction G \<pi> \<sigma> M rule: ranking'.induct)
+   apply simp_all
+  by (metis ranking_mono_vs step_remove_unmatched_vertex_same)
+
 
 lemma shifts_to_mono: 
   assumes "G' \<subseteq> G"
@@ -2437,5 +2442,76 @@ proof (induction "length \<pi> - index \<pi> u" arbitrary: u x G M M' rule: less
       unfolding lhs rhs by (rule refl)
   qed
 qed
+
+lemma remove_offline_vertex_diff_is_zig:
+  assumes "ranking_matching G M \<pi> \<sigma>"
+  assumes "ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>"
+  assumes "x \<in> set \<sigma>"
+  shows "M \<oplus> M' = set (edges_of_path (zig G M x \<pi> \<sigma>))"
+  using assms
+proof (induction "card G" arbitrary: G M M' \<pi> \<sigma> x rule: less_induct)
+  case less
+
+  then have "matching M" by (auto dest: ranking_matchingD maximal_matchingD)
+
+  consider (matched) "x \<in> Vs M" | (unmatched) "x \<notin> Vs M" by blast
+  then show ?case
+  proof cases
+    case matched
+    then obtain u where "{u,x} \<in> M"
+      by (meson edge_commute graph_abs_no_edge_no_vertex less.prems(1) ranking_matchingD)
+
+    with \<open>x \<in> set \<sigma>\<close> \<open>ranking_matching G M \<pi> \<sigma>\<close> have "u \<in> set \<pi>"
+      by (auto dest: ranking_matching_bipartite_edges')
+
+    have "{u,x} \<notin> G \<setminus> {x}"
+      by (auto dest: edges_are_Vs intro: remove_vertices_not_vs')
+
+    from \<open>{u,x} \<in> M\<close> \<open>ranking_matching G M \<pi> \<sigma>\<close> have rm_Gxu: "ranking_matching (G \<setminus> {x} \<setminus> {u}) (M \<setminus> {u,x}) \<sigma> \<pi>"
+      by (auto simp: remove_remove_union intro: remove_edge_ranking_matching ranking_matching_commute)
+
+    from \<open>{u,x} \<in> M\<close> \<open>{u,x} \<notin> G \<setminus> {x}\<close> \<open>ranking_matching G M \<pi> \<sigma>\<close> have "card (G \<setminus> {x}) < card G"
+      by (auto intro!: psubset_card_mono dest: ranking_matchingD remove_vertices_subgraph' elim: graph_abs.finite_E)
+
+
+    from \<open>{u,x} \<in> M\<close> \<open>{u,x} \<notin> G \<setminus> {x}\<close> have "M \<oplus> M' = insert {u,x} (M' \<oplus> (M \<setminus> {u,x}))"
+      by (smt (verit, ccfv_threshold) Diff_insert0 Un_insert_right \<open>matching M\<close> insert_Diff insert_Diff_if less.prems(2) ranking_matchingD remove_edge_matching subsetD sym_diff_sym symmetric_diff_def)
+ 
+    also have "\<dots> = insert {u,x} (set (edges_of_path (zig (G \<setminus> {x}) M' u \<sigma> \<pi>)))"
+      using less.hyps[OF \<open>card (G \<setminus> {x}) < card G\<close> ranking_matching_commute[OF less.prems(2)] rm_Gxu \<open>u \<in> set \<pi>\<close>]
+      by simp
+
+    also have "\<dots> = insert {u,x} (set (edges_of_path (zag G M u \<pi> \<sigma>)))"
+      using ranking_matching_zig_zag_eq[OF \<open>{u,x} \<in> M\<close> \<open>x \<in> set \<sigma>\<close> \<open>ranking_matching G M \<pi> \<sigma>\<close> ranking_matching_commute[OF\<open>ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>\<close>]]
+      by simp
+
+    also have "\<dots> = set (edges_of_path (x # zag G M u \<pi> \<sigma>))"
+      by (smt (verit, ccfv_SIG) \<open>matching M\<close> edges_of_path.elims insert_commute list.inject list.simps(15) list.simps(3) zag_ConsE zag_NilE)
+
+    also have "\<dots> = set (edges_of_path (zig G M x \<pi> \<sigma>))"
+      using \<open>matching M\<close> \<open>{u,x} \<in> M\<close>
+      by (auto simp: zig.simps dest: the_match)
+
+    finally show ?thesis .
+  next
+    case unmatched
+    then have "\<nexists>u. {u,x} \<in> M"
+      by (auto dest: edges_are_Vs)
+
+    from unmatched less.prems have "M = M'"
+      by (metis ranking_matchingD ranking_matching_ranking ranking_matching_unique ranking_remove_unmatched_vertex_same)
+
+    with less.prems \<open>\<nexists>u. {u,x} \<in> M\<close> \<open>matching M\<close> show ?thesis
+      by (auto simp: zig.simps)
+  qed
+qed
+
+lemma remove_online_vertex_diff_is_zig:
+  assumes "ranking_matching G M \<pi> \<sigma>"
+  assumes "ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>"
+  assumes "x \<in> set \<pi>"
+  shows "M \<oplus> M' = set (edges_of_path (zig G M x \<sigma> \<pi>))"
+  using assms
+  by (meson ranking_matching_commute remove_offline_vertex_diff_is_zig)
 
 end
