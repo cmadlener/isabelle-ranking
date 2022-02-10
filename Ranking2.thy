@@ -406,37 +406,48 @@ thm zig_zag.induct
 declare zig.simps[simp del] zag.simps[simp del]
 
 fun_cases zig_ConsE: "zig G M v \<pi> \<sigma> = v' # uvs"
+fun_cases zig_SingleE: "zig G M v \<pi> \<sigma> = [v']"
 fun_cases zig_NilE: "zig G M v \<pi> \<sigma> = []"
-thm zig_ConsE zig_NilE
+thm zig_ConsE zig_SingleE zig_NilE
+
+lemmas zig_symE = zig_ConsE[OF sym] zig_SingleE[OF sym] zig_NilE[OF sym]
 
 fun_cases zag_ConsE: "zag G M u \<pi> \<sigma> = u' # uvs"
+fun_cases zag_SingleE: "zag G M u \<pi> \<sigma> = [u']"
 fun_cases zag_NilE: "zag G M u \<pi> \<sigma> = []"
-thm zag_ConsE zag_NilE
+thm zag_ConsE zag_SingleE zag_NilE
 
+lemmas zag_symE = zag_ConsE[OF sym] zag_SingleE[OF sym] zag_NilE[OF sym]
 
-lemma zig_matching_edge: "zig G M v \<pi> \<sigma> = v # u # uvs \<Longrightarrow> {u,v} \<in> M"
+lemma hd_zig: "hd (zig G M x \<pi> \<sigma>) = x"
+  by (cases "matching M")
+     (auto simp: zig.simps)
+
+lemma zig_then_zag:
+  assumes "zig G M v \<pi> \<sigma> = v' # u # vus"
+  shows "zag G M u \<pi> \<sigma> = u # vus"
+  using assms
+  by (auto elim!: zig_ConsE zag_symE split: if_splits simp: the_match)
+
+lemmas zig_then_zagE = zig_then_zag[elim_format]
+
+lemma zag_then_zig:
+  assumes "zag G M u \<pi> \<sigma> = u' # v # uvs"
+  shows "zig G M v \<pi> \<sigma> = v # uvs"
+  using assms
+  by (auto elim!: zag_ConsE zig_symE split: if_splits simp: the_match' the_shifts_to)
+
+lemmas zag_then_zigE = zag_then_zig[elim_format]
+
+lemma zig_matching_edge: "zig G M v \<pi> \<sigma> = v' # u # uvs \<Longrightarrow> {u,v} \<in> M"
   by (auto elim!: zig_ConsE split: if_splits simp: the_match zag.simps)
 
 lemma zag_shift_edge:
   assumes "{u,v} \<in> M"
   assumes "zag G M u \<pi> \<sigma> = u # v' # uvs"
   shows "shifts_to G M u v v' \<pi> \<sigma>"
-proof -
-  have the_v: "(THE v. {u,v} \<in> M) = v" 
-    using assms zag_ConsE the_match' by fast
-
-  with assms have has_shift: "\<exists>v'. shifts_to G M u v v' \<pi> \<sigma>"
-    by (smt (verit, ccfv_threshold) list.inject list.simps(3) the_match' zag.simps)
-
-  then obtain v'' where shifts_to: "shifts_to G M u v v'' \<pi> \<sigma>" by blast
-  with the_shifts_to have "(THE v'. shifts_to G M u v v' \<pi> \<sigma>) = v''"
-    by fastforce
-
-  with assms the_v has_shift have "v'' = v'"
-    by (auto elim: zag_ConsE split: if_splits simp: Let_def zig.simps)
-
-  with shifts_to show ?thesis by simp
-qed
+  using assms
+  by (auto elim!: zag_ConsE zig_symE split: if_splits simp: the_match' the_shifts_to)
 
 lemma zig_increasing_ranks:
   assumes "zig G M v \<pi> \<sigma> = v # u # v' # uvs"
@@ -461,6 +472,7 @@ proof -
 
   have "{u,v} \<in> M" using assms zig_matching_edge by fast
   then have "(THE u. {u,v} \<in> M) = u" using assms the_match zig_ConsE by fast
+
   with \<open>{u,v} \<in> M\<close> assms have zig_zag: "zig G M v \<pi> \<sigma> = v # zag G M u \<pi> \<sigma>"
     by (auto elim!: zig_ConsE)
 
@@ -477,6 +489,38 @@ proof -
     unfolding shifts_to_def
     by (metis \<open>matching M\<close> \<open>{u, v} \<in> M\<close> index_eq_index_conv linorder_neqE the_match')
 qed
+
+lemma rev_alt_path_zig: "rev_alt_path M (zig G M v \<pi> \<sigma>)"
+proof (induction "zig G M v \<pi> \<sigma>" arbitrary: v rule: induct_list012)
+  case (2 x)
+  from this[symmetric] show ?case
+    by (simp add: alt_list_empty)
+next
+  case (3 v' u vus)
+  then have zig_v: "zig G M v \<pi> \<sigma> = v' # u # vus"
+    by simp
+
+  then have "{u,v} \<in> M" "v' = v" "matching M"
+    by (auto dest: zig_matching_edge elim: zig_ConsE)
+
+  show ?case
+  proof (cases vus)
+    case Nil
+    with zig_v \<open>v' = v\<close> \<open>{u,v} \<in> M\<close> show ?thesis
+      by (auto simp: alt_list_step alt_list_empty dest: edge_commute)
+  next
+    case (Cons v'' uvs)
+    with zig_v \<open>v' = v\<close> have "v'' \<noteq> v"
+      by (auto dest: zig_increasing_ranks)
+
+    with zig_v Cons have "vus = zig G M v'' \<pi> \<sigma>"
+      by (auto elim!: zig_then_zagE zag_then_zigE)
+
+    with 3 Cons \<open>v'' \<noteq> v\<close> \<open>v' = v\<close> \<open>{u,v} \<in> M\<close> \<open>matching M\<close> show ?thesis
+      by (metis (mono_tags, lifting) alt_list.intros(2) edge_commute edges_of_path.simps(3) the_match)
+  qed
+qed (simp add: alt_list_empty)
+
 
 lemma step_already_matched:
   "u \<in> Vs M \<Longrightarrow> step G u \<sigma> M = M"
@@ -2397,5 +2441,72 @@ lemma remove_online_vertex_diff_is_zig:
   shows "M \<oplus> M' = set (edges_of_path (zig G M x \<sigma> \<pi>))"
   using assms
   by (meson ranking_matching_commute remove_offline_vertex_diff_is_zig)
+
+definition remove_vertex_path :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> 'a list" where
+  "remove_vertex_path G M x \<pi> \<sigma> \<equiv> if x \<in> set \<sigma> then zig G M x \<pi> \<sigma> else zig G M x \<sigma> \<pi>"
+
+lemma remove_vertex_path_offline_zig:
+  "x \<in> set \<sigma> \<Longrightarrow> remove_vertex_path G M x \<pi> \<sigma> = zig G M x \<pi> \<sigma>"
+  unfolding remove_vertex_path_def
+  by simp
+
+lemma remove_vertex_path_not_offline_zig:
+  "x \<notin> set \<sigma> \<Longrightarrow> remove_vertex_path G M x \<pi> \<sigma> = zig G M x \<sigma> \<pi>"
+  unfolding remove_vertex_path_def
+  by simp
+
+lemma rev_alt_path_remove_vertex_path: "rev_alt_path M (remove_vertex_path G M x \<pi> \<sigma>)"
+  unfolding remove_vertex_path_def
+  by (auto intro: rev_alt_path_zig)
+
+lemma remove_vertex_diff_is_zig:
+  assumes "ranking_matching G M \<pi> \<sigma>"
+  assumes "ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>"
+  shows "M \<oplus> M' = set (edges_of_path (remove_vertex_path G M x \<pi> \<sigma>))"
+  using assms
+proof -
+  from \<open>ranking_matching G M \<pi> \<sigma>\<close> consider (offline) "x \<in> set \<sigma>" | (online) "x \<in> set \<pi>" | (no_vertex) "x \<notin> Vs G"
+    by (smt (verit, ccfv_SIG) bipartite_edgeE insert_iff ranking_matchingD singletonD vs_member)
+
+  then show ?thesis
+  proof cases
+    case offline
+    with assms show ?thesis
+      by (auto dest: remove_offline_vertex_diff_is_zig simp: remove_vertex_path_offline_zig)
+  next
+    case online
+    with assms have "x \<notin> set \<sigma>"
+      by (auto dest!: ranking_matchingD simp: bipartite_def)
+
+    with assms online show ?thesis
+      by (auto dest: remove_online_vertex_diff_is_zig simp: remove_vertex_path_not_offline_zig)
+  next
+    case no_vertex
+    then show ?thesis
+      unfolding remove_vertex_path_def
+      by (smt (verit, ccfv_SIG) Ranking2.no_matching_zig assms(1) assms(2) edges_of_path.simps(2) insertCI ranking_matchingD ranking_matching_unique remove_vertex_not_in_graph set_empty subsetD symm_diff_empty vs_member zig.simps(1))
+  qed
+qed
+
+lemma remove_vertex_diff_is_zigE:
+  assumes "ranking_matching G M \<pi> \<sigma>"
+  assumes "ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>"
+  obtains "M \<oplus> M' = set (edges_of_path (remove_vertex_path G M x \<pi> \<sigma>))"
+  using assms
+  by (auto dest: remove_vertex_diff_is_zig)
+
+lemma remove_vertex_alt_path:
+  assumes "ranking_matching G M \<pi> \<sigma>"
+  assumes "ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>"
+  shows "alt_path M' (remove_vertex_path G M x \<pi> \<sigma>)"
+  using assms
+  by (auto intro: rev_alt_path_sym_diff_alt_path[OF _ _ remove_vertex_diff_is_zig]
+                  rev_alt_path_remove_vertex_path
+           dest: ranking_matchingD)
+
+lemma remove_vertex_path_hd:
+  shows "hd (remove_vertex_path G M x \<pi> \<sigma>) = x"
+  unfolding remove_vertex_path_def
+  by (auto simp: hd_zig)
 
 end

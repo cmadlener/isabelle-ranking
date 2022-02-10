@@ -56,6 +56,23 @@ lemma sym_diff_sym:
   unfolding symmetric_diff_def
   by blast
 
+lemma alt_path_sym_diff_rev_alt_path:
+  assumes "graph_abs M" "graph_abs M'"
+  assumes "M \<oplus> M' = set (edges_of_path p)"
+  assumes "alt_path M p"
+  shows "rev_alt_path M' p"
+  using assms
+  by (smt (verit, ccfv_SIG) UnE alt_list_cong subsetD sym_diff_subset symm_diff_mutex)
+
+lemma rev_alt_path_sym_diff_alt_path:
+  assumes "graph_abs M" "graph_abs M'"
+  assumes "M \<oplus> M' = set (edges_of_path p)"
+  assumes "rev_alt_path M p"
+  shows "alt_path M' p"
+  using assms
+  by (smt (verit, ccfv_SIG) UnE alt_list_cong subsetD sym_diff_subset symm_diff_mutex)
+
+
 subsection \<open>Matchings\<close>
 lemma matching_empty[simp]: "matching {}"
   unfolding matching_def by simp
