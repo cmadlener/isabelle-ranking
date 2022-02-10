@@ -319,7 +319,7 @@ and zag :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> 'a \<Rightarrow> 'a li
                     if \<exists>u. {u,v} \<in> M 
                     then zag G M (THE u. {u,v} \<in> M) \<pi> \<sigma>
                     else [])" if "matching M"
-| no_matching_zig: "zig _ M _ _ _ = []" if "\<not>matching M"
+| no_matching_zig: "zig _ M v _ _ = [v]" if "\<not>matching M"
 
 | proper_zag: "zag G M u \<pi> \<sigma> =  u # (if \<exists>v. {u,v} \<in> M
                       then 
@@ -330,7 +330,7 @@ and zag :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> 'a \<Rightarrow> 'a li
                       )
                       else []
                     )" if "matching M"
-| no_matching_zag: "zag _ M _ _ _ = []" if "\<not>matching M"
+| no_matching_zag: "zag _ M v _ _ = [v]" if "\<not>matching M"
   by auto (smt (z3) prod_cases5 sum.collapse)
 
 definition zig_zag_relation where
