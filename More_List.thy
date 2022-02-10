@@ -32,6 +32,8 @@ lemma remove_vertices_list_disjoint: "X \<inter> set \<sigma> = {} \<Longrightar
 lemma remove_vertex_not_in_list: "x \<notin> set \<sigma> \<Longrightarrow> \<sigma> \<setminus> {x} = \<sigma>"
   by (auto intro: remove_vertices_list_disjoint)
 
+lemma length_at_least_two_Cons_Cons: "2 \<le> length xs \<Longrightarrow> \<exists>x x' xs'. xs = x # x' # xs'"
+  by (metis Suc_le_length_iff numeral_2_eq_2)
 
 
 end

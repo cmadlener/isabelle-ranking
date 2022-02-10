@@ -521,6 +521,25 @@ next
   qed
 qed (simp add: alt_list_empty)
 
+lemma zig_not_augmenting:
+  "augmenting_path M (zig G M x \<pi> \<sigma>) \<Longrightarrow> False"
+proof (cases "2 \<le> length (zig G M x \<pi> \<sigma>)")
+  case True
+  assume aug: "augmenting_path M (zig G M x \<pi> \<sigma>)"
+
+  from True obtain v u vus where "zig G M x \<pi> \<sigma> = v # u # vus"
+    using length_at_least_two_Cons_Cons by blast
+
+  with aug hd_zig show ?thesis
+    unfolding augmenting_path_def
+    by (metis edges_are_Vs(2) zig_matching_edge)
+next
+  case False
+  assume "augmenting_path M (zig G M x \<pi> \<sigma>)"
+  with False show ?thesis
+    unfolding augmenting_path_def by blast
+qed
+
 
 lemma step_already_matched:
   "u \<in> Vs M \<Longrightarrow> step G u \<sigma> M = M"
@@ -2508,5 +2527,10 @@ lemma remove_vertex_path_hd:
   shows "hd (remove_vertex_path G M x \<pi> \<sigma>) = x"
   unfolding remove_vertex_path_def
   by (auto simp: hd_zig)
+
+lemma remove_vertex_path_not_augmenting:
+  shows "augmenting_path M (remove_vertex_path G M x \<pi> \<sigma>) \<Longrightarrow> False"
+  unfolding remove_vertex_path_def
+  by (auto split: if_splits dest: zig_not_augmenting)
 
 end
