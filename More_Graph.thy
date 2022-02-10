@@ -3,6 +3,8 @@ theory More_Graph
     "AGF.Berge"
 begin
 
+sledgehammer_params [provers = cvc4 vampire verit e spass z3 zipperposition]
+
 type_synonym 'a graph = "'a set set"
 
 subsection \<open>Graphs\<close>
@@ -61,6 +63,15 @@ lemma matching_empty[simp]: "matching {}"
 lemma matching_subgraph: "matching M \<Longrightarrow> M' \<subseteq> M \<Longrightarrow> matching M'"
   unfolding matching_def
   by auto
+
+lemma the_match: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE u. {u,v} \<in> M) = u"
+  apply (auto intro!: the_equality )
+  by (metis doubleton_eq_iff insertI1 matching_unique_match)
+
+lemma the_match': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE v. {u,v} \<in> M) = v"
+  apply (auto intro!: the_equality)
+  by (metis (mono_tags, lifting) insert_commute the_match)
+
 
 definition maximal_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> bool" where
   "maximal_matching G M \<equiv> matching M \<and> (\<forall>u v. {u,v} \<in> G \<longrightarrow> u \<in> Vs M \<or> v \<in> Vs M)"
@@ -189,5 +200,119 @@ lemma bipartite_reduced_to_vs:
   unfolding bipartite_def
   by auto (metis edges_are_Vs)
 
+subsection \<open>Removing Vertices from Graphs\<close>
+definition remove_vertices_graph :: "'a graph \<Rightarrow> 'a set \<Rightarrow> 'a graph" (infixl "\<setminus>" 60) where
+  "G \<setminus> X \<equiv> {e. e \<in> G \<and> e \<inter> X = {}}"
+
+lemma remove_vertices_empty:
+  "G \<setminus> {} = G"
+  unfolding remove_vertices_graph_def by simp
+
+lemma remove_vertices_not_vs:
+  "v \<in> X \<Longrightarrow> v \<notin> Vs (G \<setminus> X)"
+  unfolding Vs_def remove_vertices_graph_def by blast
+
+lemma remove_vertices_not_vs':
+  "v \<in> X \<Longrightarrow> v \<in> Vs (G \<setminus> X) \<Longrightarrow> False"
+  using remove_vertices_not_vs by force
+
+lemma remove_vertices_subgraph:
+  "G \<setminus> X \<subseteq> G"
+  unfolding remove_vertices_graph_def
+  by simp
+
+lemma remove_vertices_subgraph':
+  "e \<in> G \<setminus> X \<Longrightarrow> e \<in> G"
+  using remove_vertices_subgraph 
+  by fast
+
+lemma remove_vertices_subgraph_Vs:
+  "v \<in> Vs (G \<setminus> X) \<Longrightarrow> v \<in> Vs G" 
+  using Vs_subset[OF remove_vertices_subgraph]
+  by fast
+
+lemma in_remove_verticesI:
+  "e \<in> G \<Longrightarrow> e \<inter> X = {} \<Longrightarrow> e \<in> G \<setminus> X"
+  unfolding remove_vertices_graph_def
+  by blast
+
+lemma in_remove_vertices_subsetI:
+  "X' \<subseteq> X \<Longrightarrow> e \<in> G \<setminus> X' \<Longrightarrow> e \<inter> X - X' = {} \<Longrightarrow> e \<in> G \<setminus> X"
+  unfolding remove_vertices_graph_def
+  by blast
+
+lemma in_remove_vertices_vsI:
+  "e \<in> G \<Longrightarrow> e \<inter> X = {} \<Longrightarrow> u \<in> e \<Longrightarrow> u \<in> Vs (G \<setminus> X)"
+  by (auto dest: in_remove_verticesI)
+
+lemma remove_vertices_only_vs:
+  "G \<setminus> X = G \<setminus> (X \<inter> Vs G)"
+  unfolding remove_vertices_graph_def Vs_def
+  by blast
+
+lemma remove_vertices_mono:
+  "G' \<subseteq> G \<Longrightarrow> e \<in> G' \<setminus> X \<Longrightarrow> e \<in> G \<setminus> X"
+  unfolding remove_vertices_graph_def by blast
+
+lemma remove_vertices_inv_mono:
+  "X \<subseteq> X' \<Longrightarrow> e \<in> G \<setminus> X' \<Longrightarrow> e \<in> G \<setminus> X"
+  unfolding remove_vertices_graph_def by blast
+
+lemma remove_vertices_inv_mono':
+  "X \<subseteq> X' \<Longrightarrow> G \<setminus> X' \<subseteq> G \<setminus> X"
+  by (auto dest: remove_vertices_inv_mono)
+
+lemma remove_vertices_graph_disjoint: "X \<inter> Vs G = {} \<Longrightarrow> G \<setminus> X = G"
+  unfolding Vs_def remove_vertices_graph_def by blast
+
+lemma remove_vertex_not_in_graph: "x \<notin> Vs G \<Longrightarrow> G \<setminus> {x} = G"
+  by (auto intro!: remove_vertices_graph_disjoint)
+
+
+
+lemma graph_abs_remove_vertices:
+  "graph_abs G \<Longrightarrow> graph_abs (G \<setminus> X)"
+  by (simp add: graph_abs_subgraph remove_vertices_graph_def)
+
+lemma bipartite_remove_vertices:
+  "bipartite G U V \<Longrightarrow> bipartite (G \<setminus> X) U V"
+  using remove_vertices_subgraph
+  by (auto intro: bipartite_subgraph)
+
+lemma matching_remove_vertices:
+  "matching M \<Longrightarrow> matching (M \<setminus> X)"
+  using remove_vertices_subgraph
+  by (auto intro: matching_subgraph)
+
+
+lemma remove_remove_union: "G \<setminus> X \<setminus> Y = G \<setminus> X \<union> Y"
+  unfolding remove_vertices_graph_def by blast
+
+
+lemma remove_edge_matching: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {u,v} = M - {{u,v}}"
+  unfolding remove_vertices_graph_def
+  by auto (metis empty_iff insert_iff matching_unique_match)+
+
+lemma remove_vertex_matching: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {u} = M - {{u,v}}"
+  unfolding remove_vertices_graph_def
+  by auto (metis empty_iff insert_iff matching_unique_match)+
+
+lemma remove_vertex_matching': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {v} = M - {{u,v}}"
+  unfolding remove_vertices_graph_def
+  by auto (metis empty_iff insert_iff matching_unique_match)+
+
+
+lemma remove_edge_matching_vs: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> Vs (M \<setminus> {u,v}) = Vs M - {u,v}"
+  by (auto simp add: remove_edge_matching Vs_def) (metis empty_iff insert_iff matching_unique_match)+
+
+lemma remove_vertex_matching_vs: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> Vs (M \<setminus> {u}) = Vs M - {u,v}"
+  by (metis remove_edge_matching remove_edge_matching_vs remove_vertex_matching)
+
+lemma remove_vertex_matching_vs': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> Vs (M \<setminus> {v}) = Vs M - {u,v}"
+  by (metis remove_edge_matching remove_edge_matching_vs remove_vertex_matching')
+
+lemma remove_vertices_in_diff: "{u,v} \<in> G \<setminus> X \<Longrightarrow> {u,v} \<notin> G \<setminus> X' \<Longrightarrow> u \<in> X' - X \<or> v \<in> X' - X"
+  unfolding remove_vertices_graph_def
+  by simp
 
 end

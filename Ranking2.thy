@@ -1,7 +1,7 @@
 theory Ranking2
   imports
     More_Graph
-    More_List_Index
+    More_List
 begin
 
 sledgehammer_params [provers = cvc4 vampire verit e spass z3 zipperposition]
@@ -179,110 +179,6 @@ lemma ranking_matching_unique:
   using assms
   by (auto intro: ranking_matching_unique'')
 
-
-definition remove_vertices_graph :: "'a graph \<Rightarrow> 'a set \<Rightarrow> 'a graph" (infixl "\<setminus>" 60) where
-  "G \<setminus> X \<equiv> {e. e \<in> G \<and> e \<inter> X = {}}"
-
-lemma remove_vertices_empty:
-  "G \<setminus> {} = G"
-  unfolding remove_vertices_graph_def by simp
-
-lemma remove_vertices_not_vs:
-  "v \<in> X \<Longrightarrow> v \<notin> Vs (G \<setminus> X)"
-  unfolding Vs_def remove_vertices_graph_def by blast
-
-lemma remove_vertices_not_vs':
-  "v \<in> X \<Longrightarrow> v \<in> Vs (G \<setminus> X) \<Longrightarrow> False"
-  using remove_vertices_not_vs by force
-
-lemma remove_vertices_subgraph:
-  "G \<setminus> X \<subseteq> G"
-  unfolding remove_vertices_graph_def
-  by simp
-
-lemma remove_vertices_subgraph':
-  "e \<in> G \<setminus> X \<Longrightarrow> e \<in> G"
-  using remove_vertices_subgraph 
-  by fast
-
-lemma remove_vertices_subgraph_Vs:
-  "v \<in> Vs (G \<setminus> X) \<Longrightarrow> v \<in> Vs G" 
-  using Vs_subset[OF remove_vertices_subgraph]
-  by fast
-
-lemma in_remove_verticesI:
-  "e \<in> G \<Longrightarrow> e \<inter> X = {} \<Longrightarrow> e \<in> G \<setminus> X"
-  unfolding remove_vertices_graph_def
-  by blast
-
-lemma in_remove_vertices_subsetI:
-  "X' \<subseteq> X \<Longrightarrow> e \<in> G \<setminus> X' \<Longrightarrow> e \<inter> X - X' = {} \<Longrightarrow> e \<in> G \<setminus> X"
-  unfolding remove_vertices_graph_def
-  by blast
-
-lemma in_remove_vertices_vsI:
-  "e \<in> G \<Longrightarrow> e \<inter> X = {} \<Longrightarrow> u \<in> e \<Longrightarrow> u \<in> Vs (G \<setminus> X)"
-  by (auto dest: in_remove_verticesI)
-
-lemma remove_vertices_only_vs:
-  "G \<setminus> X = G \<setminus> (X \<inter> Vs G)"
-  unfolding remove_vertices_graph_def Vs_def
-  by blast
-
-lemma remove_vertices_mono:
-  "G' \<subseteq> G \<Longrightarrow> e \<in> G' \<setminus> X \<Longrightarrow> e \<in> G \<setminus> X"
-  unfolding remove_vertices_graph_def by blast
-
-lemma remove_vertices_inv_mono:
-  "X \<subseteq> X' \<Longrightarrow> e \<in> G \<setminus> X' \<Longrightarrow> e \<in> G \<setminus> X"
-  unfolding remove_vertices_graph_def by blast
-
-lemma remove_vertices_inv_mono':
-  "X \<subseteq> X' \<Longrightarrow> G \<setminus> X' \<subseteq> G \<setminus> X"
-  by (auto dest: remove_vertices_inv_mono)
-
-
-lemma graph_abs_remove_vertices:
-  "graph_abs G \<Longrightarrow> graph_abs (G \<setminus> X)"
-  by (simp add: graph_abs_subgraph remove_vertices_graph_def)
-
-lemma bipartite_remove_vertices:
-  "bipartite G U V \<Longrightarrow> bipartite (G \<setminus> X) U V"
-  using remove_vertices_subgraph
-  by (auto intro: bipartite_subgraph)
-
-lemma matching_remove_vertices:
-  "matching M \<Longrightarrow> matching (M \<setminus> X)"
-  using remove_vertices_subgraph
-  by (auto intro: matching_subgraph)
-
-
-lemma remove_remove_union: "G \<setminus> X \<setminus> Y = G \<setminus> X \<union> Y"
-  unfolding remove_vertices_graph_def by blast
-
-
-lemma remove_edge_matching: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {u,v} = M - {{u,v}}"
-  unfolding remove_vertices_graph_def
-  by auto (metis empty_iff insert_iff matching_unique_match)+
-
-lemma remove_vertex_matching: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {u} = M - {{u,v}}"
-  unfolding remove_vertices_graph_def
-  by auto (metis empty_iff insert_iff matching_unique_match)+
-
-lemma remove_vertex_matching': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {v} = M - {{u,v}}"
-  unfolding remove_vertices_graph_def
-  by auto (metis empty_iff insert_iff matching_unique_match)+
-
-
-lemma remove_edge_matching_vs: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> Vs (M \<setminus> {u,v}) = Vs M - {u,v}"
-  by (auto simp add: remove_edge_matching Vs_def) (metis empty_iff insert_iff matching_unique_match)+
-
-lemma remove_vertex_matching_vs: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> Vs (M \<setminus> {u}) = Vs M - {u,v}"
-  by (metis remove_edge_matching remove_edge_matching_vs remove_vertex_matching)
-
-lemma remove_vertex_matching_vs': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> Vs (M \<setminus> {v}) = Vs M - {u,v}"
-  by (metis remove_edge_matching remove_edge_matching_vs remove_vertex_matching')
-
 lemma remove_edge_ranking_matching:
   "{u,v} \<in> M \<Longrightarrow> ranking_matching G M \<pi> \<sigma> \<Longrightarrow> ranking_matching (G \<setminus> {u,v}) (M \<setminus> {u,v}) \<pi> \<sigma>"
   unfolding ranking_matching_def
@@ -293,15 +189,6 @@ lemma remove_edge_ranking_matching:
   apply (smt (verit, ccfv_threshold) DiffI edges_are_walks insertI1 matching_subgraph maximal_matching_def remove_edge_matching_vs remove_vertices_not_vs remove_vertices_subgraph subset_eq vs_member_intro walk_endpoints(2))
    apply (metis edges_are_walks in_remove_verticesI insert_subset matching_def remove_vertices_not_vs remove_vertices_subgraph' subset_insertI walk_endpoints(2))
   by (metis edges_are_Vs in_remove_verticesI insertI1 matching_def remove_vertices_not_vs remove_vertices_subgraph')
-  
-definition remove_vertices_rank :: "'a list \<Rightarrow> 'a set \<Rightarrow> 'a list" (infix "\<setminus>" 60) where
-  "\<sigma> \<setminus> X \<equiv> [v <- \<sigma>. v \<notin> X]"
-
-lemma remove_vertices_not_in_rank:
-  "v \<in> X \<Longrightarrow> v \<notin> set (\<sigma> \<setminus> X)"
-  unfolding remove_vertices_rank_def
-  by simp
-
 
 
 definition "shifts_to G M u v v' \<pi> \<sigma> \<equiv>
@@ -338,14 +225,6 @@ definition zig_zag_relation where
     {(Inr (G, M, u, \<pi>, \<sigma>), Inl (G, M, v, \<pi>, \<sigma>)) | (G :: 'a graph) M u v \<pi> \<sigma>. matching M \<and> {u,v} \<in> M \<and> ((\<exists>v'. shifts_to G M u v v' \<pi> \<sigma>) \<longrightarrow> index \<sigma> v < index \<sigma> (THE v'. shifts_to G M u v v' \<pi> \<sigma>))} \<union>
     {(Inl (G, M, v', \<pi>, \<sigma>), Inr (G, M, u, \<pi>, \<sigma>)) | (G :: 'a graph) M u v' \<pi> \<sigma>. matching M \<and> (\<exists>v. {u,v} \<in> M \<and> shifts_to G M u (THE v. {u,v} \<in> M) v' \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> M) < index \<sigma> v'}"
 
-
-lemma the_match: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE u. {u,v} \<in> M) = u"
-  apply (auto intro!: the_equality )
-  by (metis doubleton_eq_iff insertI1 matching_unique_match)
-
-lemma the_match': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE v. {u,v} \<in> M) = v"
-  apply (auto intro!: the_equality)
-  by (metis (mono_tags, lifting) insert_commute the_match)
 
 lemma shifts_to_only_from_input:
   assumes "shifts_to G M u v v' \<pi> \<sigma>"
@@ -559,7 +438,7 @@ proof -
   with shifts_to show ?thesis by simp
 qed
 
-lemma 
+lemma zig_increasing_ranks:
   assumes "zig G M v \<pi> \<sigma> = v # u # v' # uvs"
   shows "index \<sigma> v < index \<sigma> v'"
 proof -
@@ -572,6 +451,31 @@ proof -
     by (auto dest: zag_shift_edge)
 
   then show ?thesis unfolding shifts_to_def by blast
+qed
+
+lemma zig_increasing_arrival:
+  assumes "zig G M v \<pi> \<sigma> = v # u # v' # u' # uvs"
+  shows "index \<pi> u < index \<pi> u'"
+proof -
+  have "matching M" using assms by (auto elim: zig_ConsE)
+
+  have "{u,v} \<in> M" using assms zig_matching_edge by fast
+  then have "(THE u. {u,v} \<in> M) = u" using assms the_match zig_ConsE by fast
+  with \<open>{u,v} \<in> M\<close> assms have zig_zag: "zig G M v \<pi> \<sigma> = v # zag G M u \<pi> \<sigma>"
+    by (auto elim!: zig_ConsE)
+
+  with assms \<open>{u,v} \<in> M\<close> have shifts_to: "shifts_to G M u v v' \<pi> \<sigma>"
+    by (auto dest: zag_shift_edge)
+
+  with \<open>{u,v} \<in> M\<close> \<open>matching M\<close> have "zag G M u \<pi> \<sigma> = u # zig G M v' \<pi> \<sigma>"
+    by (fastforce simp: zag.simps the_shifts_to the_match')
+
+  with zig_zag assms have "{u',v'} \<in> M"
+    by (metis list.inject zig_matching_edge)
+    
+  with shifts_to show ?thesis
+    unfolding shifts_to_def
+    by (metis \<open>matching M\<close> \<open>{u, v} \<in> M\<close> index_eq_index_conv linorder_neqE the_match')
 qed
 
 lemma step_already_matched:
@@ -757,7 +661,6 @@ lemma not_matched_in_prefix:
   shows "x \<notin> Vs (ranking G us \<sigma>)"
   using assms
   by (auto simp: ranking_append dest: ranking_mono_vs)
-
 
 lemma maximal_ranking_aux:
   assumes "{u,v} \<in> G"
@@ -982,19 +885,6 @@ lemma ranking_commute:
 
 
 subsection \<open>Removing vertices\<close>
-lemma remove_vertices_graph_disjoint: "X \<inter> Vs G = {} \<Longrightarrow> G \<setminus> X = G"
-  unfolding Vs_def remove_vertices_graph_def by blast
-
-lemma remove_vertex_not_in_graph: "x \<notin> Vs G \<Longrightarrow> G \<setminus> {x} = G"
-  by (auto intro!: remove_vertices_graph_disjoint)
-
-lemma remove_vertices_rank_disjoint: "X \<inter> set \<sigma> = {} \<Longrightarrow> \<sigma> \<setminus> X = \<sigma>"
-  unfolding remove_vertices_rank_def
-  by (auto intro: filter_True)
-
-lemma remove_vertex_not_in_rank: "x \<notin> set \<sigma> \<Longrightarrow> \<sigma> \<setminus> {x} = \<sigma>"
-  by (auto intro: remove_vertices_rank_disjoint)
-
 lemma step_u_not_in_graph:
   "u \<notin> Vs G \<Longrightarrow> step G u \<sigma> M = M"
   by (induction G u \<sigma> M rule: step.induct)
@@ -1003,7 +893,7 @@ lemma step_u_not_in_graph:
 lemma ranking'_remove_vertices_graph_remove_vertices_arrival:
   "ranking' (G \<setminus> X) (\<pi> \<setminus> X) \<sigma> M = ranking' (G \<setminus> X) \<pi> \<sigma> M"
   by (induction "G \<setminus> X" \<pi> \<sigma> M rule: ranking'.induct)
-     (auto simp: remove_vertices_rank_def remove_vertices_not_vs step_u_not_in_graph)
+     (auto simp: remove_vertices_list_def remove_vertices_not_vs step_u_not_in_graph)
 
 lemma ranking_remove_vertices_graph_remove_vertices_arrival:
   "ranking (G \<setminus> X) (\<pi> \<setminus> X) \<sigma> = ranking (G \<setminus> X) \<pi> \<sigma>"
@@ -1013,7 +903,7 @@ lemma ranking_remove_vertices_graph_remove_vertices_arrival:
 lemma step_remove_vertices_graph_remove_vertices_rank:
   "step (G \<setminus> X) u (\<sigma> \<setminus> X) M = step (G \<setminus> X) u \<sigma> M"
   by (induction "G \<setminus> X" u \<sigma> M rule: step.induct)
-     (simp_all add: remove_vertices_rank_def remove_vertices_graph_def)
+     (simp_all add: remove_vertices_list_def remove_vertices_graph_def)
 
 lemma ranking'_remove_vertices_graph_remove_vertices_rank:
   "ranking' (G \<setminus> X) \<pi> (\<sigma> \<setminus> X) M = ranking' (G \<setminus> X) \<pi> \<sigma> M"
@@ -1165,7 +1055,6 @@ proof -
   qed blast
 qed
 
-
 lemma no_shifts_to_mono:
   "G' \<subseteq> G \<Longrightarrow> \<nexists>v'. shifts_to G M u v v' \<pi> \<sigma> \<Longrightarrow> \<nexists>v'. shifts_to G' M u v v' \<pi> \<sigma>"
   by (auto dest: shifts_to_mono)
@@ -1231,10 +1120,6 @@ lemma remove_online_vertices_shifts_to_same:
       by blast
   qed
   done
-
-lemma remove_vertices_in_diff: "{u,v} \<in> G \<setminus> X \<Longrightarrow> {u,v} \<notin> G \<setminus> X' \<Longrightarrow> u \<in> X' - X \<or> v \<in> X' - X"
-  unfolding remove_vertices_graph_def
-  by simp
 
 lemma remove_offline_vertices_before_shifts_to_same:
   assumes "xs' \<subseteq> set \<sigma>"
@@ -1493,7 +1378,6 @@ next
       by (simp add: zag.simps)
   qed
 qed blast+
-
 
 lemma ranking_matching_shifts_to_reduced_edges:
   assumes rm_M: "ranking_matching G M \<pi> \<sigma>"
