@@ -16,6 +16,14 @@ lemma length_minus_index_less_index_gt:
 lemma index_less_in_set: "index xs x < index xs x' \<Longrightarrow> x \<in> set xs"
   by (metis index_conv_size_if_notin index_le_size leD)
 
+lemma transp_index_less: "transp (\<lambda>a b. index xs a < index xs b)"
+  by (auto intro: transpI)
+
+lemma sorted_wrt_index_less_distinct:
+  "sorted_wrt (\<lambda>a b. index \<sigma> a < index \<sigma> b) xs \<Longrightarrow> distinct xs"
+  by (induction xs) auto
+
+
 subsection \<open>Removing Vertices from Lists\<close>
 definition remove_vertices_list :: "'a list \<Rightarrow> 'a set \<Rightarrow> 'a list" (infix "\<setminus>" 60) where
   "\<sigma> \<setminus> X \<equiv> [v <- \<sigma>. v \<notin> X]"

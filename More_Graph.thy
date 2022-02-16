@@ -72,6 +72,16 @@ lemma rev_alt_path_sym_diff_alt_path:
   using assms
   by (smt (verit, ccfv_SIG) UnE alt_list_cong subsetD sym_diff_subset symm_diff_mutex)
 
+lemma alt_list_distinct:
+  assumes "alt_list P Q xs"
+  assumes "distinct [x <- xs. P x]"
+  assumes "distinct [x <- xs. Q x]"
+  assumes "\<forall>x. \<not>(P x \<and> Q x)"
+  shows "distinct xs"
+  using assms
+  by (induction xs rule: induct_alt_list012)
+     (auto split: if_splits)
+
 
 subsection \<open>Matchings\<close>
 lemma matching_empty[simp]: "matching {}"
@@ -88,6 +98,12 @@ lemma the_match: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (
 lemma the_match': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE v. {u,v} \<in> M) = v"
   apply (auto intro!: the_equality)
   by (metis (mono_tags, lifting) insert_commute the_match)
+
+lemma the_match'': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE u. {v,u} \<in> M) = u"
+  by (auto dest: the_match edge_commute)
+
+lemma the_match''': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE v. {v,u} \<in> M) = v"
+  by (auto dest: the_match' edge_commute)
 
 
 definition maximal_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> bool" where

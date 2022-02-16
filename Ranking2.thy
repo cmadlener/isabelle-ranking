@@ -480,11 +480,33 @@ lemma hd_zig: "hd (zig G M x \<pi> \<sigma>) = x"
   by (cases "matching M")
      (auto simp: zig.simps)
 
+lemma zig_hdE:
+  obtains uvs where "zig G M v \<pi> \<sigma> = v # uvs"
+  by (cases "matching M")
+     (auto simp: zig.simps)
+
+lemma zag_hdE:
+  obtains vus where "zag G M u \<pi> \<sigma> = u # vus"
+  by (cases "matching M")
+     (auto simp: zag.simps)
+
+lemma zig_Cons_zagE:
+  assumes "zig G M v \<pi> \<sigma> = v' # zag G M u \<pi> \<sigma>"
+  obtains "v = v'" "{u,v} \<in> M" "matching M"
+  using assms
+  by (auto elim: zig_ConsE zag_NilE zag_hdE split: if_splits simp: the_match zag.simps)
+  
+lemma zag_Cons_zigE:
+  assumes "zag G M u \<pi> \<sigma> = u' # zig G M v' \<pi> \<sigma>"
+  obtains v where "u = u'" "{u,v} \<in> M" "shifts_to G M u v v' \<pi> \<sigma>" "matching M"
+  using assms
+  by (auto elim!: zag_ConsE zig_NilE zig_hdE split: if_splits 
+      simp: the_match' zig.simps the_shifts_to)
+
 lemma zag_no_shifts_to:
   "{u,v} \<in> M \<Longrightarrow> \<nexists>v'. shifts_to G M u v v' \<pi> \<sigma> \<Longrightarrow> zag G M u \<pi> \<sigma> = [u]"
   by (cases "matching M")
      (auto simp: zag.simps the_match')
-
 
 lemma zig_then_zag:
   assumes "zig G M v \<pi> \<sigma> = v' # u # vus"
@@ -513,7 +535,7 @@ lemma zag_shift_edge:
   by (auto elim!: zag_ConsE zig_symE split: if_splits simp: the_match' the_shifts_to)
 
 lemma zig_increasing_ranks:
-  assumes "zig G M v \<pi> \<sigma> = v # u # v' # uvs"
+  assumes "zig G M v \<pi> \<sigma> = v # u # zig G M v' \<pi> \<sigma>"
   shows "index \<sigma> v < index \<sigma> v'"
 proof -
   have "{u,v} \<in> M" using assms zig_matching_edge by fast
@@ -522,22 +544,22 @@ proof -
     by (auto elim!: zig_ConsE intro: the_match)
 
   with assms \<open>{u,v} \<in> M\<close> have "shifts_to G M u v v' \<pi> \<sigma>"
-    by (auto dest: zag_shift_edge)
+    by (metis zag_shift_edge zig_hdE zig_then_zag)
 
   then show ?thesis unfolding shifts_to_def by blast
 qed
 
-lemma zig_increasing_arrival:
-  assumes "zig G M v \<pi> \<sigma> = v # u # v' # u' # uvs"
+lemma zag_increasing_arrival:
+  assumes "zag G M u \<pi> \<sigma> = u # v' # zag G M u' \<pi> \<sigma>"
   shows "index \<pi> u < index \<pi> u'"
 proof -
-  have "matching M" using assms by (auto elim: zig_ConsE)
+  have "matching M" using assms by (auto elim: zag_ConsE)
 
-  have "{u,v} \<in> M" using assms zig_matching_edge by fast
-  then have "(THE u. {u,v} \<in> M) = u" using assms the_match zig_ConsE by fast
+  obtain v where "{u,v} \<in> M" using assms
+    by (auto elim: zag_ConsE split: if_splits)
 
-  with \<open>{u,v} \<in> M\<close> assms have zig_zag: "zig G M v \<pi> \<sigma> = v # zag G M u \<pi> \<sigma>"
-    by (auto elim!: zig_ConsE)
+  with \<open>{u,v} \<in> M\<close> \<open>matching M\<close> have zig_zag: "zig G M v \<pi> \<sigma> = v # zag G M u \<pi> \<sigma>"
+    by (auto simp: zig.simps the_match)
 
   with assms \<open>{u,v} \<in> M\<close> have shifts_to: "shifts_to G M u v v' \<pi> \<sigma>"
     by (auto dest: zag_shift_edge)
@@ -546,18 +568,18 @@ proof -
     by (fastforce simp: zag.simps the_shifts_to the_match')
 
   with zig_zag assms have "{u',v'} \<in> M"
-    by (metis list.inject zig_matching_edge)
+    by (meson zag_then_zig zig_Cons_zagE)
     
   with shifts_to show ?thesis
     unfolding shifts_to_def
     by (metis \<open>matching M\<close> \<open>{u, v} \<in> M\<close> index_eq_index_conv linorder_neqE the_match')
 qed
 
-lemma alt_list_zig: 
+lemma
   assumes "bipartite M (set \<pi>) (set \<sigma>)"
   shows
-    "v \<in> set \<sigma> \<Longrightarrow> alt_list (\<lambda>x. x \<in> set \<sigma>) (\<lambda>x. x \<in> set \<pi>) (zig G M v \<pi> \<sigma>)" and
-    "u \<in> set \<pi> \<Longrightarrow> alt_list (\<lambda>x. x \<in> set \<pi>) (\<lambda>x. x \<in> set \<sigma>) (zag G M u \<pi> \<sigma>)"
+    alt_list_zig: "v \<in> set \<sigma> \<Longrightarrow> alt_list (\<lambda>x. x \<in> set \<sigma>) (\<lambda>x. x \<in> set \<pi>) (zig G M v \<pi> \<sigma>)" and
+    alt_list_zag: "u \<in> set \<pi> \<Longrightarrow> alt_list (\<lambda>x. x \<in> set \<pi>) (\<lambda>x. x \<in> set \<sigma>) (zag G M u \<pi> \<sigma>)"
   using assms
 proof (induction G M v \<pi> \<sigma> and G M u \<pi> \<sigma> rule: zig_zag_induct)
   case (1 G M v \<pi> \<sigma> u)
@@ -615,7 +637,7 @@ next
   next
     case (Cons v'' uvs)
     with zig_v \<open>v' = v\<close> have "v'' \<noteq> v"
-      by (auto dest: zig_increasing_ranks)
+      by (metis "3.hyps"(1) \<open>{u, v} \<in> M\<close> alt_list_step edges_of_path.simps(3) zag_then_zig zig_then_zag)
 
     with zig_v Cons have "vus = zig G M v'' \<pi> \<sigma>"
       by (auto elim!: zig_then_zagE zag_then_zigE)
@@ -644,6 +666,192 @@ next
     unfolding augmenting_path_def by blast
 qed
 
+lemma zig_start_wrong_side:
+  assumes "u \<notin> set \<sigma>"
+  assumes "bipartite M (set \<pi>) (set \<sigma>)"
+  obtains v where "zig G M u \<pi> \<sigma> = [u,v]" "{u,v} \<in> M" "v \<in> set \<sigma>" | "zig G M u \<pi> \<sigma> = [u]"
+proof (cases "matching M")
+  case True
+  assume assm: "zig G M u \<pi> \<sigma> = [u] \<Longrightarrow> thesis"
+    "(\<And>v. zig G M u \<pi> \<sigma> = [u, v] \<Longrightarrow> {u, v} \<in> M \<Longrightarrow> v \<in> set \<sigma> \<Longrightarrow> thesis)"
+  
+  show ?thesis
+  proof (cases "\<exists>v. {u,v} \<in> M")
+    case True
+    then obtain v where "{u,v} \<in> M" by blast
+
+    with assms have "v \<in> set \<sigma>"
+      by (auto elim: bipartite_edgeE)
+
+    from \<open>u \<notin> set \<sigma>\<close> have "\<nexists>u'. shifts_to G M v u u' \<pi> \<sigma>"
+      by (auto dest: shifts_to_only_from_input)
+
+    with \<open>matching M\<close> \<open>{u,v} \<in> M\<close> have "zag G M v \<pi> \<sigma> = [v]"
+      by (auto simp: zag.simps dest: the_match'')
+
+    with \<open>matching M\<close> \<open>{u,v} \<in> M\<close> have "zig G M u \<pi> \<sigma> = [u,v]"
+      by (auto simp: zig.simps dest: edge_commute the_match''')
+
+    with assm \<open>{u,v} \<in> M\<close> \<open>v \<in> set \<sigma>\<close> show ?thesis
+      by blast
+  next
+    case False
+    from False \<open>matching M\<close> have "zig G M u \<pi> \<sigma> = [u]"
+      by (auto simp: zig.simps dest: edge_commute)
+
+    with assm show ?thesis
+      by blast
+  qed
+next
+  case False
+  assume assm: "zig G M u \<pi> \<sigma> = [u] \<Longrightarrow> thesis"
+
+  from \<open>\<not>matching M\<close> have "zig G M u \<pi> \<sigma> = [u]"
+    by (simp add: zig.simps)
+
+  with assm show ?thesis
+    by blast
+qed
+
+lemma sorted_wrt_rank_zig:
+  assumes "bipartite M (set \<pi>) (set \<sigma>)"
+  shows "sorted_wrt (\<lambda>a b. index \<sigma> a < index \<sigma> b) [x <- zig G M v \<pi> \<sigma>. x \<in> set \<sigma>]"
+  using assms
+proof (cases "v \<in> set \<sigma>")
+  case True
+  with assms show ?thesis
+  proof (induction "zig G M v \<pi> \<sigma>" arbitrary: v rule: induct_list012)
+    case (2 x)
+    from this(1)[symmetric] show ?case
+      by simp
+  next
+    case (3 v u vus v')
+    then have "{u,v} \<in> M" "v' = v"
+      by (metis zig_ConsE zig_matching_edge)+
+  
+    with 3 have "u \<notin> set \<sigma>"
+      by (auto dest: bipartite_edgeD)
+  
+    show ?case
+    proof (cases vus)
+      case Nil
+      with 3(3)[symmetric] \<open>u \<notin> set \<sigma>\<close> show ?thesis
+        by simp
+    next
+      case (Cons v'' uvs)
+      with 3 have vus_zig: "vus = zig G M v'' \<pi> \<sigma>"
+        by (metis zag_then_zig zig_then_zag)
+  
+      with 3 have "v'' \<in> set \<sigma>"
+        by (metis shifts_to_only_from_input(2) zag_Cons_zigE zig_then_zag)
+  
+      from 3(3)[symmetric] vus_zig \<open>v' = v\<close> \<open>u \<notin> set \<sigma>\<close> \<open>v' \<in> set \<sigma>\<close> have "[x <- zig G M v' \<pi> \<sigma>. x \<in> set \<sigma>] = v # [x <- zig G M v'' \<pi> \<sigma>. x \<in> set \<sigma>]"
+        by auto
+  
+      with 3 vus_zig \<open>v' = v\<close> \<open>v'' \<in> set \<sigma>\<close> show ?thesis
+        apply (auto simp flip: successively_conv_sorted_wrt[OF transp_index_less])
+        by (metis (mono_tags, lifting) filter.simps(2) list.sel(1) local.Cons successively_Cons zig_increasing_ranks)
+    qed
+  qed simp
+next
+  case False
+  with assms show ?thesis
+    by (auto elim!: zig_start_wrong_side[where G = G] dest: bipartite_edgeD)
+qed
+
+lemma zag_start_wrong_side:
+  assumes "v \<notin> set \<pi>"
+  assumes "bipartite M (set \<pi>) (set \<sigma>)"
+  shows "zag G M v \<pi> \<sigma> = [v]"
+  using assms
+  by (cases "matching M")
+     (auto simp: zag.simps shifts_to_def)
+
+lemma sorted_wrt_arrival_zag:
+  assumes "bipartite M (set \<pi>) (set \<sigma>)"
+  shows "sorted_wrt (\<lambda>a b. index \<pi> a < index \<pi> b) [x <- zag G M u \<pi> \<sigma>. x \<in> set \<pi>]"
+proof (cases "u \<in> set \<pi>")
+  case True
+  then show ?thesis
+  proof (induction "zag G M u \<pi> \<sigma>" arbitrary: u rule: induct_list012)
+    case 2
+    from this(1)[symmetric] show ?case
+      by simp
+  next
+    case (3 u' v uvs)
+    then show ?case
+    proof (cases uvs)
+      case Nil
+      with 3 show ?thesis
+        by (metis alt_list_step alt_list_zag assms bipartite_disjointD disjoint_iff filter.simps(1) filter.simps(2) sorted_wrt1)
+    next
+      case (Cons u'' vus)
+      with 3 have uvs_zag: "uvs = zag G M u'' \<pi> \<sigma>"
+        by (metis zag_then_zig zig_then_zag)
+
+      with 3 assms have "u'' \<in> set \<pi>"
+        by (metis alt_list_step alt_list_zag zag_hdE)
+
+      with 3 assms have "v \<notin> set \<pi>"
+        by (metis DiffE bipartite_edgeD(1) local.Cons zag_then_zig zig_matching_edge)
+
+      from 3 have "u' \<in> set \<pi>"
+        by (auto elim: zag_symE)
+
+      with 3(3)[symmetric] uvs_zag \<open>v \<notin> set \<pi>\<close> have "[x <- zag G M u \<pi> \<sigma>. x \<in> set \<pi>] = u' # [x <- zag G M u'' \<pi> \<sigma>. x \<in> set \<pi>]"
+        by simp
+
+      with 3 uvs_zag \<open>u'' \<in> set \<pi>\<close> show ?thesis
+        apply (auto simp flip: successively_conv_sorted_wrt[OF transp_index_less])
+        by (metis (no_types, lifting) filter.simps(2) local.Cons successively.simps(3) zag_ConsE zag_increasing_arrival)
+    qed
+  qed simp
+next
+  case False
+  with assms show ?thesis
+    by (simp add: zag_start_wrong_side)
+qed
+
+lemma sorted_wrt_arrival_zig:
+  assumes "bipartite M (set \<pi>) (set \<sigma>)"
+  shows "sorted_wrt (\<lambda>a b. index \<pi> a < index \<pi> b) [x <- zig G M v \<pi> \<sigma>. x \<in> set \<pi>]"
+proof (cases "v \<in> set \<sigma>")
+  case True
+  with assms have "v \<notin> set \<pi>"
+    by (auto dest: bipartite_disjointD)
+
+  show ?thesis
+  proof (cases "zig G M v \<pi> \<sigma>")
+    case (Cons v' uvs)
+    then show ?thesis
+    proof (cases uvs)
+      case (Cons u vus)
+      with \<open>zig G M v \<pi> \<sigma> = v' # uvs\<close> have "zig G M v \<pi> \<sigma> = v # zag G M u \<pi> \<sigma>" "{u,v} \<in> M"
+        by (metis zig_Cons_zagE zig_then_zag)+
+
+      with \<open>v \<notin> set \<pi>\<close> assms
+      show ?thesis
+        by (simp add: sorted_wrt_arrival_zag)
+    qed simp
+  qed simp
+next
+  case False
+  with assms show ?thesis
+    by (auto elim!: zig_start_wrong_side[where G = G] dest: bipartite_edgeD)
+qed
+
+lemma distinct_zig:
+  assumes "bipartite M (set \<pi>) (set \<sigma>)"
+  shows "distinct (zig G M v \<pi> \<sigma>)"
+proof (cases "v \<in> set \<sigma>")
+  case True
+  with assms show ?thesis
+    by (auto intro!: alt_list_distinct[OF alt_list_zig] intro: sorted_wrt_index_less_distinct sorted_wrt_rank_zig sorted_wrt_arrival_zig dest: bipartite_disjointD)
+next
+  case False
+  with assms show ?thesis
+    by (auto elim!: zig_start_wrong_side[where G = G] bipartite_edgeE simp: distinct_length_2_or_more)
+qed
 
 lemma step_already_matched:
   "u \<in> Vs M \<Longrightarrow> step G u \<sigma> M = M"
@@ -2589,5 +2797,12 @@ lemma remove_vertex_path_not_augmenting:
   shows "augmenting_path M (remove_vertex_path G M x \<pi> \<sigma>) \<Longrightarrow> False"
   unfolding remove_vertex_path_def
   by (auto split: if_splits dest: zig_not_augmenting)
+
+lemma distinct_remove_vertex_path:
+  assumes "bipartite M (set \<pi>) (set \<sigma>)"
+  shows "distinct (remove_vertex_path G M x \<pi> \<sigma>)"
+  using assms
+  unfolding remove_vertex_path_def
+  by (auto intro: distinct_zig dest: bipartite_commute)
 
 end
