@@ -46,6 +46,13 @@ lemma graph_abs_no_edge_no_vertex:
   unfolding graph_abs_def Vs_def
   by (auto simp: insert_commute)
 
+lemma graph_abs_vertex_edgeE:
+  assumes "graph_abs G"
+  assumes "v \<in> Vs G"
+  obtains u where "{u,v} \<in> G"
+  using assms
+  by (meson edge_commute graph_abs_no_edge_no_vertex)
+
 lemma symm_diff_empty[simp]:
   "G = G' \<Longrightarrow> G \<oplus> G' = {}"
   unfolding symmetric_diff_def

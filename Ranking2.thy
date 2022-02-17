@@ -2743,6 +2743,7 @@ lemma rev_alt_path_remove_vertex_path: "rev_alt_path M (remove_vertex_path G M x
   unfolding remove_vertex_path_def
   by (auto intro: rev_alt_path_zig_edges)
 
+\<comment> \<open>Lemma 2 from paper\<close>
 lemma remove_vertex_diff_is_zig:
   assumes "ranking_matching G M \<pi> \<sigma>"
   assumes "ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>"
@@ -2804,5 +2805,100 @@ lemma distinct_remove_vertex_path:
   using assms
   unfolding remove_vertex_path_def
   by (auto intro: distinct_zig dest: bipartite_commute)
+
+
+\<comment> \<open>Lemma 4 from paper\<close>
+lemma
+  assumes "u \<in> set \<pi>" 
+  assumes "v \<in> set \<sigma>"
+  assumes "{u,v} \<in> G"
+  assumes "v \<notin> Vs M"
+  assumes rm_M: "ranking_matching G M \<pi> \<sigma>"
+  assumes rm_M': "ranking_matching G M' \<pi> \<sigma>[v \<mapsto> i]"
+  shows "\<exists>v'. {u,v'} \<in> M' \<and> index \<sigma>[v \<mapsto> i] v' \<le> index \<sigma> v"
+proof -
+  let ?\<sigma>i = "\<sigma>[v \<mapsto> i]"
+
+  from assms obtain w where "{u,w} \<in> M"
+    by (meson graph_abs_no_edge_no_vertex ranking_matchingD ranking_matching_maximalE vs_member_intro)
+
+  with assms have "index \<sigma> w < index \<sigma> v"
+    by (smt (verit, ccfv_SIG) edges_are_Vs(2) not_less_iff_gr_or_eq nth_index ranking_matching_bipartite_edges ranking_matching_earlier_match_onlineE)
+
+  then have "index ?\<sigma>i w \<le> index \<sigma> v"
+    by (auto intro: index_less_index_leq_move_to)
+
+  from rm_M \<open>{u,w} \<in> M\<close> have "{u,w} \<in> G"
+    by (auto dest: ranking_matchingD)
+
+  have "u \<in> Vs M'"
+  proof (rule ccontr)
+    assume "u \<notin> Vs M'"
+    with rm_M' \<open>{u,w} \<in> G\<close> have "w \<in> Vs M'"
+      by (auto elim: ranking_matching_maximalE)
+
+    with rm_M' obtain u' where "{u',w} \<in> M'"
+      by (meson edge_commute graph_abs_no_edge_no_vertex ranking_matchingD)
+
+    with rm_M' \<open>{u,w} \<in> G\<close> \<open>u \<in> set \<pi>\<close> \<open>u \<notin> Vs M'\<close> have "index \<pi> u' < index \<pi> u"
+      by (metis edges_are_Vs(1) index_eq_index_conv linorder_neqE ranking_matching_earlier_match_offlineE)
+
+    with \<open>{u,w} \<in> M\<close> \<open>{u',w} \<in> M'\<close> show False
+    proof (induction "index \<pi> u'" arbitrary: u' w u rule: less_induct)
+      case less
+
+      with rm_M ranking_matchingD[OF rm_M'] obtain w' where "{u',w'} \<in> M" "index \<sigma> w' < index \<sigma> w"
+        by (auto elim: ranking_matching_earlier_match_offlineE)
+
+      with \<open>{u,w} \<in> M\<close> \<open>v \<notin> Vs M\<close> have "index ?\<sigma>i w' < index ?\<sigma>i w"
+        by (auto intro!: move_to_others_keep_order)
+
+      with ranking_matchingD[OF rm_M] rm_M' \<open>{u',w'} \<in> M\<close> \<open>{u',w} \<in> M'\<close>
+      obtain u'' where "{u'',w'} \<in> M'" "index \<pi> u'' < index \<pi> u'"
+        by (auto elim: ranking_matching_earlier_match_onlineE)
+
+      with less \<open>{u',w'} \<in> M\<close> show ?case
+        by blast
+    qed
+  qed
+
+  with rm_M' obtain w' where "{u,w'} \<in> M'"
+    by (auto dest: ranking_matchingD intro: edge_commute graph_abs_vertex_edgeE)
+
+  have "index ?\<sigma>i w' \<le> index ?\<sigma>i w"
+  proof (rule ccontr)
+    assume "\<not> index ?\<sigma>i w' \<le> index ?\<sigma>i w"
+    then have "index ?\<sigma>i w < index ?\<sigma>i w'"
+      by linarith
+
+    with ranking_matchingD[OF rm_M] rm_M' \<open>{u,w} \<in> M\<close> \<open>{u,w'} \<in> M'\<close>
+    obtain u' where "{u',w} \<in> M'" "index \<pi> u' < index \<pi> u"
+      by (auto elim: ranking_matching_earlier_match_onlineE)
+
+    with \<open>{u,w} \<in> M\<close> show False
+    proof (induction "index ?\<sigma>i w" arbitrary: u w u' rule: less_induct)
+      case less
+      with rm_M ranking_matchingD[OF rm_M']
+      obtain w'' where "{u',w''} \<in> M" "index \<sigma> w'' < index \<sigma> w"
+        by (auto elim: ranking_matching_earlier_match_offlineE)
+
+      with \<open>{u,w} \<in> M\<close> \<open>v \<notin> Vs M\<close> have "index ?\<sigma>i w'' < index ?\<sigma>i w"
+        by (auto intro: move_to_others_keep_order dest: edges_are_Vs)
+
+      with ranking_matchingD[OF rm_M] rm_M' \<open>{u',w''} \<in> M\<close> \<open>{u',w} \<in> M'\<close>
+      obtain u'' where "{u'',w''} \<in> M'" "index \<pi> u'' < index \<pi> u'"
+        by (auto elim: ranking_matching_earlier_match_onlineE)
+
+      with less \<open>{u',w''} \<in> M\<close> \<open>index ?\<sigma>i w'' < index ?\<sigma>i w\<close> show ?case
+        by blast
+    qed
+  qed
+
+  with \<open>{u,w'} \<in> M'\<close> \<open>index ?\<sigma>i w \<le> index \<sigma> v\<close> have "{u,w'} \<in> M' \<and> index ?\<sigma>i w' \<le> index \<sigma> v"
+    by auto
+
+  then show ?thesis
+    by blast
+qed
 
 end
