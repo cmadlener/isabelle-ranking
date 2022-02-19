@@ -68,6 +68,15 @@ no_translations
 definition move_to :: "'a list \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a list" ("_[_ \<mapsto> _]" [100,100]) where 
   "move_to xs v i \<equiv> (take i [x <- xs. x \<noteq> v]) @ v # (drop i [x <- xs. x \<noteq> v])"
 
+lemma induct_list_nat[case_names nil_zero nil_suc cons_zero cons_suc]:
+  assumes "P [] 0"
+  assumes "\<And>n. P [] n \<Longrightarrow> P [] (Suc n)"
+  assumes "\<And>x xs. P xs 0 \<Longrightarrow> P (x#xs) 0" 
+  assumes "\<And>x xs n. P xs n \<Longrightarrow> P (x#xs) (Suc n)"
+  shows "P xs n"
+  using assms
+  by (induction_schema) (pat_completeness, lexicographic_order)
+
 lemma append_cong: "xs = xs' \<Longrightarrow> ys = ys' \<Longrightarrow> xs @ ys = xs' @ ys'"
   by simp
 
@@ -75,11 +84,6 @@ lemma move_to_gt_length:
   "length xs \<le> i \<Longrightarrow> xs[v \<mapsto> i] = xs[v \<mapsto> length xs]"
   unfolding move_to_def
   by (auto intro!: append_cong dest: le_trans[OF length_filter_le])
-
-lemma move_to_set: "set xs[x \<mapsto> i] = set xs \<union> {x}"
-  unfolding move_to_def
-  apply (auto dest: in_set_takeD in_set_dropD)
-  by (metis (mono_tags, lifting) append_take_drop_id filter_set last_index_append last_index_size_conv length_append member_filter)
 
 lemma move_to_Cons_Suc:
   assumes "x \<noteq> v"
@@ -122,14 +126,10 @@ lemma move_to_distinct:
   unfolding move_to_def
   by (auto dest: in_set_dropD in_set_takeD distinct_filter set_take_disj_set_drop_if_distinct)
 
-lemma induct_list_nat[case_names nil_zero nil_suc cons_zero cons_suc]:
-  assumes "P [] 0"
-  assumes "\<And>n. P [] n \<Longrightarrow> P [] (Suc n)"
-  assumes "\<And>x xs. P xs 0 \<Longrightarrow> P (x#xs) 0" 
-  assumes "\<And>x xs n. P xs n \<Longrightarrow> P (x#xs) (Suc n)"
-  shows "P xs n"
-  using assms
-  by (induction_schema) (pat_completeness, lexicographic_order)
+lemma move_to_set: "set xs[x \<mapsto> i] = set xs \<union> {x}"
+  unfolding move_to_def
+  by (auto dest: in_set_takeD in_set_dropD)
+     (metis (mono_tags, lifting) append_take_drop_id filter_set last_index_append last_index_size_conv length_append member_filter)
 
 lemma move_to_insert_before:
   "i \<le> index \<sigma> w \<Longrightarrow> v \<noteq> w \<Longrightarrow> v \<notin> set \<sigma> \<Longrightarrow> index \<sigma>[v \<mapsto> i] w = Suc (index \<sigma> w)"

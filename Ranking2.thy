@@ -31,14 +31,14 @@ lemma ranking_append: "ranking G (us@us') \<sigma> = ranking' G us' \<sigma> (ra
   by (simp add: ranking'_append)
 
 definition ranking_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> bool" where
-  "ranking_matching G M \<pi> \<sigma> \<equiv> matching M \<and> M \<subseteq> G \<and>
+  "ranking_matching G M \<pi> \<sigma> \<equiv> graph_matching G M \<and>
     bipartite G (set \<pi>) (set \<sigma>) \<and> maximal_matching G M \<and>
     (\<forall>u v v'. ({u,v}\<in>M \<and> {u,v'}\<in>G \<and> index \<sigma> v' < index \<sigma> v) \<longrightarrow> (\<exists>u'. {u',v'}\<in>M \<and> index \<pi> u' < index \<pi> u)) \<and>
     (\<forall>u v u'. ({u,v}\<in>M \<and> {u',v}\<in>G \<and> index \<pi> u' < index \<pi> u) \<longrightarrow> (\<exists>v'. {u',v'}\<in>M \<and> index \<sigma> v' < index \<sigma> v))"
 
 lemma ranking_matchingD:
   assumes "ranking_matching G M \<pi> \<sigma>"
-  shows "graph_abs G \<and> M \<subseteq> G \<and> bipartite G (set \<pi>) (set \<sigma>) \<and> maximal_matching G M \<and>
+  shows "graph_abs G \<and> graph_matching G M \<and> bipartite G (set \<pi>) (set \<sigma>) \<and> maximal_matching G M \<and>
     bipartite M (set \<pi>) (set \<sigma>) \<and> graph_abs M"
   using assms
   unfolding ranking_matching_def
@@ -49,8 +49,8 @@ lemma ranking_matching_commute:
   shows "ranking_matching G M \<sigma> \<pi>"
   using assms
   unfolding ranking_matching_def
-  apply (auto simp: insert_commute bipartite_commute)
-  by (metis (no_types, opaque_lifting) insert_commute)
+  by (auto simp: insert_commute bipartite_commute)
+     (meson edge_commute)
 
 lemma ranking_matching_bipartite_edges:
   assumes "ranking_matching G M \<pi> \<sigma>"
@@ -58,8 +58,7 @@ lemma ranking_matching_bipartite_edges:
   assumes "u \<in> set \<pi>"
   shows "v \<in> set \<sigma>"
   using assms
-  unfolding ranking_matching_def bipartite_def
-  by (metis disjoint_iff_not_equal doubleton_eq_iff in_mono)
+  by (auto dest: ranking_matchingD bipartite_edgeD)
 
 lemma ranking_matching_bipartite_edges':
   assumes "ranking_matching G M \<pi> \<sigma>"
@@ -67,9 +66,7 @@ lemma ranking_matching_bipartite_edges':
   assumes "v \<in> set \<sigma>"
   shows "u \<in> set \<pi>"
   using assms
-  unfolding ranking_matching_def bipartite_def
-  by (metis disjoint_iff_not_equal doubleton_eq_iff in_mono)
-
+  by (auto intro: ranking_matching_bipartite_edges dest: ranking_matching_commute edge_commute)
 
 lemma ranking_matching_maximalE:
   assumes "ranking_matching G M \<pi> \<sigma>"
@@ -86,7 +83,7 @@ lemma ranking_matching_earlier_match_onlineE:
   obtains u' where "{u',v'} \<in> M" "index \<pi> u' < index \<pi> u"
   using assms
   unfolding ranking_matching_def
-  by (meson edges_are_Vs edges_are_walks walk_endpoints(2))
+  by blast
 
 lemma ranking_matching_earlier_match_offlineE:
   assumes "ranking_matching G M \<pi> \<sigma>"
@@ -96,7 +93,7 @@ lemma ranking_matching_earlier_match_offlineE:
   obtains v' where "{u',v'} \<in> M" "index \<sigma> v' < index \<sigma> v"
   using assms
   unfolding ranking_matching_def
-  by (meson edges_are_Vs edges_are_walks walk_endpoints(2))
+  by blast
 
 lemma ranking_matching_unique_match:
   assumes rm_M: "ranking_matching G M \<pi> \<sigma>"
@@ -126,8 +123,8 @@ lemma ranking_matching_unique_match':
   assumes before: "index \<pi> u' < index \<pi> u"
   shows False
   using assms
-  by (auto intro!: ranking_matching_unique_match dest: edge_commute ranking_matching_commute)
-
+  by (auto intro!: ranking_matching_unique_match[OF ranking_matching_commute ranking_matching_commute]
+      dest: edge_commute)
 
 lemma ranking_matching_unique':
   assumes rm_M: "ranking_matching G M \<pi> \<sigma>"
@@ -143,15 +140,15 @@ proof (rule ccontr)
   then show False
   proof cases
     case u_matched
-    then obtain v' where "{u,v'} \<in> M'"
-      by (meson graph_abs_no_edge_no_vertex ranking_matchingD rm_M')
+    with rm_M' obtain v' where "{u,v'} \<in> M'"
+      by (auto elim: graph_abs_vertex_edgeE dest!: ranking_matchingD)
 
     with assms \<open>{u,v} \<notin> M'\<close> show False
       by (metis index_eq_index_conv nat_neq_iff ranking_matching_unique_match)    
   next
     case v_matched
-    then obtain u' where "{u',v} \<in> M'"
-      by (metis graph_abs_no_edge_no_vertex insert_commute ranking_matchingD rm_M')
+    with rm_M' obtain u' where "{u',v} \<in> M'"
+      by (auto elim: graph_abs_vertex_edgeE' dest!: ranking_matchingD)
 
     with assms \<open>{u,v} \<notin> M'\<close> show ?thesis
       by (metis index_eq_index_conv nat_neq_iff ranking_matching_unique_match')    
@@ -182,14 +179,8 @@ lemma ranking_matching_unique:
 lemma remove_edge_ranking_matching:
   "{u,v} \<in> M \<Longrightarrow> ranking_matching G M \<pi> \<sigma> \<Longrightarrow> ranking_matching (G \<setminus> {u,v}) (M \<setminus> {u,v}) \<pi> \<sigma>"
   unfolding ranking_matching_def
-  apply (intro conjI)
-       apply (meson matching_subgraph remove_vertices_subgraph)
-      apply (meson remove_vertices_mono subsetI)
-     apply (meson bipartite_remove_vertices)
-  apply (smt (verit, ccfv_threshold) DiffI edges_are_walks insertI1 matching_subgraph maximal_matching_def remove_edge_matching_vs remove_vertices_not_vs remove_vertices_subgraph subset_eq vs_member_intro walk_endpoints(2))
-   apply (metis edges_are_walks in_remove_verticesI insert_subset matching_def remove_vertices_not_vs remove_vertices_subgraph' subset_insertI walk_endpoints(2))
-  by (metis edges_are_Vs in_remove_verticesI insertI1 matching_def remove_vertices_not_vs remove_vertices_subgraph')
-
+  apply (auto intro: matching_remove_vertices remove_vertices_mono bipartite_remove_vertices maximal_matching_remove_edges[where G = G and M = M and X = "{u,v}" and E = "{{u,v}}", simplified Vs_def])
+  by (metis edges_are_Vs insertI1 insert_Diff insert_iff remove_edge_matching remove_vertices_not_vs remove_vertices_subgraph')+
 
 definition "shifts_to G M u v v' \<pi> \<sigma> \<equiv>
   \<comment> \<open>v' comes after v and there's an edge to u\<close>
@@ -241,6 +232,13 @@ lemma shifts_to_inj:
   using assms
   unfolding shifts_to_def
   by (metis index_eq_index_conv not_less_iff_gr_or_eq)
+
+lemma shifts_to_graph_edge:
+  assumes "shifts_to G M u v v' \<pi> \<sigma>"
+  shows "{u,v'} \<in> G"
+  using assms
+  unfolding shifts_to_def
+  by blast
 
 lemma the_shifts_to:
   assumes "shifts_to G M u v v' \<pi> \<sigma>"
@@ -484,6 +482,10 @@ lemma zig_hdE:
   obtains uvs where "zig G M v \<pi> \<sigma> = v # uvs"
   by (cases "matching M")
      (auto simp: zig.simps)
+
+lemma hd_zag: "hd (zag G M x \<pi> \<sigma>) = x"
+  by (cases "matching M")
+     (auto simp: zag.simps)
 
 lemma zag_hdE:
   obtains vus where "zag G M u \<pi> \<sigma> = u # vus"
@@ -852,6 +854,31 @@ next
   with assms show ?thesis
     by (auto elim!: zig_start_wrong_side[where G = G] bipartite_edgeE simp: distinct_length_2_or_more)
 qed
+
+lemma
+  assumes "M \<subseteq> G"
+  shows path_zig: "v \<in> Vs G \<Longrightarrow> path G (zig G M v \<pi> \<sigma>)"
+    and path_zag: "u \<in> Vs G \<Longrightarrow> path G (zag G M u \<pi> \<sigma>)"
+  using assms
+proof (induction G M v \<pi> \<sigma> and G M u \<pi> \<sigma> rule: zig_zag_induct)
+  case (1 G M v \<pi> \<sigma> u)
+  then have "u \<in> Vs G"
+    by (auto dest: edges_are_Vs)
+  with 1 show ?case
+    by (auto simp: zig.simps hd_zag intro!: path_Cons_hd dest: edge_commute)
+next
+  case (4 G M u \<pi> \<sigma>)
+  from zag_casesE[of u M G \<pi> \<sigma>] show ?case
+  proof cases
+    case 1
+    then obtain v v' where vs: "{u,v} \<in> M" "shifts_to G M u v v' \<pi> \<sigma>" by blast
+    then have "{u,v'} \<in> G" "v' \<in> Vs G"
+      unfolding shifts_to_def
+      by auto
+    with 4 vs show ?thesis
+      by (auto simp: zag.simps the_match' the_shifts_to hd_zig intro!: path_Cons_hd)
+  qed (auto simp: zag.simps the_match' 4)
+qed (auto simp: zig.simps zag.simps)
 
 lemma step_already_matched:
   "u \<in> Vs M \<Longrightarrow> step G u \<sigma> M = M"
@@ -2785,7 +2812,7 @@ lemma remove_vertex_alt_path:
   assumes "ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>"
   shows "alt_path M' (remove_vertex_path G M x \<pi> \<sigma>)"
   using assms
-  by (auto intro: rev_alt_path_sym_diff_alt_path[OF _ _ remove_vertex_diff_is_zig]
+  by (auto intro: rev_alt_path_sym_diff_alt_path[OF remove_vertex_diff_is_zig]
                   rev_alt_path_remove_vertex_path
            dest: ranking_matchingD)
 
@@ -2805,6 +2832,14 @@ lemma distinct_remove_vertex_path:
   using assms
   unfolding remove_vertex_path_def
   by (auto intro: distinct_zig dest: bipartite_commute)
+
+lemma path_remove_vertex_path:
+  assumes "M \<subseteq> G"
+  assumes "x \<in> Vs G"
+  shows "path G (remove_vertex_path G M x \<pi> \<sigma>)"
+  using assms
+  unfolding remove_vertex_path_def
+  by (auto intro: path_zig)
 
 
 \<comment> \<open>Lemma 4 from paper\<close>
@@ -2863,7 +2898,7 @@ proof -
   qed
 
   with rm_M' obtain w' where "{u,w'} \<in> M'"
-    by (auto dest: ranking_matchingD intro: edge_commute graph_abs_vertex_edgeE)
+    by (auto dest: ranking_matchingD intro: edge_commute graph_abs_vertex_edgeE')
 
   have "index ?\<sigma>i w' \<le> index ?\<sigma>i w"
   proof (rule ccontr)

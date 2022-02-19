@@ -48,10 +48,21 @@ lemma graph_abs_no_edge_no_vertex:
 
 lemma graph_abs_vertex_edgeE:
   assumes "graph_abs G"
+  assumes "u \<in> Vs G"
+  obtains v where "{u,v} \<in> G"
+  using assms
+  by (meson graph_abs_no_edge_no_vertex)
+
+lemma graph_abs_vertex_edgeE':
+  assumes "graph_abs G"
   assumes "v \<in> Vs G"
   obtains u where "{u,v} \<in> G"
   using assms
-  by (meson edge_commute graph_abs_no_edge_no_vertex)
+  by (auto elim: graph_abs_vertex_edgeE dest: edge_commute)
+
+lemma path_Cons_hd:
+  "path G vs \<Longrightarrow> hd vs = v \<Longrightarrow> {u,v} \<in> G \<Longrightarrow> path G (u#vs)"
+  by (cases vs) auto
 
 lemma symm_diff_empty[simp]:
   "G = G' \<Longrightarrow> G \<oplus> G' = {}"
@@ -64,20 +75,18 @@ lemma sym_diff_sym:
   by blast
 
 lemma alt_path_sym_diff_rev_alt_path:
-  assumes "graph_abs M" "graph_abs M'"
   assumes "M \<oplus> M' = set (edges_of_path p)"
   assumes "alt_path M p"
   shows "rev_alt_path M' p"
   using assms
-  by (smt (verit, ccfv_SIG) UnE alt_list_cong subsetD sym_diff_subset symm_diff_mutex)
+  by (auto intro: alt_list_cong simp: symmetric_diff_def)
 
 lemma rev_alt_path_sym_diff_alt_path:
-  assumes "graph_abs M" "graph_abs M'"
   assumes "M \<oplus> M' = set (edges_of_path p)"
   assumes "rev_alt_path M p"
   shows "alt_path M' p"
   using assms
-  by (smt (verit, ccfv_SIG) UnE alt_list_cong subsetD sym_diff_subset symm_diff_mutex)
+  by (auto intro: alt_list_cong simp: symmetric_diff_def)
 
 lemma alt_list_distinct:
   assumes "alt_list P Q xs"
@@ -99,12 +108,11 @@ lemma matching_subgraph: "matching M \<Longrightarrow> M' \<subseteq> M \<Longri
   by auto
 
 lemma the_match: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE u. {u,v} \<in> M) = u"
-  apply (auto intro!: the_equality )
+  apply (auto intro!: the_equality)
   by (metis doubleton_eq_iff insertI1 matching_unique_match)
 
 lemma the_match': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE v. {u,v} \<in> M) = v"
-  apply (auto intro!: the_equality)
-  by (metis (mono_tags, lifting) insert_commute the_match)
+  by (auto dest: the_match edge_commute)
 
 lemma the_match'': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE u. {v,u} \<in> M) = u"
   by (auto dest: the_match edge_commute)
@@ -130,7 +138,7 @@ lemma maximal_matching_edgeE:
   obtains e where "e \<in> M" "u \<in> e \<or> v \<in> e"
   using assms
   unfolding maximal_matching_def
-  by (meson vs_member)
+  by (auto simp: vs_member)
 
 lemma maximal_matchingD:
   assumes "maximal_matching G M"
@@ -153,7 +161,6 @@ lemma not_maximal_matchingE:
   using assms
   unfolding maximal_matching_def graph_abs_def
   by auto
-
 
 subsection \<open>Bipartite graphs\<close>
 definition bipartite :: "'a graph \<Rightarrow> 'a set \<Rightarrow> 'a set \<Rightarrow> bool" where
@@ -331,6 +338,7 @@ lemma remove_remove_union: "G \<setminus> X \<setminus> Y = G \<setminus> X \<un
 
 lemma remove_edge_matching: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {u,v} = M - {{u,v}}"
   unfolding remove_vertices_graph_def
+  thm matching_unique_match
   by auto (metis empty_iff insert_iff matching_unique_match)+
 
 lemma remove_vertex_matching: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {u} = M - {{u,v}}"
@@ -354,5 +362,52 @@ lemma remove_vertex_matching_vs': "matching M \<Longrightarrow> {u,v} \<in> M \<
 lemma remove_vertices_in_diff: "{u,v} \<in> G \<setminus> X \<Longrightarrow> {u,v} \<notin> G \<setminus> X' \<Longrightarrow> u \<in> X' - X \<or> v \<in> X' - X"
   unfolding remove_vertices_graph_def
   by simp
+
+
+lemma maximal_matching_remove_edges:
+  assumes "M \<subseteq> G"
+  assumes "E \<subseteq> M"
+  assumes "X = Vs E"
+  assumes "maximal_matching G M"
+  shows "maximal_matching (G \<setminus> X) (M \<setminus> X)"
+  unfolding maximal_matching_def
+proof (intro conjI allI impI)
+  show "matching (M \<setminus> X)" using assms
+    by (auto simp: maximal_matching_def intro: matching_remove_vertices)
+next
+  fix u v
+  assume "{u,v} \<in> G \<setminus> X"
+
+  then have "{u,v} \<in> G" "u \<notin> X" "v \<notin> X"
+    by (auto dest: remove_vertices_subgraph' remove_vertices_not_vs edges_are_Vs)
+
+  with \<open>maximal_matching G M\<close> consider "u \<in> Vs M" | "v \<in> Vs M"
+    by (auto dest: maximal_matching_edgeD)
+
+  then show "u \<in> Vs (M \<setminus> X) \<or> v \<in> Vs (M \<setminus> X)"
+  proof cases
+    case 1
+    then obtain e where "e \<in> M" "u \<in> e"
+      by (auto simp: vs_member)
+
+    with assms \<open>u \<notin> X\<close> have "e \<in> M \<setminus> X"
+      apply (auto intro!: in_remove_verticesI)
+      by (smt (verit, del_insts) matching_unique_match maximal_matching_def subset_iff vs_member)
+
+    with \<open>u \<in> e\<close> show ?thesis
+      by blast
+  next
+    case 2
+    then obtain e where "e \<in> M" "v \<in> e"
+      by (auto simp: vs_member)
+
+    with assms \<open>v \<notin> X\<close> have "e \<in> M \<setminus> X"
+      apply (auto intro!: in_remove_verticesI)
+      by (smt (verit, del_insts) matching_unique_match maximal_matching_def subset_iff vs_member)
+
+    with \<open>v \<in> e\<close> show ?thesis
+      by blast
+  qed
+qed
 
 end
