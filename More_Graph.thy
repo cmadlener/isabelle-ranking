@@ -60,6 +60,10 @@ lemma graph_abs_vertex_edgeE':
   using assms
   by (auto elim: graph_abs_vertex_edgeE dest: edge_commute)
 
+lemma vs_neq_graphs_neq:
+  "x \<in> Vs G \<Longrightarrow> x \<notin> Vs H \<Longrightarrow> G \<noteq> H"
+  by blast
+
 lemma path_Cons_hd:
   "path G vs \<Longrightarrow> hd vs = v \<Longrightarrow> {u,v} \<in> G \<Longrightarrow> path G (u#vs)"
   by (cases vs) auto
@@ -315,6 +319,12 @@ lemma remove_vertices_graph_disjoint: "X \<inter> Vs G = {} \<Longrightarrow> G 
 lemma remove_vertex_not_in_graph: "x \<notin> Vs G \<Longrightarrow> G \<setminus> {x} = G"
   by (auto intro!: remove_vertices_graph_disjoint)
 
+lemma remove_vertex_psubset: "x \<in> Vs G \<Longrightarrow> x \<in> X \<Longrightarrow> G \<setminus> X < G"
+  by (auto intro: remove_vertices_subgraph' dest: remove_vertices_not_vs vs_neq_graphs_neq)
+
+lemma remove_vertex_card_less: "finite G \<Longrightarrow> x \<in> Vs G \<Longrightarrow> x \<in> X \<Longrightarrow> card (G \<setminus> X) < card G"
+  by (auto intro: psubset_card_mono intro!: remove_vertex_psubset)
+
 
 
 lemma graph_abs_remove_vertices:
@@ -409,5 +419,147 @@ next
       by blast
   qed
 qed
+
+definition max_card_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> bool" where
+  "max_card_matching G M \<longleftrightarrow> M \<subseteq> G \<and> matching M \<and> (\<forall>M'. M' \<subseteq> G \<and> matching M' \<longrightarrow> card M' \<le> card M)"
+
+definition perfect_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> bool" where
+  "perfect_matching G M \<longleftrightarrow> M \<subseteq> G \<and> matching M \<and> Vs G = Vs M"
+
+lemma max_card_matchingI:
+  assumes "M \<subseteq> G" "matching M"
+  assumes "\<And>M'. M' \<subseteq> G \<Longrightarrow> matching M' \<Longrightarrow> card M' \<le> card M"
+  shows "max_card_matching G M"
+  using assms
+  unfolding max_card_matching_def
+  by blast
+
+lemma max_card_matchingD:
+  assumes "max_card_matching G M"
+  shows "M \<subseteq> G \<and> matching M \<and> (\<forall>M'. M' \<subseteq> G \<and> matching M' \<longrightarrow> card M' \<le> card M)"
+  using assms
+  unfolding max_card_matching_def
+  by blast
+
+lemma perfect_matchingI:
+  assumes "M \<subseteq> G" "matching M" "Vs G = Vs M"
+  shows "perfect_matching G M"
+  using assms
+  unfolding perfect_matching_def
+  by blast
+
+lemma perfect_matching_max_card_matchingI:
+  assumes "max_card_matching G M"
+  assumes "Vs G = Vs M"
+  shows "perfect_matching G M"
+  using assms
+  unfolding max_card_matching_def
+  by (auto intro: perfect_matchingI)
+
+lemma perfect_matching_is_max_card_matching: "graph_abs G \<Longrightarrow> perfect_matching G M \<Longrightarrow> max_card_matching G M"
+proof (rule ccontr)
+  assume assms: "graph_abs G" "perfect_matching G M" "\<not>max_card_matching G M"
+
+  then obtain M' where M': "M' \<subseteq> G" "matching M'" "card M' > card M"
+    unfolding perfect_matching_def max_card_matching_def
+    by auto
+
+  from \<open>graph_abs G\<close> have "finite G"
+    by (simp add: graph_abs.finite_E)
+
+  with assms M' obtain e where "e \<in> M'" "e \<notin> M"
+    unfolding perfect_matching_def
+    by (meson card_mono finite_subset leD subsetI)
+
+  with assms show False
+    sorry
+qed
+
+lemma max_card_matching_remove_vertices:
+  assumes "max_card_matching G M"
+  assumes "X \<subseteq> Vs G - Vs M"
+  shows "max_card_matching (G \<setminus> X) M"
+proof (rule ccontr)
+  assume contr: "\<not>max_card_matching (G \<setminus> X) M"
+
+  from assms have "M \<subseteq> G \<setminus> X"
+    by (auto dest: max_card_matchingD intro: in_remove_verticesI)
+
+  with assms contr obtain M' where M': "M' \<subseteq> G \<setminus> X" "matching M'" "card M' > card M"
+    by (auto simp: max_card_matching_def)
+
+  then have "M' \<subseteq> G"
+    by (auto intro: remove_vertices_subgraph')
+
+  with M' assms show False
+    by (simp add: leD max_card_matchingD)
+qed
+
+function make_perfect_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> 'a graph" where
+  "make_perfect_matching G M = (
+    if (\<exists>x. x \<in> Vs G \<and> x \<notin> Vs M)
+    then make_perfect_matching (G \<setminus> {SOME x. x \<in> Vs G \<and> x \<notin> Vs M}) M
+    else G
+  )
+  " if "finite G"
+| "make_perfect_matching G M = G" if "infinite G"
+  by auto
+
+termination
+  by (relation "measure (card \<circ> fst)")
+     (auto intro: remove_vertex_card_less dest!: someI_ex)
+
+lemma max_card_matching_make_perfect_matching:
+  assumes "max_card_matching G M"
+  shows "max_card_matching (make_perfect_matching G M) M"
+  using assms
+proof (induction G M rule: make_perfect_matching.induct)
+  case (1 G M)
+  show ?case
+  proof (cases "\<exists>x. x \<in> Vs G \<and> x \<notin> Vs M")
+    case True
+    with \<open>max_card_matching G M\<close> have "max_card_matching (G \<setminus> {SOME x. x \<in> Vs G \<and> x \<notin> Vs M}) M"
+      by (auto intro: max_card_matching_remove_vertices dest!: someI_ex)
+
+    with 1 True show ?thesis
+      by simp
+  qed (use 1 in auto)
+qed simp
+
+lemma vs_make_perfect_matching:
+  assumes "M \<subseteq> G"
+  assumes "finite G"
+  shows "Vs (make_perfect_matching G M) = Vs M"
+  using assms
+proof (induction G M rule: make_perfect_matching.induct)
+  case (1 G M)
+  show ?case
+  proof (cases "\<exists>x. x \<in> Vs G \<and> x \<notin> Vs M")
+    case True
+    with \<open>finite G\<close> show ?thesis
+      apply simp
+      apply (rule "1.IH")
+        apply simp
+       apply auto
+      apply (rule in_remove_verticesI)
+      using \<open>M \<subseteq> G\<close> apply blast
+       apply (metis (no_types, lifting) Int_empty_right Int_insert_right_if0 tfl_some vs_member_intro)
+      by (meson finite_subset remove_vertices_subgraph)
+  next
+    case False
+    with 1 show ?thesis
+      by (auto dest: Vs_subset)
+  qed
+qed blast
+
+lemma perfect_matching_make_perfect_matching:
+  assumes "finite G"
+  assumes "max_card_matching G M"
+  shows "perfect_matching (make_perfect_matching G M) M"
+  using assms
+  by (auto simp del: make_perfect_matching.simps
+           intro!: perfect_matching_max_card_matchingI
+                   vs_make_perfect_matching max_card_matching_make_perfect_matching
+           dest: max_card_matchingD)
 
 end

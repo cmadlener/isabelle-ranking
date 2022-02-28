@@ -400,7 +400,7 @@ termination zig
   qed
   done
 
-lemma zig_zag_induct:
+lemma zig_zag_induct[case_names zig_matched zig_unmatched zig_no_matching zag zag_no_matching]:
   assumes "\<And>G M v \<pi> \<sigma>. matching M \<Longrightarrow> (\<And>u. {u,v} \<in> M \<Longrightarrow> (THE u. {u,v} \<in> M) = u \<Longrightarrow> Q G M u \<pi> \<sigma> \<Longrightarrow> P G M v \<pi> \<sigma>)"
   assumes "\<And>G M v \<pi> \<sigma>. matching M \<Longrightarrow> \<nexists>u. {u,v} \<in> M \<Longrightarrow> P G M v \<pi> \<sigma>"
   assumes "\<And>G M v \<pi> \<sigma>. \<not>matching M \<Longrightarrow> P G M v \<pi> \<sigma>"
@@ -453,7 +453,7 @@ next
   qed
 qed (use assms in auto)
 
-lemma zag_casesE:
+lemma zag_casesE[case_names has_shifts_to has_no_shifts_to unmatched]:
   obtains "\<exists>v. {u,v} \<in> M \<and> (\<exists>v'. shifts_to G M u v v' \<pi> \<sigma>)" | "\<exists>v. {u,v} \<in> M \<and> (\<nexists>v'. shifts_to G M u v v' \<pi> \<sigma>)" | "\<nexists>v. {u,v} \<in> M"
   by blast
 
@@ -584,17 +584,17 @@ lemma
     alt_list_zag: "u \<in> set \<pi> \<Longrightarrow> alt_list (\<lambda>x. x \<in> set \<pi>) (\<lambda>x. x \<in> set \<sigma>) (zag G M u \<pi> \<sigma>)"
   using assms
 proof (induction G M v \<pi> \<sigma> and G M u \<pi> \<sigma> rule: zig_zag_induct)
-  case (1 G M v \<pi> \<sigma> u)
+  case (zig_matched G M v \<pi> \<sigma> u)
   then have "u \<in> set \<pi>"
     by (auto dest: bipartite_edgeD)
 
-  with 1 show ?case
+  with zig_matched show ?case
     by (auto simp: zig.simps intro: alt_list.intros)
 next
-  case (4 G M u \<pi> \<sigma>)
+  case (zag G M u \<pi> \<sigma>)
   from zag_casesE[of u M G \<pi> \<sigma>] show ?case
   proof cases
-    case 1
+    case has_shifts_to
     then obtain v v' where vv': "{u,v} \<in> M" "shifts_to G M u v v' \<pi> \<sigma>" by blast
     then have "v' \<in> set \<sigma>"
       by (simp add: shifts_to_only_from_input)
@@ -602,16 +602,16 @@ next
     from vv' \<open>matching M\<close> have "(THE v. {u,v} \<in> M) = v" "(THE v'. shifts_to G M u v v' \<pi> \<sigma>) = v'"
       by (auto dest: the_match' the_shifts_to)
 
-    with 1 4 vv' \<open>v' \<in> set \<sigma>\<close> show ?thesis
+    with has_shifts_to zag vv' \<open>v' \<in> set \<sigma>\<close> show ?thesis
       by (auto simp: zag.simps intro: alt_list.intros)
   next
-    case 2
+    case has_no_shifts_to
     then obtain v where "{u,v} \<in> M" by blast
 
-    with 2 4 show ?thesis
+    with has_no_shifts_to zag show ?thesis
       by (auto simp: zag_no_shifts_to intro!: alt_list.intros)      
   next
-    case 3
+    case unmatched
     with \<open>matching M\<close> \<open>u \<in> set \<pi>\<close> show ?thesis
       by (auto simp: zag.simps intro: alt_list.intros)
   qed
@@ -861,23 +861,23 @@ lemma
     and path_zag: "u \<in> Vs G \<Longrightarrow> path G (zag G M u \<pi> \<sigma>)"
   using assms
 proof (induction G M v \<pi> \<sigma> and G M u \<pi> \<sigma> rule: zig_zag_induct)
-  case (1 G M v \<pi> \<sigma> u)
+  case (zig_matched G M v \<pi> \<sigma> u)
   then have "u \<in> Vs G"
     by (auto dest: edges_are_Vs)
-  with 1 show ?case
+  with zig_matched show ?case
     by (auto simp: zig.simps hd_zag intro!: path_Cons_hd dest: edge_commute)
 next
-  case (4 G M u \<pi> \<sigma>)
+  case (zag G M u \<pi> \<sigma>)
   from zag_casesE[of u M G \<pi> \<sigma>] show ?case
   proof cases
-    case 1
+    case has_shifts_to
     then obtain v v' where vs: "{u,v} \<in> M" "shifts_to G M u v v' \<pi> \<sigma>" by blast
     then have "{u,v'} \<in> G" "v' \<in> Vs G"
       unfolding shifts_to_def
       by auto
-    with 4 vs show ?thesis
+    with zag vs show ?thesis
       by (auto simp: zag.simps the_match' the_shifts_to hd_zig intro!: path_Cons_hd)
-  qed (auto simp: zag.simps the_match' 4)
+  qed (auto simp: zag.simps the_match' zag)
 qed (auto simp: zig.simps zag.simps)
 
 lemma step_already_matched:
@@ -1557,43 +1557,43 @@ lemma
    remove_online_vertices_zag_zag_eq: "u \<in> set \<pi> \<Longrightarrow> ((\<exists>v. {u,v} \<in> M \<Longrightarrow> \<forall>x \<in> X. ((\<exists>v. {x,v} \<in> M) \<longrightarrow> index \<sigma> (THE v. {x,v} \<in> M) < index \<sigma> (THE v. {u,v} \<in> M)))) \<Longrightarrow> zag (G \<setminus> X) (M \<setminus> X) u \<pi> \<sigma> = zag G M u \<pi> \<sigma>"
   using assms
 proof (induction G M v \<pi> \<sigma> and G M u \<pi> \<sigma> rule: zig_zag_induct)
-  case (1 G M v \<pi> \<sigma> u)
+  case (zig_matched G M v \<pi> \<sigma> u)
   then have "u \<in> set \<pi>"
     by (auto dest: bipartite_edgeD)
 
   from \<open>matching M\<close> have "matching (M \<setminus> X)"
     by (auto intro: matching_remove_vertices)
 
-  from "1.prems" \<open>{u,v} \<in> M\<close> \<open>matching M\<close> have "u \<notin> X"
+  from zig_matched.prems \<open>{u,v} \<in> M\<close> \<open>matching M\<close> have "u \<notin> X"
     by (auto simp: the_match')
 
-  from "1.prems" have "v \<notin> X"
+  from zig_matched.prems have "v \<notin> X"
     by (auto dest!: bipartite_disjointD)
 
   with \<open>{u,v} \<in> M\<close> \<open>u \<notin> X\<close> have "{u,v} \<in> M \<setminus> X"
     by (auto intro: in_remove_verticesI)
 
-  with 1 \<open>matching (M \<setminus> X)\<close> \<open>u \<in> set \<pi>\<close> show ?case
+  with zig_matched \<open>matching (M \<setminus> X)\<close> \<open>u \<in> set \<pi>\<close> show ?case
     by (auto simp: zig.simps the_match' the_match)
 next
-  case (2 G M v \<pi> \<sigma>)
+  case (zig_unmatched G M v \<pi> \<sigma>)
   then have "matching (M \<setminus> X)" "\<nexists>u. {u,v} \<in> M \<setminus> X"
     by (auto dest: matching_remove_vertices remove_vertices_subgraph')
 
-  with 2 show ?case
+  with zig_unmatched show ?case
     by (auto simp: zig.simps)
 next
-  case (4 G M u \<pi> \<sigma>)
+  case (zag G M u \<pi> \<sigma>)
 
   have uv: "\<And>v. {u,v} \<in> M \<Longrightarrow> {u,v} \<in> M \<setminus> X"
   proof (intro in_remove_verticesI, simp)
     fix v
     assume "{u,v} \<in> M"
 
-    with "4.prems" have "u \<notin> X"
+    with zag.prems have "u \<notin> X"
       by (auto simp: the_match)
 
-    from 4 \<open>{u,v} \<in> M\<close> have "v \<notin> X"
+    from zag \<open>{u,v} \<in> M\<close> have "v \<notin> X"
       by (auto dest: bipartite_edgeD)
 
     with \<open>u \<notin> X\<close> show "{u,v} \<inter> X = {}"
@@ -1606,7 +1606,7 @@ next
   from zag_casesE[of u M G \<pi> \<sigma>]
   show ?case
   proof cases
-    case 1
+    case has_shifts_to
     then obtain v v' where vv': "{u,v} \<in> M" "shifts_to G M u v v' \<pi> \<sigma>" by blast
 
     then have "{u,v} \<in> M \<setminus> X"
@@ -1615,28 +1615,28 @@ next
     from vv' have v': "v' \<in> set \<sigma>" "index \<sigma> v < index \<sigma> v'"
       by (auto simp add: shifts_to_def)
 
-    from "4.prems" vv' have "u \<notin> X"
+    from zag.prems vv' have "u \<notin> X"
       by (auto simp: the_match)
 
-    from "4.prems" vv' \<open>u \<notin> X\<close> have "shifts_to (G \<setminus> X) (M \<setminus> X) u v v' \<pi> \<sigma>"
+    from zag.prems vv' \<open>u \<notin> X\<close> have "shifts_to (G \<setminus> X) (M \<setminus> X) u v v' \<pi> \<sigma>"
       by (auto intro!: remove_online_vertices_shifts_to_same dest: bipartite_disjointD simp: the_match')
 
-    with 4 vv' v' \<open>matching (M \<setminus> X)\<close> \<open>{u,v} \<in> M \<setminus> X\<close> show ?thesis
+    with zag vv' v' \<open>matching (M \<setminus> X)\<close> \<open>{u,v} \<in> M \<setminus> X\<close> show ?thesis
       apply (auto simp: zag.simps the_match the_match' the_shifts_to)
       by (meson order.strict_trans)
   next
-    case 2
+    case has_no_shifts_to
     then obtain v where v: "{u,v} \<in> M" "\<nexists>v'. shifts_to G M u v v' \<pi> \<sigma>" by blast
 
     then have "\<nexists>v'. shifts_to (G \<setminus> X) (M \<setminus> X) u v v' \<pi> \<sigma>"
-      using 2 remove_online_vertices_before_shifts_to_mono[OF bipartite_disjointD[OF \<open>bipartite M (set \<pi>) (set \<sigma>)\<close>]
-          \<open>X \<subseteq> set \<pi>\<close> \<open>matching M\<close> 4(4) _] \<open>matching M\<close>
+      using has_no_shifts_to remove_online_vertices_before_shifts_to_mono[OF bipartite_disjointD[OF \<open>bipartite M (set \<pi>) (set \<sigma>)\<close>]
+          \<open>X \<subseteq> set \<pi>\<close> \<open>matching M\<close> zag(4) _] \<open>matching M\<close>
       by (auto simp: the_match') blast
 
     with v uv[OF v(1)] \<open>matching M\<close> \<open>matching (M \<setminus> X)\<close> show ?thesis
       by (auto simp: zag.simps the_match' the_shifts_to)
   next
-    case 3
+    case unmatched
     with \<open>matching M\<close> \<open>matching (M \<setminus> X)\<close> show ?thesis
       by (auto simp: zag.simps dest: remove_vertices_subgraph')
   qed
@@ -1651,7 +1651,7 @@ lemma
     remove_offline_vertices_zag_zag_eq: "u \<in> set \<pi> \<Longrightarrow> (\<exists>v. {u,v} \<in> M \<Longrightarrow> \<forall>x \<in> X. index \<sigma> x < index \<sigma> (THE v. {u,v} \<in> M)) \<Longrightarrow> zag (G \<setminus> X) (M \<setminus> X) u \<pi> \<sigma> = zag G M u \<pi> \<sigma>"
   using assms
 proof (induction G M v \<pi> \<sigma> and G M u \<pi> \<sigma> rule: zig_zag_induct)
-  case (1 G M v \<pi> \<sigma> u)
+  case (zig_matched G M v \<pi> \<sigma> u)
 
   then have "matching (M \<setminus> X)"
     by (simp add: matching_remove_vertices)
@@ -1668,17 +1668,17 @@ proof (induction G M v \<pi> \<sigma> and G M u \<pi> \<sigma> rule: zig_zag_ind
   with \<open>{u,v} \<in> M\<close> \<open>v \<notin> X\<close> have "{u,v} \<in> M \<setminus> X"
     by (auto intro: in_remove_verticesI)
 
-  with 1 \<open>matching (M \<setminus> X)\<close> \<open>{u,v} \<in> M \<setminus> X\<close> \<open>u \<in> set \<pi>\<close> show ?case
+  with zig_matched \<open>matching (M \<setminus> X)\<close> \<open>{u,v} \<in> M \<setminus> X\<close> \<open>u \<in> set \<pi>\<close> show ?case
     by (auto simp: zig.simps simp: the_match' the_match)
 next
-  case (2 G M v \<pi> \<sigma>)
+  case (zig_unmatched G M v \<pi> \<sigma>)
     then have "\<nexists>u. {u,v} \<in> M \<setminus> X"
       using remove_vertices_subgraph by blast
 
-    with 2 \<open>matching M\<close> matching_remove_vertices[OF \<open>matching M\<close>] show ?case
+    with zig_unmatched \<open>matching M\<close> matching_remove_vertices[OF \<open>matching M\<close>] show ?case
       by (auto simp: zig.simps)
 next
-  case (4 G M u \<pi> \<sigma>)
+  case (zag G M u \<pi> \<sigma>)
 
   then have "u \<notin> X"
     by (auto dest!: bipartite_disjointD)
@@ -1688,7 +1688,7 @@ next
     fix v
     assume "{u,v} \<in> M"
 
-    with "4.prems" have "v \<notin> X"
+    with zag.prems have "v \<notin> X"
       by (auto simp: the_match')
 
     with \<open>u \<notin> X\<close> show "{u,v} \<inter> X = {}"
@@ -1701,7 +1701,7 @@ next
   from zag_casesE[of u M G \<pi> \<sigma>]
   show ?case 
   proof cases
-    case 1
+    case has_shifts_to
     then obtain v v' where vv': "{u,v} \<in> M" "shifts_to G M u v v' \<pi> \<sigma>" by blast
 
     then have v': "v' \<in> set \<sigma>" "index \<sigma> v < index \<sigma> v'"
@@ -1710,17 +1710,17 @@ next
     from vv' have "{u,v} \<in> M \<setminus> X"
       by (auto intro: uv)
 
-    from "4.prems" vv' have "shifts_to (G \<setminus> X) (M \<setminus> X) u v v' \<pi> \<sigma>"
+    from zag.prems vv' have "shifts_to (G \<setminus> X) (M \<setminus> X) u v v' \<pi> \<sigma>"
       by (auto intro!: remove_offline_vertices_before_shifts_to_same' dest: bipartite_disjointD simp: the_match')
 
-    with 4 vv' v' \<open>matching (M \<setminus> X)\<close> \<open>{u,v} \<in> M \<setminus> X\<close> \<open>v' \<in> set \<sigma>\<close> show ?thesis
+    with zag vv' v' \<open>matching (M \<setminus> X)\<close> \<open>{u,v} \<in> M \<setminus> X\<close> \<open>v' \<in> set \<sigma>\<close> show ?thesis
       apply (auto simp: zag.simps simp: the_match the_match' the_shifts_to)
       by (meson order.strict_trans)
   next
-    case 2
+    case has_no_shifts_to
     then obtain v where v: "{u,v} \<in> M" "\<nexists>v'. shifts_to G M u v v' \<pi> \<sigma>" by blast
 
-    with "4.prems" have "\<nexists>v'. shifts_to (G \<setminus> X) (M \<setminus> X) u v v' \<pi> \<sigma>"
+    with zag.prems have "\<nexists>v'. shifts_to (G \<setminus> X) (M \<setminus> X) u v v' \<pi> \<sigma>"
       using remove_offline_vertices_before_shifts_to_mono[OF bipartite_disjointD[OF \<open>bipartite M (set \<pi>) (set \<sigma>)\<close>]
           \<open>X \<subseteq> set \<sigma>\<close>]
       by (auto simp: the_match') blast
@@ -1728,7 +1728,7 @@ next
     with v uv[OF v(1)] \<open>matching M\<close> \<open>matching (M \<setminus> X)\<close> show ?thesis
       by (auto simp: zag.simps the_match')
   next
-    case 3
+    case unmatched
     with \<open>matching M\<close> \<open>matching (M \<setminus> X)\<close> show ?thesis
       by (auto simp: zag.simps dest: remove_vertices_subgraph')
   qed
