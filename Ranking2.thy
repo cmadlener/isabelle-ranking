@@ -880,6 +880,46 @@ next
   qed (auto simp: zag.simps the_match' zag)
 qed (auto simp: zig.simps zag.simps)
 
+lemma
+  shows zig_butlast_subset_M: "v \<in> Vs M \<Longrightarrow> set (butlast (zig G M v \<pi> \<sigma>)) \<subseteq> Vs M"
+    and zag_butlast_subset_M: "u \<in> Vs M \<Longrightarrow> set (butlast (zag G M u \<pi> \<sigma>)) \<subseteq> Vs M"
+proof (induction G M v \<pi> \<sigma> and G M u \<pi> \<sigma> rule: zig_zag_induct)
+  case (zag G M u \<pi> \<sigma>)
+  from zag_casesE[of u M G \<pi> \<sigma>]
+  show ?case
+  proof cases
+    case has_shifts_to
+    then obtain v v' where shift: "{u,v} \<in> M" "shifts_to G M u v v' \<pi> \<sigma>" by blast
+    with zag show ?thesis
+      proof (cases "v' \<in> Vs M")
+        case True
+        from zag.IH[OF shift True] zag.hyps zag.prems shift show ?thesis
+          by (simp add: zag.simps the_match' the_shifts_to)
+      next
+        case False
+        with zag.hyps have "zig G M v' \<pi> \<sigma> = [v']"
+          by (auto simp: zig.simps)
+
+        with shift zag.hyps zag.prems show ?thesis
+          by (simp add: zag.simps the_match' the_shifts_to)
+      qed
+  next
+    case has_no_shifts_to
+    then obtain v where "{u,v} \<in> M" "\<nexists>v'. shifts_to G M u v v' \<pi> \<sigma>" by blast
+    then show ?thesis
+      by (auto simp: zag_no_shifts_to)
+  next
+    case unmatched
+    with zag show ?thesis
+      by (simp add: zag.simps)
+  qed
+next
+  case zag_no_matching
+  then show ?case
+    by (simp add: zag.simps)
+qed (auto simp: zig.simps)
+
+
 lemma step_already_matched:
   "u \<in> Vs M \<Longrightarrow> step G u \<sigma> M = M"
   by (induction \<sigma>) auto
@@ -1284,6 +1324,12 @@ lemma ranking_commute:
   shows "ranking G \<pi> \<sigma> = ranking G \<sigma> \<pi>"
   using assms
   by (auto intro!: ranking_matching_unique intro: ranking_matching_commute dest: ranking_matching_ranking bipartite_commute)
+
+lemma ranking_matchingE:
+  assumes "bipartite G (set \<pi>) (set \<sigma>)"
+  obtains M where "ranking_matching G M \<pi> \<sigma>"
+  using assms
+  by (auto dest: ranking_matching_ranking)
 
 
 subsection \<open>Removing vertices\<close>
@@ -2840,6 +2886,102 @@ lemma path_remove_vertex_path:
   using assms
   unfolding remove_vertex_path_def
   by (auto intro: path_zig)
+
+lemma remove_vertex_path_butlast_subset_M:
+  assumes "x \<in> Vs M"
+  shows "set (butlast (remove_vertex_path G M x \<pi> \<sigma>)) \<subseteq> Vs M"
+  using assms
+  unfolding remove_vertex_path_def
+  by (auto intro!: zig_butlast_subset_M)
+
+lemma remove_vertex_matching_card_leq:
+  assumes rm_M: "ranking_matching G M \<pi> \<sigma>"
+  assumes rm_M': "ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>"
+  shows "card M' \<le> card M"
+proof (cases "x \<in> Vs M")
+  case True
+  show ?thesis
+  proof (rule ccontr)
+    assume "\<not> card M' \<le> card M"
+    then have lt_matching: "card M < card M'"
+      by linarith
+
+    from rm_M rm_M' have matchings: "finite M" "finite M'" "matching M" "matching M'"
+      by (auto dest: ranking_matchingD graph_abs.finite_E)
+
+    let ?symm_diff = "set (edges_of_path (remove_vertex_path G M x \<pi> \<sigma>))"
+    from assms have symm_diff_eq: "M \<oplus> M' = ?symm_diff"
+      by (auto intro!: remove_vertex_diff_is_zig)
+
+    with rm_M have doubleton_neq_edges: "\<forall>e\<in>(M \<oplus> M'). \<exists>u v. e = {u,v} \<and> u \<noteq> v" "\<forall>e\<in>M. \<exists>u v. e = {u,v} \<and> u \<noteq> v"
+      using graph_abs_edges_of_distinct_path[OF distinct_remove_vertex_path]
+      by (force dest!: ranking_matchingD dest!: graph_abs.graph)+
+
+    with Berge_1[OF matchings lt_matching doubleton_neq_edges]
+    obtain p where aug_path: "augmenting_path M p" "path (?symm_diff) p" "distinct p"
+      by (auto simp: symm_diff_eq)
+
+    then have hd_last_p: "hd p \<noteq> last p" "hd p \<in> set p" "last p \<in> set p"
+      by (induction p)
+         (auto simp: augmenting_path_def)
+
+    have p_subset_symm_diff: "set p \<subseteq> set (remove_vertex_path G M x \<pi> \<sigma>)"
+      by (meson \<open>path (set (edges_of_path (remove_vertex_path G M x \<pi> \<sigma>))) p\<close> edges_of_path_Vs mem_path_Vs subset_iff)
+
+    with hd_last_p aug_path have "last p \<in> Vs M"
+      by (auto intro!: subset_butlast_only_one[OF remove_vertex_path_butlast_subset_M[OF True]]
+               dest: augmenting_path_feats)
+
+
+    with aug_path show False
+      by (auto dest: augmenting_path_feats)
+  qed
+next
+  case False
+  with assms have "M = M'"
+    by (metis ranking_matchingD ranking_matching_ranking ranking_matching_unique ranking_remove_unmatched_vertex_same)
+  then show ?thesis
+    by blast
+qed
+
+lemma ranking_matching_card_leq_on_perfect_matching_graph:
+  assumes "ranking_matching G M \<pi> \<sigma>" "ranking_matching (make_perfect_matching G N) M' \<pi> \<sigma>"
+  shows "card M' \<le> card M"
+  using assms
+proof (induction G N arbitrary: M M' rule: make_perfect_matching.induct)
+  case (1 G N)
+  then show ?case
+  proof (cases "\<exists>x. x \<in> Vs G \<and> x \<notin> Vs N")
+    case True
+    with 1 obtain M'' where M'': "ranking_matching (G \<setminus> {SOME x. x \<in> Vs G \<and> x \<notin> Vs N}) M'' \<pi> \<sigma>"
+      by (meson bipartite_remove_vertices ranking_matchingE ranking_matchingD)
+
+    with 1 True have *: "card M' \<le> card M''"
+      by (auto dest: bipartite_remove_vertices)
+
+    from 1 M'' have "card M'' \<le> card M"
+      by (auto intro: remove_vertex_matching_card_leq)
+
+    with * show ?thesis
+      by linarith
+  qed (use 1 in \<open>auto dest: ranking_matching_unique\<close>)
+qed (auto dest: ranking_matchingD graph_abs.finite_E)
+
+lemma ranking_matching_comp_ratio_perfect_matching_lower_bound:
+  assumes "ranking_matching G M \<pi> \<sigma>" "ranking_matching (make_perfect_matching G N) M' \<pi> \<sigma>"
+  assumes "max_card_matching G N" "max_card_matching (make_perfect_matching G N) N'"
+  shows "(real (card M)) / card N \<ge> card M' / card N'"
+proof -
+  from assms have max_cards_eq: "card N = card N'"
+    by (auto intro: max_card_matchings_same_size dest: max_card_matching_make_perfect_matching)
+
+  from assms have "card M' \<le> card M"
+    by (auto intro: ranking_matching_card_leq_on_perfect_matching_graph)
+
+  with max_cards_eq show ?thesis
+    by (auto simp: divide_right_mono)
+qed
+
 
 
 \<comment> \<open>Lemma 4 from paper\<close>

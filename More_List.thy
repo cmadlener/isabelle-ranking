@@ -359,4 +359,11 @@ lemma index_less_index_leq_move_to:
   by (induction \<sigma> i rule: induct_list_nat)
      (auto split: if_splits simp: move_to_0 move_to_Cons_Suc)
 
+lemma subset_butlast_only_one:
+  assumes "set (butlast xs) \<subseteq> X"
+  assumes "x \<in> set xs" "y \<in> set xs" "x \<noteq> y" "x \<notin> X"
+  shows "y \<in> X"
+  using assms
+  by (induction xs) (auto split: if_splits)
+
 end

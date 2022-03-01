@@ -60,6 +60,10 @@ lemma graph_abs_vertex_edgeE':
   using assms
   by (auto elim: graph_abs_vertex_edgeE dest: edge_commute)
 
+lemma graph_abs_edges_of_distinct_path:
+  "distinct p \<Longrightarrow> graph_abs (set (edges_of_path p))"
+  by (induction p rule: edges_of_path.induct) auto
+
 lemma vs_neq_graphs_neq:
   "x \<in> Vs G \<Longrightarrow> x \<notin> Vs H \<Longrightarrow> G \<noteq> H"
   by blast
@@ -441,6 +445,44 @@ lemma max_card_matchingD:
   unfolding max_card_matching_def
   by blast
 
+lemma max_card_matching_ex:
+  assumes "finite G"
+  shows "\<exists>M. max_card_matching G M"
+proof (rule ccontr)
+  assume no_max_card: "\<nexists>M. max_card_matching G M"
+
+  obtain M where "M \<subseteq> G" "matching M"
+    using matching_empty by blast
+
+  then show False
+  proof (induction "card G - card M" arbitrary: M rule: less_induct)
+    case less
+    with no_max_card obtain M' where "M' \<subseteq> G" "matching M'" "card M < card M'"
+      unfolding max_card_matching_def
+      by auto
+
+    with less assms show ?case
+      by (metis card_mono diff_less_mono2 leD psubsetI psubset_card_mono)
+  qed
+qed
+
+lemma max_card_matchings_same_size:
+  assumes "max_card_matching G M"
+  assumes "max_card_matching G M'"
+  shows "card M = card M'"
+  using assms
+  unfolding max_card_matching_def
+  by (simp add: dual_order.eq_iff)
+
+lemma max_card_matching_cardI:
+  assumes "max_card_matching G M"
+  assumes "card M = card M'"
+  assumes "M' \<subseteq> G" "matching M'"
+  shows "max_card_matching G M'"
+  using assms
+  unfolding max_card_matching_def
+  by simp
+
 lemma perfect_matchingI:
   assumes "M \<subseteq> G" "matching M" "Vs G = Vs M"
   shows "perfect_matching G M"
@@ -457,23 +499,7 @@ lemma perfect_matching_max_card_matchingI:
   by (auto intro: perfect_matchingI)
 
 lemma perfect_matching_is_max_card_matching: "graph_abs G \<Longrightarrow> perfect_matching G M \<Longrightarrow> max_card_matching G M"
-proof (rule ccontr)
-  assume assms: "graph_abs G" "perfect_matching G M" "\<not>max_card_matching G M"
-
-  then obtain M' where M': "M' \<subseteq> G" "matching M'" "card M' > card M"
-    unfolding perfect_matching_def max_card_matching_def
-    by auto
-
-  from \<open>graph_abs G\<close> have "finite G"
-    by (simp add: graph_abs.finite_E)
-
-  with assms M' obtain e where "e \<in> M'" "e \<notin> M"
-    unfolding perfect_matching_def
-    by (meson card_mono finite_subset leD subsetI)
-
-  with assms show False
-    sorry
-qed
+  sorry
 
 lemma max_card_matching_remove_vertices:
   assumes "max_card_matching G M"
