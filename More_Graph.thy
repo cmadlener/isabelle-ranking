@@ -116,8 +116,8 @@ lemma matching_subgraph: "matching M \<Longrightarrow> M' \<subseteq> M \<Longri
   by auto
 
 lemma the_match: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE u. {u,v} \<in> M) = u"
-  apply (auto intro!: the_equality)
-  by (metis doubleton_eq_iff insertI1 matching_unique_match)
+  by (auto intro!: the_equality)
+     (metis doubleton_eq_iff insertI1 matching_unique_match)
 
 lemma the_match': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE v. {u,v} \<in> M) = v"
   by (auto dest: the_match edge_commute)
@@ -362,7 +362,6 @@ lemma remove_remove_union: "G \<setminus> X \<setminus> Y = G \<setminus> X \<un
 
 lemma remove_edge_matching: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {u,v} = M - {{u,v}}"
   unfolding remove_vertices_graph_def
-  thm matching_unique_match
   by auto (metis empty_iff insert_iff matching_unique_match)+
 
 lemma remove_vertex_matching: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {u} = M - {{u,v}}"

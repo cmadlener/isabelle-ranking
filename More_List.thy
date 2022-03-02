@@ -4,9 +4,15 @@ begin
 
 sledgehammer_params [provers = cvc4 vampire verit e spass z3 zipperposition]
 
-lemma index_gt_induct: 
-  assumes "\<And>x. (\<And>y. (index xs y > index xs x \<Longrightarrow> P y)) \<Longrightarrow> P x"
-  shows "P x"
+lemma index_less_induct[case_names index_less]:
+  assumes "\<And>x. (\<And>y. index xs y < index xs x \<Longrightarrow> P y xs) \<Longrightarrow> P x xs"
+  shows "P x xs"
+  using assms
+  by (rule measure_induct_rule)
+
+lemma index_gt_induct[case_names index_gt]: 
+  assumes "\<And>x. (\<And>y. index xs x < index xs y \<Longrightarrow> P y xs) \<Longrightarrow> P x xs"
+  shows "P x xs"
   using assms
   by (induction "length xs - index xs x" arbitrary: x rule: less_induct)
      (metis diff_less_mono2 index_le_size le_less not_le)
