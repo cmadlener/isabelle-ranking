@@ -128,6 +128,12 @@ lemma the_match'': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow>
 lemma the_match''': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE v. {v,u} \<in> M) = v"
   by (auto dest: the_match' edge_commute)
 
+lemma matching_card_vs:
+  assumes "graph_abs M"
+  assumes "matching M"
+  shows "2 * card M = card (Vs M)"
+  using assms
+  by (auto simp:  Vs_def card_2_iff card_partition graph_abs.finite_E graph_abs_def matching_def)
 
 definition maximal_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> bool" where
   "maximal_matching G M \<equiv> matching M \<and> (\<forall>u v. {u,v} \<in> G \<longrightarrow> u \<in> Vs M \<or> v \<in> Vs M)"
@@ -345,6 +351,10 @@ lemma matching_remove_vertices:
   using remove_vertices_subgraph
   by (auto intro: matching_subgraph)
 
+lemma finite_remove_vertices:
+  "finite G \<Longrightarrow> finite (G \<setminus> X)"
+  by (auto intro: finite_subset[OF remove_vertices_subgraph])
+
 
 lemma remove_remove_union: "G \<setminus> X \<setminus> Y = G \<setminus> X \<union> Y"
   unfolding remove_vertices_graph_def by blast
@@ -498,8 +508,39 @@ lemma perfect_matching_max_card_matchingI:
   unfolding max_card_matching_def
   by (auto intro: perfect_matchingI)
 
-lemma perfect_matching_is_max_card_matching: "graph_abs G \<Longrightarrow> perfect_matching G M \<Longrightarrow> max_card_matching G M"
-  sorry
+lemma perfect_matchingD:
+  assumes "perfect_matching G M"
+  shows "M \<subseteq> G" "matching M" "Vs G = Vs M"
+  using assms
+  unfolding perfect_matching_def
+  by blast+
+
+lemma perfect_matching_is_max_card_matching: 
+  assumes "graph_abs G"
+  assumes perfect: "perfect_matching G M"
+  shows "max_card_matching G M"
+proof (rule ccontr)
+  assume not_max_card: "\<not>max_card_matching G M"
+
+  from perfect have "M \<subseteq> G" "matching M" "Vs G = Vs M"
+    by (auto dest: perfect_matchingD)
+
+  with not_max_card obtain M' where bigger_matching: "M' \<subseteq> G" "matching M'" "card M < card M'"
+    unfolding max_card_matching_def perfect_matching_def
+    by auto
+
+  from bigger_matching have *: "2 * card M < 2 * card M'"
+    by linarith
+
+  from \<open>graph_abs G\<close> \<open>M \<subseteq> G\<close> \<open>M' \<subseteq> G\<close> have "graph_abs M" "graph_abs M'"
+    by (auto intro: graph_abs_subgraph)
+
+  with * \<open>matching M\<close> \<open>matching M'\<close> have "card (Vs M) < card (Vs M')"
+    by (auto simp: matching_card_vs)
+
+  with \<open>Vs G = Vs M\<close>[symmetric] \<open>M' \<subseteq> G\<close> \<open>graph_abs G\<close> show False
+    by (auto simp: Vs_def Union_mono card_mono leD dest: graph_abs.graph)
+qed
 
 lemma max_card_matching_remove_vertices:
   assumes "max_card_matching G M"
@@ -535,8 +576,20 @@ termination
   by (relation "measure (card \<circ> fst)")
      (auto intro: remove_vertex_card_less dest!: someI_ex)
 
+lemma subgraph_vs_subset_eq:
+  assumes "M \<subseteq> G"
+  assumes "Vs G \<subseteq> Vs M"
+  shows "Vs G = Vs M"
+  using assms
+  unfolding Vs_def
+  by auto
+
+lemma subgraph_remove_some_ex:
+  "\<exists>x. x \<in> Vs G \<and> x \<notin> Vs M \<Longrightarrow> M \<subseteq> G \<Longrightarrow> M \<subseteq> G \<setminus> {SOME x. x \<in> Vs G \<and> x \<notin> Vs M}"
+    by (auto intro: in_remove_verticesI dest!: someI_ex)
+
 lemma max_card_matching_make_perfect_matching:
-  assumes "max_card_matching G M"
+  assumes "matching M" "M \<subseteq> G" "graph_abs G" "finite G"
   shows "max_card_matching (make_perfect_matching G M) M"
   using assms
 proof (induction G M rule: make_perfect_matching.induct)
@@ -544,12 +597,20 @@ proof (induction G M rule: make_perfect_matching.induct)
   show ?case
   proof (cases "\<exists>x. x \<in> Vs G \<and> x \<notin> Vs M")
     case True
-    with \<open>max_card_matching G M\<close> have "max_card_matching (G \<setminus> {SOME x. x \<in> Vs G \<and> x \<notin> Vs M}) M"
-      by (auto intro: max_card_matching_remove_vertices dest!: someI_ex)
+    with \<open>M \<subseteq> G\<close> have "M \<subseteq> G \<setminus> {SOME x. x \<in> Vs G \<and> x \<notin> Vs M}"
+      by (intro subgraph_remove_some_ex)
 
-    with 1 True show ?thesis
+    from "1.IH"[OF True \<open>matching M\<close> this graph_abs_remove_vertices[OF \<open>graph_abs G\<close>] finite_remove_vertices[OF \<open>finite G\<close>]] True \<open>finite G\<close>
+    show ?thesis
       by simp
-  qed (use 1 in auto)
+  next
+    case False
+    with 1 have "perfect_matching G M"
+      by (auto intro!: perfect_matchingI subgraph_vs_subset_eq)
+    
+    with 1 False show ?thesis
+      by (auto dest: perfect_matching_is_max_card_matching)
+  qed
 qed simp
 
 lemma vs_make_perfect_matching:
@@ -562,15 +623,9 @@ proof (induction G M rule: make_perfect_matching.induct)
   show ?case
   proof (cases "\<exists>x. x \<in> Vs G \<and> x \<notin> Vs M")
     case True
-    with \<open>finite G\<close> show ?thesis
-      apply simp
-      apply (rule "1.IH")
-        apply simp
-       apply auto
-      apply (rule in_remove_verticesI)
-      using \<open>M \<subseteq> G\<close> apply blast
-       apply (metis (no_types, lifting) Int_empty_right Int_insert_right_if0 tfl_some vs_member_intro)
-      by (meson finite_subset remove_vertices_subgraph)
+
+    from \<open>finite G\<close> True 1 show ?thesis
+      by simp (intro "1.IH" finite_remove_vertices subgraph_remove_some_ex)
   next
     case False
     with 1 show ?thesis
@@ -579,8 +634,8 @@ proof (induction G M rule: make_perfect_matching.induct)
 qed blast
 
 lemma perfect_matching_make_perfect_matching:
-  assumes "finite G"
-  assumes "max_card_matching G M"
+  assumes "finite G" "graph_abs G"
+  assumes "matching M" "M \<subseteq> G"
   shows "perfect_matching (make_perfect_matching G M) M"
   using assms
   by (auto simp del: make_perfect_matching.simps

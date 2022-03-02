@@ -2973,7 +2973,7 @@ lemma ranking_matching_comp_ratio_perfect_matching_lower_bound:
   shows "(real (card M)) / card N \<ge> card M' / card N'"
 proof -
   from assms have max_cards_eq: "card N = card N'"
-    by (auto intro: max_card_matchings_same_size dest: max_card_matching_make_perfect_matching)
+    by (metis make_perfect_matching.simps(2) max_card_matching_def max_card_matching_make_perfect_matching max_card_matchings_same_size ranking_matchingD)
 
   from assms have "card M' \<le> card M"
     by (auto intro: ranking_matching_card_leq_on_perfect_matching_graph)
