@@ -3028,7 +3028,7 @@ proof -
         by (auto elim: ranking_matching_earlier_match_offlineE)
 
       with \<open>{u,w} \<in> M\<close> \<open>v \<notin> Vs M\<close> have "index ?\<sigma>i w' < index ?\<sigma>i w"
-        by (auto intro!: move_to_others_keep_order)
+        by (metis edges_are_Vs(2) move_to_others_less)
 
       with ranking_matchingD[OF rm_M] rm_M' \<open>{u',w'} \<in> M\<close> \<open>{u',w} \<in> M'\<close>
       obtain u'' where "{u'',w'} \<in> M'" "index \<pi> u'' < index \<pi> u'"
@@ -3061,7 +3061,7 @@ proof -
         by (auto elim: ranking_matching_earlier_match_offlineE)
 
       with \<open>{u,w} \<in> M\<close> \<open>v \<notin> Vs M\<close> have "index ?\<sigma>i w'' < index ?\<sigma>i w"
-        by (auto intro: move_to_others_keep_order dest: edges_are_Vs)
+        by (metis edges_are_Vs(2) move_to_others_less)
 
       with ranking_matchingD[OF rm_M] rm_M' \<open>{u',w''} \<in> M\<close> \<open>{u',w} \<in> M'\<close>
       obtain u'' where "{u'',w''} \<in> M'" "index \<pi> u'' < index \<pi> u'"

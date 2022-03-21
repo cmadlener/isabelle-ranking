@@ -31,6 +31,9 @@ lemma sorted_wrt_index_less_distinct:
   "sorted_wrt (\<lambda>a b. index \<sigma> a < index \<sigma> b) xs \<Longrightarrow> distinct xs"
   by (induction xs) auto
 
+lemma index_filter_neq: "a \<noteq> v \<Longrightarrow> b \<noteq> v \<Longrightarrow> index xs a \<le> index xs b \<longleftrightarrow> index [x <- xs. x \<noteq> v] a \<le> index [x <- xs. x \<noteq> v] b"
+  by (induction xs) auto
+
 
 subsection \<open>Removing Vertices from Lists\<close>
 definition remove_vertices_list :: "'a list \<Rightarrow> 'a set \<Rightarrow> 'a list" (infix "\<setminus>" 60) where
@@ -99,6 +102,14 @@ lemma move_to_Cons_Suc:
   unfolding move_to_def
   by auto
 
+lemma move_to_Cons_Cons_Suc:
+  assumes "Suc n = i"
+  assumes "x \<noteq> v"
+  shows "(x#v#xs)[x \<mapsto> i] = v#xs[x \<mapsto> n]"
+  using assms
+  unfolding move_to_def
+  by auto
+
 lemma move_hd_to:
   "(v#xs)[v \<mapsto> i] = xs[v \<mapsto> i]"
   unfolding move_to_def
@@ -117,6 +128,11 @@ lemma move_to_0:
   unfolding move_to_def
   by simp
 
+lemma move_to_Nil:
+  shows "[][v \<mapsto> i] = [v]"
+  unfolding move_to_def
+  by simp
+
 lemma move_to_last:
   shows "xs[v \<mapsto> length xs] = [x <- xs. x \<noteq> v] @ [v]"
   unfolding move_to_def
@@ -132,10 +148,16 @@ lemma move_to_distinct:
   unfolding move_to_def
   by (auto dest: in_set_dropD in_set_takeD distinct_filter set_take_disj_set_drop_if_distinct)
 
+lemma count_list_append: "count_list (xs@ys) x = count_list xs x + count_list ys x"
+  by (induction xs) auto
+
 lemma move_to_set: "set xs[x \<mapsto> i] = set xs \<union> {x}"
   unfolding move_to_def
   by (auto dest: in_set_takeD in_set_dropD)
      (metis (mono_tags, lifting) append_take_drop_id filter_set last_index_append last_index_size_conv length_append member_filter)
+
+lemma move_to_set_eq: "x \<in> set xs \<Longrightarrow> set xs[x \<mapsto> i] = set xs"
+  by (auto simp: move_to_set)
 
 lemma move_to_insert_before:
   "i \<le> index \<sigma> w \<Longrightarrow> v \<noteq> w \<Longrightarrow> v \<notin> set \<sigma> \<Longrightarrow> index \<sigma>[v \<mapsto> i] w = Suc (index \<sigma> w)"
@@ -151,11 +173,14 @@ lemma move_to_insert_after:
 lemma index_less_filter_eq: "index xs w < index xs v \<Longrightarrow> index [x <- xs. x \<noteq> v] w = index xs w"
   by (induction xs) auto
 
-lemma index_less_filter: "index xs w < index xs w' \<Longrightarrow> w \<noteq> v \<Longrightarrow> w' \<noteq> v \<Longrightarrow> index [x <- xs. x \<noteq> v] w < index [x <- xs. x \<noteq> v] w'"
+lemma index_less_filter: "w \<noteq> v \<Longrightarrow> w' \<noteq> v \<Longrightarrow> index xs w < index xs w' \<longleftrightarrow> index [x <- xs. x \<noteq> v] w < index [x <- xs. x \<noteq> v] w'"
   by (induction xs) auto
 
 lemma not_in_take: "x \<notin> set xs \<Longrightarrow> x \<notin> set (take i xs)"
   by (auto dest: in_set_takeD)
+
+lemma not_in_drop: "x \<notin> set xs \<Longrightarrow> x \<notin> set (drop i xs)"
+  by (auto dest: in_set_dropD)
 
 lemma not_in_set_filter_length_eq: "v \<notin> set xs \<Longrightarrow> length [x <- xs. x \<noteq> v] = length xs"
   by (induction xs) auto
@@ -185,6 +210,14 @@ lemma Suc_index_filter: "index xs v < index xs w \<Longrightarrow> v \<in> set x
 lemma not_Nil_length_SucE: "xs \<noteq> [] \<Longrightarrow> (\<And>n. length xs = Suc n \<Longrightarrow> P) \<Longrightarrow> P"
   by (induction xs) auto
 
+lemma move_to_count_list:
+  "count_list xs[x \<mapsto> i] x = 1"
+  unfolding move_to_def
+  by (auto simp: count_list_append intro!: count_notin simp: not_in_take not_in_drop)
+
+lemma list_eq_count_list_eq:
+ "xs = ys \<Longrightarrow> count_list xs x = count_list ys x"
+  by simp
 
 lemma move_to_id:
   "count_list \<sigma> v = 1 \<Longrightarrow> \<sigma>[v \<mapsto> index \<sigma> v] = \<sigma>"
@@ -333,10 +366,9 @@ next
   qed
 qed auto
 
-lemma move_to_others_keep_order:
+lemma move_to_others_less:
   assumes "v \<noteq> w" "v \<noteq> w'"
-  assumes "index xs w < index xs w'"
-  shows "index xs[v \<mapsto> i] w < index xs[v \<mapsto> i] w'"
+  shows "index xs w < index xs w' \<longleftrightarrow> index xs[v \<mapsto> i] w < index xs[v \<mapsto> i] w'"
   using assms
 proof (induction xs arbitrary: i)
   case (Cons a xs)
@@ -358,12 +390,101 @@ proof (induction xs arbitrary: i)
         by (auto split: if_splits simp: move_to_Cons_Suc index_less_filter)
     qed
   qed
-qed simp
+qed (simp add: move_to_Nil)
+
+lemma move_to_others_leq:
+  assumes "v \<noteq> w" "v \<noteq> w'"
+  shows "index xs w \<le> index xs w' \<longleftrightarrow> index xs[v \<mapsto> i] w \<le> index xs[v \<mapsto> i] w'"
+  using assms
+  by (metis linorder_not_le move_to_others_less)
 
 lemma index_less_index_leq_move_to:
   "index \<sigma> w < index \<sigma> v \<Longrightarrow> index \<sigma>[v \<mapsto> i] w \<le> index \<sigma> v"
   by (induction \<sigma> i rule: induct_list_nat)
      (auto split: if_splits simp: move_to_0 move_to_Cons_Suc)
+
+lemma distinct_move_to_filter_id: "distinct xs \<Longrightarrow> x \<notin> set xs \<Longrightarrow> filter (\<lambda>v. v \<noteq> x) (xs[x \<mapsto> i]) = xs"
+  by (induction xs i rule: induct_list_nat)
+     (auto simp: move_to_0 move_to_Nil move_to_Cons_Suc)
+
+lemma move_to_move_back_id:
+  assumes "distinct \<sigma>"
+  assumes "v \<in> set \<sigma>"
+  shows "\<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v] = \<sigma>"
+  using assms
+proof (induction \<sigma> t rule: induct_list_nat)
+  case cons_zero
+  then show ?case
+    by (auto simp: move_to_0 not_in_set_filter_id move_to_Cons_Suc move_to_Cons_eq)
+next
+  case (cons_suc _ xs _)
+  then show ?case
+  proof (cases xs)
+    case Nil
+    with cons_suc show ?thesis
+      by (auto simp: move_to_0 move_to_set_eq)
+  next
+    case Cons
+    with cons_suc show ?thesis
+      by (auto simp: move_to_set_eq move_to_0 move_to_Cons_Suc distinct_move_to_filter_id move_to_Cons_Cons_Suc)
+  qed
+qed auto
+
+lemma the_index:
+  assumes "distinct \<sigma>"
+  assumes "t < length \<sigma>"
+  shows "(THE v. index \<sigma> v = t) = \<sigma> ! t"
+  using assms
+  by (auto intro: index_nth_id simp: index_less_size_conv)
+
+lemma move_to_eq_if:
+  "\<sigma>[v \<mapsto> t] = \<sigma>[w \<mapsto> t] \<Longrightarrow> v = w"
+proof (induction \<sigma> t rule: induct_list_nat)
+  case (cons_suc x xs n)
+  consider "v = w" | "v \<noteq> w \<and> v = x" | "v \<noteq> w \<and> w = x" | "v \<noteq> w \<and> v \<noteq> x \<and> w \<noteq> x" by blast
+  then show ?case
+  proof cases
+    case 2
+    show ?thesis
+    proof (cases xs)
+      case Nil
+      with cons_suc 2 show ?thesis
+        by (auto simp: move_hd_to move_to_Nil move_to_Cons_Suc)
+    next
+      case (Cons a as)
+      with cons_suc 2 show ?thesis
+        apply (cases "v = a")
+         apply (auto simp: move_hd_to move_to_Cons_Suc)
+        apply (cases n)
+         apply (auto simp: move_to_Cons_Suc move_to_0 move_to_count_list dest!: list_eq_count_list_eq[where x = x])
+        done
+    qed
+  next
+    case 3
+    show ?thesis
+    proof (cases xs)
+      case Nil
+      with cons_suc 3 show ?thesis
+        by (auto simp: move_hd_to move_to_Nil move_to_Cons_Suc)
+    next
+      case (Cons a as)
+      with cons_suc 3 show ?thesis
+        apply (cases "w = a")
+         apply (auto simp: move_hd_to move_to_Cons_Suc)
+        apply (cases n)
+         apply (auto simp: move_to_Cons_Suc move_to_0 move_to_count_list dest!: list_eq_count_list_eq[where x = x])
+        done
+    qed
+  next
+    case 4
+    with cons_suc show ?thesis
+      by (auto simp: move_to_Cons_Suc)
+  qed simp
+qed (auto simp: move_to_0 move_to_Nil)
+
+lemma move_to_eq_iff: "\<sigma>[v \<mapsto> t] = \<sigma>[w \<mapsto> t] \<longleftrightarrow> v = w"
+  by (auto dest: move_to_eq_if)
+
 
 lemma subset_butlast_only_one:
   assumes "set (butlast xs) \<subseteq> X"
