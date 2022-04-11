@@ -205,26 +205,123 @@ lemma permutations_but_v_card:
   using assms
   apply (auto dest!: permutations_but_v_bij_betw bij_betw_same_card)
   using assms(1) length_finite_permutations_of_set by blast
-    
+
+lemma bipartite_edge_In_Ex1:
+  assumes "bipartite M U V"
+  assumes "matching M"
+  assumes "e \<in> M"
+  shows "\<exists>!e'. e' \<in> M \<and> V \<inter> e \<subseteq> e'"
+  using assms
+  by auto
+     (smt (verit, best) bipartite_edgeE disjoint_insert(1) in_mono inf_bot_right le_iff_inf matching_unique_match)+
+
+lemma the_bipartite_edge_In:
+  assumes "bipartite M U V"
+  assumes "matching M"
+  assumes "e \<in> M"
+  shows "(THE e'. e' \<in> M \<and> V \<inter> e \<subseteq> e') = e"
+proof (rule ccontr)
+  assume neq: "(THE e'. e' \<in> M \<and> V \<inter> e \<subseteq> e') \<noteq> e"
+
+  obtain e' where e': "e' \<in> M" "V \<inter> e \<subseteq> e'"
+    using bipartite_edge_In_Ex1 assms
+    by blast
+
+  with assms bipartite_edge_In_Ex1 have the_e': "(THE e'. e' \<in> M \<and> V \<inter> e \<subseteq> e') = e'"
+    by (intro the1_equality) blast+
+
+  with neq assms e' bipartite_edge_In_Ex1 show False
+    by blast
+qed
+
+lemma card_bipartite_matching_In:
+  assumes "bipartite M U V"
+  assumes "matching M"
+  shows "card M = card (((\<inter>) V) ` M)"
+  using assms
+  by (auto intro!: bij_betw_same_card[of "(\<inter>) V"] intro: bij_betwI[where g = "\<lambda>v. (THE e. e \<in> M \<and> v \<subseteq> e)"]
+      simp: the_bipartite_edge_In)
+
+lemma card_singleton_UN:
+  assumes "\<forall>x \<in> X. \<exists>y. x = {y}"
+  shows "card (\<Union> X) = card X"
+  using assms
+  by (auto intro!: bij_betw_same_card[of "\<lambda>x. {x}"] intro!: bij_betwI[where g = "\<lambda>X. (THE x. X = {x})"])
+
+lemma bipartite_In_singletons:
+  assumes "bipartite G U V"
+  assumes "X \<in> ((\<inter>) V) ` G"
+  shows "\<exists>x. X = {x}"
+  using assms
+  by (auto elim!: bipartite_edgeE dest: bipartite_disjointD)
 
 
-locale ranking =
-  fixes G U V M
-  assumes bipartite: "bipartite G U V"
-  assumes finite: "finite U" "finite V"
-  assumes non_empty: "U \<noteq> {}" "V \<noteq> {}"
+lemma distinct_indexE:
+  assumes "distinct xs"
+  assumes "t < length xs"
+  obtains x where "index xs x = t" "(THE x. index xs x = t) = x" "x \<in> set xs"
+  using assms index_nth_id
+  by (smt (verit, ccfv_threshold) index_less_size_conv nth_index the_equality)
+
+
+lemma matched_indices_set_eq:
+  assumes "bipartite M U (set xs)"
+  assumes "distinct xs"
+  assumes "matching M"
+  shows "{..<length xs} \<inter> {t. (THE v. index xs v = t) \<in> Vs M} = (index xs) ` \<Union> (((\<inter>) (set xs)) ` M)"
+  using assms
+  by (auto elim: distinct_indexE intro!: rev_image_eqI simp: Vs_def)
+
+lemma the_edge:
+  assumes "matching M"
+  assumes "e \<in> M"
+  assumes "v \<in> e"
+  shows "(THE e. e \<in> M \<and> v \<in> e) = e"
+  using assms
+  by (auto intro!: the_equality dest: matching_unique_match)
+
+lemma bipartite_eqI:
+  assumes "bipartite M U V"
+  assumes "e \<in> M"
+  assumes "x \<in> e" "x \<in> V" "y \<in> e" "y \<in> V"
+  shows "x = y"
+  using assms
+  by (smt (verit, best) IntE bipartite_disjointD bipartite_edgeE disjoint_iff_not_equal insert_iff)
+
+locale ranking_on_perfect_matching =
+  fixes G V M \<pi>
+  assumes bipartite: "bipartite G (set \<pi>) V"
+  assumes finite: "finite V"
+  assumes non_empty: "V \<noteq> {}"
 
   assumes perfect_matching: "perfect_matching G M"
 begin
+
+lemma ranking_edgeE:
+  assumes "e \<in> ranking G \<pi> \<sigma>"
+  obtains u v where "e = {u,v}" "u \<in> set \<pi>" "v \<in> V" "v \<in> set \<sigma>"
+  using assms bipartite
+  by (smt (verit, best) bipartite_disjointD bipartite_edgeE disjoint_iff_not_equal edges_are_Vs(2) ranking_Vs_subset subgraph_ranking)
+
+abbreviation "ranking_prob \<equiv> map_pmf (\<lambda>\<sigma>. ranking G \<pi> \<sigma>) (pmf_of_set (permutations_of_set V))"
 
 lemma graph_absG: "graph_abs G"
   using bipartite finite
   by (auto intro: finite_bipartite_graph_abs)
 
+lemma matching_if_perm: "\<sigma> \<in> permutations_of_set V \<Longrightarrow> matching (ranking G \<pi> \<sigma>)"
+  using bipartite
+  by (auto intro: matching_ranking dest: permutations_of_setD bipartite_disjointD)
 
-lemma "v \<in> V \<Longrightarrow> bij_betw (\<lambda>\<sigma>. \<sigma>[v \<mapsto> t]) (permutations_of_set V) (permutations_of_set V)"
-  oops \<comment> \<open>the original position of v does not matter - hence this is not a bijection\<close>
+lemma bipartite_if_perm: "\<sigma> \<in> permutations_of_set V \<Longrightarrow> bipartite (ranking G \<pi> \<sigma>) (set \<pi>) (set \<sigma>)"
+  using bipartite
+  by (auto dest: permutations_of_setD intro: bipartite_ranking)
 
+
+lemma perms_of_V:
+  shows "permutations_of_set V \<noteq> {}"
+    and "finite (permutations_of_set V)"
+  by (auto simp: finite)
 
 definition random_permutation_t :: "nat \<Rightarrow> ('a list) pmf" where
   "random_permutation_t t \<equiv> 
@@ -298,5 +395,158 @@ proof (rule pmf_eqI)
       by (auto intro!: sum.neutral dest: permutation_move_to simp: random_permutation_t_def pmf_bind_pmf_of_set indicator_singleton sum.If_cases)
   qed
 qed
+
+abbreviation rank_matched :: "nat \<Rightarrow> bool pmf" where
+  "rank_matched t \<equiv>
+    do {
+      \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
+      let M = ranking G \<pi> \<sigma>;
+      return_pmf ((THE v. index \<sigma> v = t) \<in> Vs M)
+    }"
+
+lemma bool_pmf_is_bernoulli_pmf:
+  "\<exists>p. bool_pmf = bernoulli_pmf p \<and> 0 \<le> p \<and> p \<le> 1"
+  apply (auto simp: pmf_eq_iff)
+  by (metis (full_types) pmf_False_conv_True pmf_bernoulli_True pmf_le_1 pmf_nonneg)
+
+lemma bool_pmf_is_bernoulli_pmfE:
+  obtains p where "bool_pmf = bernoulli_pmf p" "0 \<le> p" "p \<le> 1"
+  using bool_pmf_is_bernoulli_pmf
+  by blast
+
+lemma bernoulli_prob_True_expectation:
+  "measure_pmf.prob p {True} = measure_pmf.expectation p of_bool"
+proof -
+  obtain p' where p': "p = bernoulli_pmf p'" "0 \<le> p'" "p' \<le> 1"
+    using bool_pmf_is_bernoulli_pmfE by blast
+
+  then show ?thesis
+    by (auto simp: measure_pmf_single)
+qed
+
+lemma rank_matched_prob_is_expectation: "measure_pmf.prob (rank_matched t) {True} = measure_pmf.expectation (rank_matched t) of_bool"
+  by (simp add: bernoulli_prob_True_expectation)
+
+lemma the_t:
+  assumes "distinct xs"
+  assumes "x \<in> set xs"
+  shows "index xs x = (THE t. index xs x = t)"
+    and "(THE t. index xs x = t) < length xs"
+  using assms
+  by (auto dest: theI'[OF distinct_Ex1])
+
+lemma the_t_for_edge:
+  assumes "\<sigma> \<in> permutations_of_set V"
+  assumes "{u,v} \<in> G"
+  assumes "u \<in> set \<pi>" "v \<in> set \<sigma>"
+  shows "(THE t. \<exists>v'\<in>set \<sigma>. index \<sigma> v' = t \<and> v' \<in> {u,v}) = index \<sigma> v"
+  using assms bipartite
+  by (auto dest: permutations_of_setD bipartite_disjointD)
+
+lemma ranking_card_is_sum_of_matched_vertices:
+  assumes \<sigma>: "\<sigma> \<in> permutations_of_set V"
+  shows "card (ranking G \<pi> \<sigma>) = sum (\<lambda>t. of_bool ((THE v. index \<sigma> v = t) \<in> Vs (ranking G \<pi> \<sigma>))) {..<card V}"
+proof -
+  have card_length: "card V = length \<sigma>"
+    using assms
+    by (simp add: length_finite_permutations_of_set)
+
+  from \<sigma> have matching: "matching (ranking G \<pi> \<sigma>)"
+    by (auto intro: matching_if_perm)
+
+  from \<sigma> have bipartite': "bipartite (ranking G \<pi> \<sigma>) (set \<pi>) (set \<sigma>)"
+    by (auto intro: bipartite_if_perm)
+
+  have "card (ranking G \<pi> \<sigma>) = card (index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>))"
+  proof (rule bij_betw_same_card[of "\<lambda>e. (THE t. \<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> e)"],
+         rule bij_betwI[where g = "\<lambda>t. (THE e. e \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e)"])
+    show "(\<lambda>e. THE t. \<exists>v\<in>set \<sigma>. index \<sigma> v = t \<and> v \<in> e) \<in> ranking G \<pi> \<sigma> \<rightarrow> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>)"
+    proof (rule Pi_I)
+      fix e
+      assume edge: "e \<in> ranking G \<pi> \<sigma>"
+
+      then obtain u v where uv: "e = {u,v}" "u \<in> set \<pi>" "v \<in> set \<sigma>"
+        by (auto elim: ranking_edgeE)
+
+      with \<sigma> edge have "(THE t. \<exists>v' \<in> set \<sigma>. index \<sigma> v' = t \<and> v' \<in> e) = index \<sigma> v"
+        by (auto intro!: the_t_for_edge[simplified] dest: subgraph_ranking)
+
+      with edge uv show "(THE t. \<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> e) \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>)"
+        by (auto intro!: imageI)
+    qed
+  next
+    show "(\<lambda>t. THE e. e \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e) \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>) \<rightarrow> ranking G \<pi> \<sigma>"
+    proof (rule Pi_I)
+      fix t
+      assume t: "t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>)"
+
+      then obtain v where v: "index \<sigma> v = t" "v \<in> set \<sigma>" "v \<in> Vs (ranking G \<pi> \<sigma>)"
+        by blast
+
+      then obtain e where e: "e \<in> ranking G \<pi> \<sigma>" "v \<in> e"
+        by (auto elim: vs_member_elim)
+
+      with assms matching have the_e: "\<And>e'. e' \<in> ranking G \<pi> \<sigma> \<and> v \<in> e' \<Longrightarrow> e' = e"
+        by (auto dest: matching_unique_match)
+
+      with e v show "(THE e. e \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e) \<in> ranking G \<pi> \<sigma>"
+        by (metis (no_types, lifting) nth_index theI')
+    qed
+  next
+    show "\<And>e. e \<in> ranking G \<pi> \<sigma> \<Longrightarrow> (THE e'. e' \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! (THE t. \<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> e) \<in> e') = e"
+    proof -
+      fix e
+      assume e: "e \<in> ranking G \<pi> \<sigma>"
+
+      then obtain u v where uv: "u \<in> set \<pi>" "v \<in> set \<sigma>" "e = {u,v}"
+        by (auto elim: ranking_edgeE)
+
+      then obtain t where t: "t = index \<sigma> v"
+        by blast
+
+      with uv \<sigma> bipartite have the_t: "(THE t. \<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> e) = t"
+        by (auto dest: bipartite_disjointD permutations_of_setD)
+
+      from \<sigma> uv matching \<open>e \<in> ranking G \<pi> \<sigma>\<close> have the_e: "\<And>e'. e' \<in> ranking G \<pi> \<sigma> \<and> v \<in> e' \<Longrightarrow> e' = e"
+        by (metis insertCI matching_unique_match)
+
+      with e t \<open>v \<in> set \<sigma>\<close> show "(THE e'. e' \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! (THE t. \<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> e) \<in> e') = e" 
+        by (auto simp: the_t intro!: the_equality)
+           (use \<open>e = {u,v}\<close> in blast)
+    qed
+  next
+    show "\<And>t. t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>) \<Longrightarrow> (THE t'. \<exists>v \<in> set \<sigma>. index \<sigma> v = t' \<and> v \<in> (THE e. e \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e)) = t"
+    proof (rule the_equality)
+      fix t
+      assume t: "t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>)"
+
+      with matching show "\<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> (THE e. e \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e)"
+        by (auto simp: the_edge)
+    next
+      show "\<And>t t'. t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>) \<Longrightarrow> \<exists>v \<in> set \<sigma>. index \<sigma> v = t' \<and> v \<in> (THE e. e \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e) \<Longrightarrow> t' = t"
+      proof -
+        fix t t'
+        assume t: "t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>)"
+          and t': "\<exists>v \<in> set \<sigma>. index \<sigma> v = t' \<and> v \<in> (THE e. e \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e)"
+
+        with \<sigma> matching bipartite' show "t' = t"
+          by (auto simp: the_edge intro: bipartite_eqI)
+      qed
+    qed
+  qed
+
+  with \<sigma> bipartite' matching show ?thesis
+    by (auto simp: card_length matched_indices_set_eq dest: permutations_of_setD)
+qed
+
+lemma "t < card V \<Longrightarrow> 1 - measure_pmf.prob (rank_matched t) {True} \<le> sum (\<lambda>s. measure_pmf.prob (rank_matched s) {True}) {..t}"
+  sorry
+
+
+lemma "measure_pmf.expectation ranking_prob (\<lambda>M. real (card M)) = sum (\<lambda>s. measure_pmf.prob (rank_matched s) {True}) {..<card V}"
+  apply (auto simp only: rank_matched_prob_is_expectation)
+  apply auto
+  sorry
+
 end
 end
