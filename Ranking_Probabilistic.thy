@@ -288,6 +288,14 @@ lemma bipartite_eqI:
   using assms
   by (smt (verit, best) IntE bipartite_disjointD bipartite_edgeE disjoint_iff_not_equal insert_iff)
 
+lemma expectation_sum_pmf_of_set:
+  fixes f :: "'a \<Rightarrow> 'b \<Rightarrow> real"
+  assumes "S \<noteq> {}" "finite S"
+  shows "measure_pmf.expectation (pmf_of_set S) (\<lambda>e. \<Sum>x\<in>A. f x e) =
+    (\<Sum>x\<in>A. measure_pmf.expectation (pmf_of_set S) (\<lambda>e. f x e))"
+  using assms
+  by (simp add: integral_pmf_of_set flip: sum_divide_distrib, subst sum.swap) blast
+
 locale ranking_on_perfect_matching =
   fixes G V M \<pi>
   assumes bipartite: "bipartite G (set \<pi>) V"
@@ -539,14 +547,33 @@ proof -
     by (auto simp: card_length matched_indices_set_eq dest: permutations_of_setD)
 qed
 
-lemma "t < card V \<Longrightarrow> 1 - measure_pmf.prob (rank_matched t) {True} \<le> sum (\<lambda>s. measure_pmf.prob (rank_matched s) {True}) {..t}"
+lemma rank_t_unmatched_prob_bound:
+  "t < card V \<Longrightarrow> 1 - measure_pmf.prob (rank_matched t) {True} \<le> (\<Sum>s\<le>t. measure_pmf.prob (rank_matched s) {True})"
   sorry
 
 
-lemma "measure_pmf.expectation ranking_prob (\<lambda>M. real (card M)) = sum (\<lambda>s. measure_pmf.prob (rank_matched s) {True}) {..<card V}"
-  apply (auto simp only: rank_matched_prob_is_expectation)
-  apply auto
-  sorry
+lemma expected_size_is_sum_of_matched_ranks: "measure_pmf.expectation ranking_prob (\<lambda>M. real (card M)) = (\<Sum>s\<in>{..<card V}. measure_pmf.prob (rank_matched s) {True})"
+proof -
+  from perms_of_V have "measure_pmf.expectation ranking_prob (\<lambda>M. real (card M)) = real (\<Sum>\<sigma>\<in>permutations_of_set V. (card (ranking G \<pi> \<sigma>))) / fact (card V)"
+    by (auto simp: integral_pmf_of_set)
 
+  also have "\<dots> = real (\<Sum>\<sigma>\<in>permutations_of_set V. \<Sum>t\<in>{..<card V}. of_bool ((THE v. index \<sigma> v = t) \<in> Vs (ranking G \<pi> \<sigma>))) / fact (card V)"
+    using ranking_card_is_sum_of_matched_vertices
+    by auto
+
+  also have "\<dots> = measure_pmf.expectation (pmf_of_set (permutations_of_set V)) (\<lambda>\<sigma>. \<Sum>t<card V. of_bool ((THE v. index \<sigma> v = t) \<in> Vs (ranking G \<pi> \<sigma>)))"
+    using perms_of_V
+    by (auto simp: integral_pmf_of_set)
+
+  also have "\<dots> = (\<Sum>t<card V. measure_pmf.expectation (pmf_of_set (permutations_of_set V)) (\<lambda>\<sigma>. of_bool ((THE v. index \<sigma> v = t) \<in> Vs (ranking G \<pi> \<sigma>))))"
+    using expectation_sum_pmf_of_set[OF perms_of_V]
+    by fast
+
+  also have "\<dots> = (\<Sum>t<card V. measure_pmf.prob (rank_matched t) {True})"
+    by (subst rank_matched_prob_is_expectation)
+       (use perms_of_V in \<open>auto simp add: pmf_expectation_bind_pmf_of_set integral_pmf_of_set divide_inverse\<close>)
+
+  finally show ?thesis .
+qed
 end
 end
