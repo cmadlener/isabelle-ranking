@@ -2985,7 +2985,7 @@ qed
 
 
 \<comment> \<open>Lemma 4 from paper\<close>
-lemma
+lemma v_unmatched_edge_matched_earlier:
   assumes "u \<in> set \<pi>" 
   assumes "v \<in> set \<sigma>"
   assumes "{u,v} \<in> G"
