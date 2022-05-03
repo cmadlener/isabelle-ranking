@@ -94,6 +94,25 @@ lemma move_to_gt_length:
   unfolding move_to_def
   by (auto intro!: append_cong dest: le_trans[OF length_filter_le])
 
+lemma move_elem_to_gt_length:
+  assumes "length xs \<le> i" "v \<in> set xs"
+  shows "xs[v \<mapsto> i] = xs[v \<mapsto> length xs - 1]"
+  unfolding move_to_def
+proof (rule append_cong)
+  have "length [x <- xs. x \<noteq> v] < length xs"
+    using assms
+    by (auto intro: length_filter_less)
+
+  then have l: "length [x <- xs. x \<noteq> v] \<le> length xs - 1"
+    by simp
+
+  with assms show "take i [x <- xs. x \<noteq> v] = take (length xs - 1) [x <- xs. x \<noteq> v]"
+    by simp
+
+  from assms l show "v # drop i [x <- xs. x \<noteq> v] = v # drop (length xs - 1) [x <- xs. x \<noteq> v]"
+    by simp
+qed
+
 lemma move_to_Cons_Suc:
   assumes "x \<noteq> v"
   assumes "Suc n = i"

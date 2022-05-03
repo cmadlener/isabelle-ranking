@@ -514,6 +514,13 @@ lemma perfect_matchingD:
   unfolding perfect_matching_def
   by blast+
 
+lemma perfect_matching_edgeE:
+  assumes "perfect_matching G M"
+  assumes "v \<in> Vs G"
+  obtains e where "e \<in> M" "v \<in> e"
+  using assms
+  by (auto dest: perfect_matchingD elim!: vs_member_elim)
+
 lemma perfect_matching_is_max_card_matching: 
   assumes "graph_abs G"
   assumes perfect: "perfect_matching G M"
