@@ -416,11 +416,26 @@ end
 locale ranking_on_perfect_matching =
   fixes G V M \<pi>
   assumes bipartite: "bipartite G (set \<pi>) V"
+  assumes vertices: "Vs G = set \<pi> \<union> V"
   assumes finite: "finite V"
   assumes non_empty: "V \<noteq> {}"
 
   assumes perfect_matching: "perfect_matching G M"
 begin
+
+lemma graph_abs_G[simp]: "graph_abs G"
+  using finite bipartite
+  by (auto intro: finite_bipartite_graph_abs)
+
+lemma graph_abs_M[simp]: "graph_abs M"
+  using perfect_matching
+  by (auto intro!: graph_abs_subgraph[OF graph_abs_G] dest: perfect_matchingD)
+
+lemma offline_subset_vs: "v \<in> V \<Longrightarrow> v \<in> Vs G"
+  using vertices by simp
+
+lemma online_subset_vs: "u \<in> set \<pi> \<Longrightarrow> u \<in> Vs G"
+  using vertices by simp
 
 lemma ranking_edgeE:
   assumes "e \<in> ranking G \<pi> \<sigma>"
@@ -434,11 +449,9 @@ lemma bipartite_matching:
   by (auto intro: bipartite_subgraph dest: perfect_matchingD)
 
 lemma the_perfect_match:
-  assumes "v \<in> Vs G" "v \<in> V"
+  assumes "v \<in> V"
   obtains u where "{u,v} \<in> M" "u \<in> set \<pi>"
-  using assms perfect_matching bipartite_matching  
-  apply (auto elim!: perfect_matching_edgeE bipartite_edgeE dest: bipartite_disjointD)
-  by (smt (verit, del_insts) bipartite_def disjoint_iff_not_equal insertE perfect_matching perfect_matching_edgeE singletonD)
+  by (smt (verit, ccfv_SIG) assms bipartite_disjointD bipartite_edgeE bipartite_matching disjoint_iff_not_equal empty_iff insert_iff offline_subset_vs perfect_matching perfect_matching_edgeE)
 
 abbreviation "ranking_prob \<equiv> map_pmf (\<lambda>\<sigma>. ranking G \<pi> \<sigma>) (pmf_of_set (permutations_of_set V))"
 
@@ -459,6 +472,9 @@ lemma perms_of_V:
     and "finite (permutations_of_set V)"
   by (auto simp: finite)
 
+context includes monad_normalisation
+begin
+
 definition random_permutation_t :: "nat \<Rightarrow> ('a list) pmf" where
   "random_permutation_t t \<equiv> 
     do {
@@ -471,9 +487,9 @@ lemma random_permutation_geq_card:
   "card V \<le> t \<Longrightarrow> random_permutation_t t = random_permutation_t (card V - 1)"
   using perms_of_V
   unfolding random_permutation_t_def
-  apply (auto intro!: pmf_eqI simp: pmf_bind_pmf_of_set)
+  apply (auto intro!: pmf_eqI simp:)
   using finite non_empty
-  apply (auto simp add: pmf_bind_pmf_of_set  intro!: sum.cong)
+  apply (auto simp add: pmf_bind_pmf_of_set intro!: sum.cong)
   by (smt (verit) One_nat_def length_finite_permutations_of_set move_elem_to_gt_length permutations_of_setD(1) sum.cong)
 
 
@@ -515,27 +531,31 @@ abbreviation rank_unmatched :: "nat \<Rightarrow> bool pmf" where
   "rank_unmatched t \<equiv>
     do {
       \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
-      let M = ranking G \<pi> \<sigma>;
-      return_pmf ((THE v. index \<sigma> v = t) \<notin> Vs M)
+      let R = ranking G \<pi> \<sigma>;
+      return_pmf (\<sigma> ! t \<notin> Vs R)
     }"
 
 abbreviation rank_matched :: "nat \<Rightarrow> bool pmf" where
   "rank_matched t \<equiv>
     do {
       \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
-      let M = ranking G \<pi> \<sigma>;
-      return_pmf ((THE v. index \<sigma> v = t) \<in> Vs M)
+      let R = ranking G \<pi> \<sigma>;
+      return_pmf (\<sigma> ! t \<in> Vs R)
     }"
 
-lemma bool_pmf_is_bernoulli_pmf:
-  "\<exists>p. bool_pmf = bernoulli_pmf p \<and> 0 \<le> p \<and> p \<le> 1"
-  apply (auto simp: pmf_eq_iff)
-  by (metis (full_types) pmf_False_conv_True pmf_bernoulli_True pmf_le_1 pmf_nonneg)
+definition matched_before :: "nat \<Rightarrow> bool pmf" where
+  "matched_before t \<equiv>
+    do {
+      \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
+      v \<leftarrow> pmf_of_set V;
+      let R = ranking G \<pi> \<sigma>; 
+      let u = (THE u. {u,v} \<in> M);     
+      return_pmf (u \<in> Vs R \<and> index \<sigma> (THE v. {u,v} \<in> R) \<le> t)
+    }"
 
-lemma bool_pmf_is_bernoulli_pmfE:
-  obtains p where "bool_pmf = bernoulli_pmf p" "0 \<le> p" "p \<le> 1"
-  using bool_pmf_is_bernoulli_pmf
-  by blast
+lemma rank_matched_False_rank_unmatched_True[simplified]: "measure_pmf.prob (rank_matched t) {False} = measure_pmf.prob (rank_unmatched t) {True}"
+  using perms_of_V
+  by (simp add: measure_pmf_conv_infsetsum pmf_bind_pmf_of_set indicator_singleton)
 
 lemma bernoulli_prob_True_expectation:
   "measure_pmf.prob p {True} = measure_pmf.expectation p of_bool"
@@ -565,6 +585,68 @@ lemma the_t_for_edge:
   shows "(THE t. \<exists>v'\<in>set \<sigma>. index \<sigma> v' = t \<and> v' \<in> {u,v}) = index \<sigma> v"
   using assms bipartite
   by (auto dest: permutations_of_setD bipartite_disjointD)
+
+lemma v_unmatched_u_matched_before_Ex:
+  assumes perm: "\<sigma> \<in> permutations_of_set V"
+  assumes v: "v \<in> V"
+  assumes "v \<notin> Vs (ranking G \<pi> \<sigma>[v \<mapsto> t])"
+  shows "\<exists>v'. {(THE u. {u,v} \<in> M),v'} \<in> ranking G \<pi> \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v] \<and> index \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v] v' \<le> index \<sigma>[v \<mapsto> t] v"
+proof (rule v_unmatched_edge_matched_earlier)
+  show "(THE u. {u,v} \<in> M) \<in> set \<pi>"
+    using v perfect_matching
+    by (auto elim: the_perfect_match dest: perfect_matchingD the_match)
+next
+  show "v \<in> set \<sigma>[v \<mapsto> t]"
+    by (simp add: move_to_set)
+next
+  show "{THE u. {u,v} \<in> M, v} \<in> G"
+    using v perfect_matching
+    by (auto elim!: the_perfect_match dest: perfect_matchingD the_match)
+next
+  show "v \<notin> Vs (ranking G \<pi> \<sigma>[v \<mapsto> t])"
+    using assms by blast
+next
+  show "ranking_matching G (ranking G \<pi> \<sigma>[v \<mapsto> t]) \<pi> \<sigma>[v \<mapsto> t]"
+    using perm v bipartite
+    by (auto intro!: ranking_matching_ranking simp: move_to_set insert_absorb dest: permutations_of_setD)
+next
+  show "ranking_matching G (ranking G \<pi> \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v]) \<pi> \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v]"
+    using perm v bipartite
+    by (auto intro!: ranking_matching_ranking simp: move_to_set insert_absorb dest: permutations_of_setD)
+qed
+
+lemma v_unmatched_u_matched_before_the:
+  assumes perm: "\<sigma> \<in> permutations_of_set V"
+  assumes v: "v \<in> V"
+  assumes "\<sigma>[v \<mapsto> t] ! t \<notin> Vs (ranking G \<pi> \<sigma>[v \<mapsto> t])"
+  assumes "t < length \<sigma>"
+  shows "(THE u. {u, v} \<in> M) \<in> Vs (ranking G \<pi> \<sigma>)"
+    and "index \<sigma> (THE v'. {THE u. {u, v} \<in> M, v'} \<in> ranking G \<pi> \<sigma>) \<le> t"
+proof -
+  let ?u = "THE u. {u,v} \<in> M"
+  have "\<sigma>[v \<mapsto> t] ! t = v"
+    using assms
+    by (auto intro: move_to_index_nth dest: permutations_of_setD)
+
+  with assms obtain v' where v': "{?u, v'} \<in> ranking G \<pi> \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v]"
+    "index \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v] v' \<le> index \<sigma>[v \<mapsto> t] v"
+    by (auto dest: v_unmatched_u_matched_before)
+
+  from perm v have move_to_move_to: "\<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v] = \<sigma>"
+    by (auto intro!: move_to_move_back_id dest: permutations_of_setD)
+
+  with v' show "?u \<in> Vs (ranking G \<pi> \<sigma>)"
+    by auto
+
+  from v' perm have the_v': "(THE v'. {?u, v'} \<in> ranking G \<pi> \<sigma>) = v'"
+    by (auto intro!: the_match' matching_if_perm simp: move_to_move_to)
+  
+  from assms have "index \<sigma>[v \<mapsto> t] v = t"
+    by (auto intro: move_to_index_v dest: permutations_of_setD)
+
+  with v' show "index \<sigma> (THE v'. {?u,v'} \<in> ranking G \<pi> \<sigma>) \<le> t"
+    by (auto simp: the_v' move_to_move_to)
+qed
 
 lemma ranking_card_is_sum_of_matched_vertices:
   assumes \<sigma>: "\<sigma> \<in> permutations_of_set V"
@@ -662,10 +744,33 @@ proof -
     by (auto simp: card_length matched_indices_set_eq dest: permutations_of_setD)
 qed
 
-lemma rank_t_unmatched_prob_bound:
-  "t < card V \<Longrightarrow> 1 - measure_pmf.prob (rank_matched t) {True} \<le> (\<Sum>s\<le>t. measure_pmf.prob (rank_matched s) {True})"
-  sorry
+lemma rank_t_unmatched_prob_bound_matched_before:
+  "t < card V \<Longrightarrow> measure_pmf.prob (rank_matched t) {False} \<le> measure_pmf.prob (matched_before t) {True}" (is "_ \<Longrightarrow> ?L \<le> ?R")
+proof -
+  assume "t < card V"
 
+  have "?L = measure_pmf.prob (rank_unmatched t) {True}"
+    by (simp add: rank_matched_False_rank_unmatched_True)
+
+  also have "\<dots> = measure_pmf.prob (
+    do {
+      \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
+      v \<leftarrow> pmf_of_set V;
+      let R = ranking G \<pi> \<sigma>[v \<mapsto> t];
+      return_pmf (\<sigma>[v \<mapsto> t] ! t \<notin> Vs R)
+    }) {True}"
+    by (subst move_to_t_eq_uniform[symmetric, of t])
+       (simp add: random_permutation_t_def)
+
+
+  also have "\<dots> \<le> ?R"
+    unfolding matched_before_def Let_def
+    using perms_of_V finite non_empty
+    by (intro bool_pmf_imp_prob_leq2)
+       (auto simp: \<open>t < card V\<close> length_finite_permutations_of_set v_unmatched_u_matched_before_the)
+
+  finally show ?thesis .
+qed
 
 lemma expected_size_is_sum_of_matched_ranks: "measure_pmf.expectation ranking_prob (\<lambda>M. real (card M)) = (\<Sum>s\<in>{..<card V}. measure_pmf.prob (rank_matched s) {True})"
 proof -
@@ -690,5 +795,6 @@ proof -
 
   finally show ?thesis .
 qed
-end (* ranking_on_perfect_matching *)
+end (* context includes monad_normalisation *)
+end (* locale ranking_on_perfect_matching *)
 end

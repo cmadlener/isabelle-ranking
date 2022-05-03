@@ -327,6 +327,13 @@ proof (induction \<sigma> i rule: induct_list_nat)
              dest: in_set_takeD split: if_splits)
 qed (auto simp add: move_to_0)
 
+lemma move_to_index_nth:
+  assumes "distinct \<sigma>"
+  assumes "i < length \<sigma>"
+  shows "\<sigma>[v \<mapsto> i] ! i = v"
+  using assms
+  by (metis count_notin move_to_count_list move_to_index_v nth_index one_neq_zero)
+
 lemma move_to_index_less:
   assumes "distinct \<sigma>"
   assumes "i < length \<sigma>"
