@@ -25,14 +25,87 @@ no_translations
   "_Map (_Maplets ms1 ms2)"     \<leftharpoondown> "_MapUpd (_Map ms1) ms2"
   "_Maplets ms1 (_Maplets ms2 ms3)" \<leftharpoondown> "_Maplets (_Maplets ms1 ms2) ms3"
 
-fun move_to_alt :: "'a list \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a list" where
-  "move_to_alt [] v n = [v]"
-| "move_to_alt xs v 0 = v # [x <- xs. x \<noteq> v]"
-| "move_to_alt (x#xs) v (Suc n) = (if v = x then move_to_alt xs v (Suc n) else x # move_to_alt xs v n)"
+lemma bounded_by_sum_bounds_sum_aux:
+  fixes x :: "nat \<Rightarrow> real"
+  assumes "n > 0"
+  assumes "1 - x (Suc t) \<le> 1/n * (\<Sum>s\<le>Suc t. x s)"
+  shows "(\<Sum>s\<le>(Suc t). x s) \<ge> (1+(\<Sum>s\<le>t. x s)) / (1 + 1/n)"
+  using assms
+proof -
+  from assms have "1 + (\<Sum>s\<le>t. x s) \<le> (\<Sum>s\<le>Suc t. x s) + 1/n * (\<Sum>s\<le>Suc t. x s)"
+    by fastforce
 
-lemma distinct_move_to_alt_def: "distinct xs  \<Longrightarrow> xs[v \<mapsto> t] = move_to_alt xs v t"
-  by (induction xs v t rule: move_to_alt.induct)
-     (auto simp: move_to_Nil move_to_0 move_to_Cons_Suc move_to_Cons_eq)
+  then have "1 + (\<Sum>s\<le>t. x s) \<le> (\<Sum>s\<le>Suc t. x s) * (1 + 1/n)"
+    by argo
+
+  with assms show ?thesis
+    by (auto intro!: mult_imp_div_pos_le simp: add_pos_pos)
+qed
+
+lemma bounded_by_sum_bounds_sum:
+  fixes x :: "nat \<Rightarrow> real"
+  assumes "\<And>t. t < n \<Longrightarrow> 1 - x t \<le> 1/n * (\<Sum>s\<le>t. x s)"
+  assumes "1 - 1/(n+1) \<le> x 0"
+  assumes "t < (n::nat)"
+  assumes "0 < n"
+  shows "(\<Sum>s\<le>t. x s) \<ge> (\<Sum>s\<le>t. (1 - 1/(n+1))^(s+1))"
+  using assms
+proof (induction t)
+  case 0
+  then show ?case
+    by simp
+next
+  case (Suc t)
+
+  then have IH: "(\<Sum>s\<le>t. x s) \<ge> (\<Sum>s\<le>t. (1-1/(real n+1))^(s+1))"
+    by (auto intro: Suc.IH)
+
+  from Suc have bound_rewrite_sum: "(\<Sum>s\<le>Suc t. x s) \<ge> (1+(\<Sum>s\<le>t. x s)) / (1+1/n)"
+    by (intro bounded_by_sum_bounds_sum_aux) simp
+
+  have "(1+(\<Sum>s\<le>t. x s)) / (1+1/n) = (1 - 1/(n+1)) * (1 + (\<Sum>s\<le>t. x s))" (is "?LHS = _")
+    using \<open>n > 0\<close>
+    by (simp add: field_simps)
+
+  also have "\<dots> = (1 - 1/(n+1)) + (1-1/(n+1)) * (\<Sum>s\<le>t. x s)"
+    by argo
+
+  also have "\<dots> \<ge> (1-1/(n+1)) + (1-1/(n+1))*(\<Sum>s\<le>t. (1-1/(real n+1))^(s+1))" (is "_ \<ge> ?S2")
+    using IH
+    by (auto intro: add_left_mono mult_left_mono)
+
+  finally have IH_applied: "?LHS \<ge> ?S2" .
+
+  have "?S2 = (1-1/(n+1)) + (\<Sum>s\<le>t. (1-1/(n+1))^(s+2))"
+    by (auto simp: sum_distrib_left field_simps)
+
+  also have "\<dots> = (1-1/(n+1)) + (\<Sum>s\<in>{0+1..t+1}. (1-1/(n+1))^(s+1))"
+    by (subst sum.atLeastAtMost_shift_bounds)
+       (auto simp: atLeast0AtMost)
+
+  also have "\<dots> = (1-1/(n+1)) + (\<Sum>s=Suc 0..Suc t. (1-1/(n+1))^(s+1))"
+    by simp
+
+
+  also have "\<dots> = (1-1/(n+1))^(0+1) + (\<Sum>s=Suc 0..Suc t. (1-1/(n+1))^(s+1))"
+    by simp
+
+  also have "\<dots> = (\<Sum>s\<le>Suc t. (1-1/(n+1))^(s+1))" (is "_ = ?RHS")
+    apply (simp add: sum.atMost_shift)
+    apply (cases t)
+     apply simp
+    apply (simp only: sum.atLeast_Suc_atMost_Suc_shift)
+    apply (simp del:  sum.lessThan_Suc add: atLeast0AtMost lessThan_Suc_atMost)
+    done
+
+  finally have final: "?S2 = ?RHS" .
+
+  show ?case 
+    apply (intro order_trans[OF _ bound_rewrite_sum] ord_eq_le_trans[OF _ IH_applied])
+    apply (subst final)
+    apply (simp add: ac_simps)
+    done
+qed
 
 lemma distinct_same_order_list_eq:
   assumes "distinct xs" "distinct xs'"
@@ -1036,10 +1109,10 @@ qed
 
 lemma expected_size_is_sum_of_matched_ranks: "measure_pmf.expectation ranking_prob card = (\<Sum>s\<in>{..<card V}. measure_pmf.prob (rank_matched s) {True})"
 proof -
-  from perms_of_V have "measure_pmf.expectation ranking_prob card = real (\<Sum>\<sigma>\<in>permutations_of_set V. (card (ranking G \<pi> \<sigma>))) / fact (card V)"
+  from perms_of_V have "measure_pmf.expectation ranking_prob card = (\<Sum>\<sigma>\<in>permutations_of_set V. (card (ranking G \<pi> \<sigma>))) / fact (card V)"
     by (auto simp: integral_pmf_of_set)
 
-  also have "\<dots> = real (\<Sum>\<sigma>\<in>permutations_of_set V. \<Sum>t\<in>{..<card V}. of_bool (\<sigma> ! t \<in> Vs (ranking G \<pi> \<sigma>))) / fact (card V)"
+  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. \<Sum>t\<in>{..<card V}. of_bool (\<sigma> ! t \<in> Vs (ranking G \<pi> \<sigma>))) / fact (card V)"
     using ranking_card_is_sum_of_matched_vertices
     by auto
 
