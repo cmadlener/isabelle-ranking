@@ -107,6 +107,11 @@ next
     done
 qed
 
+lemma sum_gp_strict_Suc: "(\<Sum>s<n. (1 - 1/(n+1))^(s+1)) = n - n*(n/(n+1))^n"
+  apply (auto simp flip: sum_distrib_left simp: sum_gp_strict)
+  apply (auto simp add: field_split_simps)
+  by (metis distrib_right mult_1 nat.simps(3) of_nat_Suc of_nat_eq_0_iff power.simps(2) power_eq_0_iff)
+
 lemma distinct_same_order_list_eq:
   assumes "distinct xs" "distinct xs'"
   assumes "set xs = set xs'"
@@ -679,6 +684,17 @@ qed
 lemma rank_matched_prob_is_expectation: "measure_pmf.prob (rank_matched t) {True} = measure_pmf.expectation (rank_matched t) of_bool"
   by (simp add: bernoulli_prob_True_expectation)
 
+lemma perms_where_0th_matched_eq_perms: "permutations_of_set V \<inter> {\<sigma>. \<sigma> ! 0 \<in> Vs (ranking G \<pi> \<sigma>)} = permutations_of_set V"
+  apply (auto)
+  apply (rule first_rank_always_matched[where G = G and \<pi> = \<pi>])
+  using bipartite permutations_of_setD(1) ranking_matching_ranking apply blast
+  using non_empty permutations_of_setD(1) apply fastforce
+  by (metis card_0_eq length_finite_permutations_of_set linorder_neqE_nat local.finite non_empty nth_mem offline_subset_vs permutations_of_setD(1) zero_order(3))
+
+lemma first_rank_matched_prob_1: "measure_pmf.prob (rank_matched 0) {True} = 1"
+  using perms_of_V
+  by (auto simp: measure_pmf_conv_infsetsum pmf_bind_pmf_of_set indicator_singleton sum.If_cases perms_where_0th_matched_eq_perms)
+
 lemma the_t:
   assumes "distinct xs"
   assumes "x \<in> set xs"
@@ -1107,12 +1123,12 @@ proof -
   finally show "?L \<le> ?R" .
 qed
 
-lemma expected_size_is_sum_of_matched_ranks: "measure_pmf.expectation ranking_prob card = (\<Sum>s\<in>{..<card V}. measure_pmf.prob (rank_matched s) {True})"
+lemma expected_size_is_sum_of_matched_ranks: "measure_pmf.expectation ranking_prob card = (\<Sum>s<card V. measure_pmf.prob (rank_matched s) {True})"
 proof -
   from perms_of_V have "measure_pmf.expectation ranking_prob card = (\<Sum>\<sigma>\<in>permutations_of_set V. (card (ranking G \<pi> \<sigma>))) / fact (card V)"
     by (auto simp: integral_pmf_of_set)
 
-  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. \<Sum>t\<in>{..<card V}. of_bool (\<sigma> ! t \<in> Vs (ranking G \<pi> \<sigma>))) / fact (card V)"
+  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. \<Sum>t<card V. of_bool (\<sigma> ! t \<in> Vs (ranking G \<pi> \<sigma>))) / fact (card V)"
     using ranking_card_is_sum_of_matched_vertices
     by auto
 
@@ -1127,6 +1143,34 @@ proof -
   also have "\<dots> = (\<Sum>t<card V. measure_pmf.prob (rank_matched t) {True})"
     by (subst rank_matched_prob_is_expectation)
        (use perms_of_V in \<open>auto simp add: pmf_expectation_bind_pmf_of_set integral_pmf_of_set divide_inverse\<close>)
+
+  finally show ?thesis .
+qed
+
+lemma comp_ratio_no_limit: "measure_pmf.expectation ranking_prob card / (card V) \<ge> 1 - (1 - 1/(card V + 1)) ^ (card V)" (is "?L \<ge> ?R")
+proof -
+  have "?R = ((card V) - (card V) * (1 - 1 / (card V + 1))^(card V)) / card V"
+    by (auto simp: diff_divide_distrib)
+
+  also have "\<dots> = ((card V) - (card V) * (card V / (card V + 1)) ^ (card V)) / card V"
+    by (simp add: field_simps)
+
+  also have "\<dots> = (\<Sum>s<card V. (1 - 1/(card V + 1))^(s+1)) / card V"
+    by (simp only: sum_gp_strict_Suc)
+
+  also have "\<dots> = (\<Sum>s\<le>card V - 1. (1 - 1/(real (card V) + 1))^(s+1)) / card V"
+    using non_empty
+    by (auto simp: ac_simps)
+       (metis (mono_tags, lifting) Suc_pred lessThan_Suc_atMost)
+
+  also have "\<dots> \<le> (\<Sum>s\<le>card V - 1. measure_pmf.prob (rank_matched s) {True}) / card V"
+    using non_empty finite
+    by (intro divide_right_mono bounded_by_sum_bounds_sum rank_t_unmatched_prob_bound)
+       (auto simp: first_rank_matched_prob_1[simplified] card_gt_0_iff)
+
+  also have "\<dots> = ?L"
+    by (subst expected_size_is_sum_of_matched_ranks)
+       (metis (no_types, lifting) One_nat_def Suc_pred card_gt_0_iff lessThan_Suc_atMost local.finite non_empty)
 
   finally show ?thesis .
 qed

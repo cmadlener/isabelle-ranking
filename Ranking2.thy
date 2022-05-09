@@ -3079,4 +3079,12 @@ proof -
     by blast
 qed
 
+lemma first_rank_always_matched:
+  assumes "ranking_matching G M \<pi> \<sigma>"
+  assumes "\<sigma> \<noteq> []"
+  assumes "\<sigma> ! 0 \<in> Vs G"
+  shows "\<sigma> ! 0 \<in> Vs M"
+  using assms
+  by (smt (verit, ccfv_threshold) bipartite_edgeE edges_are_Vs(2) graph_abs_no_edge_no_vertex index_first index_less_size_conv insert_commute linorder_neqE_nat maximal_matching_def nth_index ranking_matchingD ranking_matching_earlier_match_onlineE zero_order(3))
+
 end
