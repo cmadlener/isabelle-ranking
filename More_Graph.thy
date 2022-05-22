@@ -1,6 +1,7 @@
 theory More_Graph
   imports
     "AGF.Berge"
+    "HOL-Library.FuncSet"
 begin
 
 sledgehammer_params [provers = cvc4 vampire verit e spass z3 zipperposition]
@@ -128,6 +129,14 @@ lemma the_match'': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow>
 lemma the_match''': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> (THE v. {v,u} \<in> M) = v"
   by (auto dest: the_match' edge_commute)
 
+lemma the_edge:
+  assumes "matching M"
+  assumes "e \<in> M"
+  assumes "v \<in> e"
+  shows "(THE e. e \<in> M \<and> v \<in> e) = e"
+  using assms
+  by (auto intro!: the_equality dest: matching_unique_match)
+
 lemma matching_card_vs:
   assumes "graph_abs M"
   assumes "matching M"
@@ -203,6 +212,17 @@ lemma bipartite_edgeE:
   unfolding bipartite_def
   by fast
 
+lemma bipartite_vertex:
+  assumes "x \<in> Vs G"
+  assumes "bipartite G U V"
+  shows "x \<in> U \<Longrightarrow> x \<notin> V"
+    and "x \<in> V \<Longrightarrow> x \<notin> U"
+    and "x \<notin> U \<Longrightarrow> x \<in> V"
+    and "x \<notin> V \<Longrightarrow> x \<in> U"
+  using assms
+  unfolding bipartite_def Vs_def
+  by auto
+
 lemma bipartite_edgeD:
   assumes "{u,v} \<in> G"
   assumes "bipartite G X Y"
@@ -235,10 +255,15 @@ lemma bipartite_vs_subset: "bipartite G X Y \<Longrightarrow> Vs G \<subseteq> X
   unfolding bipartite_def Vs_def
   by auto
 
-lemma finite_bipartite_graph_abs:
+lemma finite_parts_bipartite_graph_abs:
   "finite X \<Longrightarrow> finite Y \<Longrightarrow> bipartite G X Y \<Longrightarrow> graph_abs G"
   unfolding graph_abs_def
   by (auto dest: bipartite_vs_subset intro: finite_subset elim!: bipartite_edgeE)
+
+lemma finite_bipartite_graph_abs:
+  "finite G \<Longrightarrow> bipartite G X Y \<Longrightarrow> graph_abs G"
+  unfolding graph_abs_def
+  by (auto elim!: bipartite_edgeE simp: Vs_def)
 
 lemma bipartite_insertI:
   assumes "bipartite G X Y"
@@ -260,6 +285,58 @@ lemma bipartite_reduced_to_vs:
   "bipartite G X Y \<Longrightarrow> bipartite G (X \<inter> Vs G) (Y \<inter> Vs G)"
   unfolding bipartite_def
   by auto (metis edges_are_Vs)
+
+lemma bipartite_edge_In_Ex1:
+  assumes "bipartite M U V"
+  assumes "matching M"
+  assumes "e \<in> M"
+  shows "\<exists>!e'. e' \<in> M \<and> V \<inter> e \<subseteq> e'"
+  using assms
+  by auto
+     (smt (verit, best) bipartite_edgeE disjoint_insert(1) in_mono inf_bot_right le_iff_inf matching_unique_match)+
+
+
+lemma the_bipartite_edge_In:
+  assumes "bipartite M U V"
+  assumes "matching M"
+  assumes "e \<in> M"
+  shows "(THE e'. e' \<in> M \<and> V \<inter> e \<subseteq> e') = e"
+proof (rule ccontr)
+  assume neq: "(THE e'. e' \<in> M \<and> V \<inter> e \<subseteq> e') \<noteq> e"
+
+  obtain e' where e': "e' \<in> M" "V \<inter> e \<subseteq> e'"
+    using bipartite_edge_In_Ex1 assms
+    by blast
+
+  with assms bipartite_edge_In_Ex1 have the_e': "(THE e'. e' \<in> M \<and> V \<inter> e \<subseteq> e') = e'"
+    by (intro the1_equality) blast+
+
+  with neq assms e' bipartite_edge_In_Ex1 show False
+    by blast
+qed
+
+lemma card_bipartite_matching_In:
+  assumes "bipartite M U V"
+  assumes "matching M"
+  shows "card M = card (((\<inter>) V) ` M)"
+  using assms
+  by (auto intro!: bij_betw_same_card[of "(\<inter>) V"] intro: bij_betwI[where g = "\<lambda>v. (THE e. e \<in> M \<and> v \<subseteq> e)"]
+      simp: the_bipartite_edge_In)
+
+lemma bipartite_In_singletons:
+  assumes "bipartite G U V"
+  assumes "X \<in> ((\<inter>) V) ` G"
+  shows "\<exists>x. X = {x}"
+  using assms
+  by (auto elim!: bipartite_edgeE dest: bipartite_disjointD)
+
+lemma bipartite_eqI:
+  assumes "bipartite M U V"
+  assumes "e \<in> M"
+  assumes "x \<in> e" "x \<in> V" "y \<in> e" "y \<in> V"
+  shows "x = y"
+  using assms
+  by (smt (verit, best) IntE bipartite_disjointD bipartite_edgeE disjoint_iff_not_equal insert_iff)
 
 subsection \<open>Removing Vertices from Graphs\<close>
 definition remove_vertices_graph :: "'a graph \<Rightarrow> 'a set \<Rightarrow> 'a graph" (infixl "\<setminus>" 60) where
@@ -492,6 +569,25 @@ lemma max_card_matching_cardI:
   unfolding max_card_matching_def
   by simp
 
+lemma max_card_matching_non_empty:
+  assumes "max_card_matching G M"
+  assumes "G \<noteq> {}"
+  shows "M \<noteq> {}"
+proof (rule ccontr, simp)
+  assume "M = {}"
+
+  from assms obtain e where "e \<in> G"
+    by blast
+
+  then have "matching {e}" "{e} \<subseteq> G"
+    unfolding matching_def
+    by blast+
+
+  with assms \<open>M = {}\<close> show False
+    unfolding max_card_matching_def
+    by auto
+qed
+
 lemma perfect_matchingI:
   assumes "M \<subseteq> G" "matching M" "Vs G = Vs M"
   shows "perfect_matching G M"
@@ -513,6 +609,12 @@ lemma perfect_matchingD:
   using assms
   unfolding perfect_matching_def
   by blast+
+
+lemma perfect_matching_subgraphD:
+  assumes "perfect_matching G M"
+  shows "\<And>e. e \<in> M \<Longrightarrow> e \<in> G"
+  using assms
+  by (auto dest: perfect_matchingD)
 
 lemma perfect_matching_edgeE:
   assumes "perfect_matching G M"
@@ -649,4 +751,56 @@ lemma perfect_matching_make_perfect_matching:
                    vs_make_perfect_matching max_card_matching_make_perfect_matching
            dest: max_card_matchingD)
 
+lemma subgraph_make_perfect_matching:
+  shows "make_perfect_matching G M \<subseteq> G"
+  by (induction G M rule: make_perfect_matching.induct)
+     (auto dest: remove_vertices_subgraph')
+
+lemma perfect_matching_bipartite_card_eq:
+  assumes "perfect_matching G M"
+  assumes "bipartite G U V"
+  assumes "Vs G = U \<union> V"
+  shows "card M = card V"
+proof (intro bij_betw_same_card[where f = "\<lambda>e. (THE v. v \<in> e \<and> v \<in> V)"]
+    bij_betwI[where g = "\<lambda>v. (THE e. v \<in> e \<and> e \<in> M)"] funcsetI)
+  fix e
+  assume "e \<in> M"
+  with assms obtain u v where uv: "e = {u,v}" "u \<in> U" "v \<in> V"
+    by (auto dest!: perfect_matching_subgraphD elim: bipartite_edgeE)
+
+  with assms have the_v: "(THE v. v \<in> e \<and> v \<in> V) = v"
+    by (auto dest: bipartite_disjointD)
+
+  with \<open>v \<in> V\<close> show "(THE v. v \<in> e \<and> v \<in> V) \<in> V"
+    by blast
+
+  from uv have "v \<in> e"
+    by blast
+
+  with assms \<open>e \<in> M\<close> show "(THE e'. (THE v. v \<in> e \<and> v \<in> V) \<in> e' \<and> e' \<in> M) = e"
+    by (simp only: the_v, intro the_equality matching_unique_match)
+       (auto dest: perfect_matchingD)
+next
+  fix v
+  assume "v \<in> V"
+  with assms have "v \<in> Vs M"
+    by (auto simp: perfect_matchingD)
+
+  then obtain e where e: "v \<in> e" "e \<in> M"
+    by (auto elim: vs_member_elim)
+
+  with assms have the_e: "(THE e. v \<in> e \<and> e \<in> M) = e"
+    by (intro the_equality matching_unique_match)
+       (auto dest: perfect_matchingD)
+
+  with e show "(THE e. v \<in> e \<and> e \<in> M) \<in> M"
+    by blast
+
+  from assms e \<open>v \<in> V\<close> obtain u where "e = {u,v}" "u \<in> U"
+    by (smt (verit, ccfv_SIG) bipartite_disjointD bipartite_edgeE disjoint_iff_not_equal empty_iff insertE perfect_matching_subgraphD)
+
+  with assms e \<open>v \<in> V\<close> show "(THE v'. v' \<in> (THE e. v \<in> e \<and> e \<in> M) \<and> v' \<in> V) = v"
+    by (simp only: the_e, intro the_equality)
+       (auto dest: bipartite_disjointD)
+qed
 end

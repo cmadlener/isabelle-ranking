@@ -39,6 +39,22 @@ subsection \<open>Removing Vertices from Lists\<close>
 definition remove_vertices_list :: "'a list \<Rightarrow> 'a set \<Rightarrow> 'a list" (infix "\<setminus>" 60) where
   "\<sigma> \<setminus> X \<equiv> [v <- \<sigma>. v \<notin> X]"
 
+lemma remove_vertices_list_empty[simp]: "\<sigma> \<setminus> {} = \<sigma>"
+  unfolding remove_vertices_list_def
+  by simp
+
+lemma remove_vertices_Nil[simp]: "[] \<setminus> X = []"
+  unfolding remove_vertices_list_def
+  by simp
+
+lemma remove_vertices_set[simp]: "set (\<sigma> \<setminus> X) = set \<sigma> - X"
+  unfolding remove_vertices_list_def
+  by auto
+
+lemma remove_vertices_distinct: "distinct xs \<Longrightarrow> distinct (xs \<setminus> X)"
+  unfolding remove_vertices_list_def
+  by simp
+
 lemma remove_vertices_not_in_list:
   "v \<in> X \<Longrightarrow> v \<notin> set (\<sigma> \<setminus> X)"
   unfolding remove_vertices_list_def
@@ -47,6 +63,10 @@ lemma remove_vertices_not_in_list:
 lemma remove_vertices_list_disjoint: "X \<inter> set \<sigma> = {} \<Longrightarrow> \<sigma> \<setminus> X = \<sigma>"
   unfolding remove_vertices_list_def
   by (auto intro: filter_True)
+
+lemma remove_vertices_Cons: "(v # \<sigma>) \<setminus> X = (if v \<in> X then (\<sigma> \<setminus> X) else v # (\<sigma> \<setminus> X))"
+  unfolding remove_vertices_list_def
+  by simp
 
 lemma remove_vertex_not_in_list: "x \<notin> set \<sigma> \<Longrightarrow> \<sigma> \<setminus> {x} = \<sigma>"
   by (auto intro: remove_vertices_list_disjoint)
@@ -511,12 +531,117 @@ qed (auto simp: move_to_0 move_to_Nil)
 lemma move_to_eq_iff: "\<sigma>[v \<mapsto> t] = \<sigma>[w \<mapsto> t] \<longleftrightarrow> v = w"
   by (auto dest: move_to_eq_if)
 
-
 lemma subset_butlast_only_one:
   assumes "set (butlast xs) \<subseteq> X"
   assumes "x \<in> set xs" "y \<in> set xs" "x \<noteq> y" "x \<notin> X"
   shows "y \<in> X"
   using assms
   by (induction xs) (auto split: if_splits)
+
+lemma filter_tl_without_hd:
+  assumes "v' \<notin> set \<sigma>'"
+  assumes "v' # \<sigma>' = filter (\<lambda>v. v \<in> X) \<sigma>"
+  shows "\<sigma>' = filter (\<lambda>v. v \<in> X - {v'}) (tl \<sigma>)"
+  using assms
+  apply (induction \<sigma>)
+   apply (auto split: if_splits intro: filter_cong)
+  by (smt (verit) filter.simps(1) filter.simps(2) list.collapse list.distinct(1) list.inject)
+
+lemma sorted_list_of_set_image_Cons:
+  assumes "finite X" "X \<noteq> {}"
+  assumes "\<forall>x \<in> X. f m \<le> f x"
+  assumes "m \<in> X"
+  assumes "inj_on f X"
+  shows "sorted_list_of_set (f ` X) = f m # sorted_list_of_set (f ` (X - {m}))" (is "?L = ?R")
+proof -
+  have min_fm: "Min (f ` X) = f m"
+    using assms
+    by (auto intro: Min_eqI)
+
+  have image_Diff: "(f ` X) - {f m} = f ` (X - {m})"
+    using assms
+    by (simp add: inj_on_image_set_diff)
+
+  have "?L = Min (f ` X) # sorted_list_of_set ((f ` X) - {Min (f ` X)})"
+    using assms
+    by (simp add: sorted_list_of_set_nonempty)
+
+  also have "\<dots> = ?R"
+    by (simp add: min_fm image_Diff)
+
+  finally show ?thesis .
+qed
+
+lemma distinct_indexE:
+  assumes "distinct xs"
+  assumes "t < length xs"
+  obtains x where "index xs x = t" "xs ! t = x" "x \<in> set xs"
+  using assms index_nth_id
+  by (smt (verit, ccfv_threshold) index_less_size_conv nth_index the_equality)
+
+lemma distinct_same_order_list_eq:
+  assumes "distinct xs" "distinct xs'"
+  assumes "set xs = set xs'"
+  assumes "\<forall>x y. index xs x \<le> index xs y \<longleftrightarrow> index xs' x \<le> index xs' y"
+  shows "xs = xs'"
+  using assms
+proof (induction xs xs' rule: list_induct2')
+  case (4 x xs x' xs')
+  then have "x = x'"
+    by (auto split: if_splits)
+
+  from 4 have distinct: "distinct xs" "distinct xs'"
+    by simp_all
+
+  from 4 have "\<forall>x y. (index xs x \<le> index xs y) = (index xs' x \<le> index xs' y)"
+    by (auto split: if_splits)
+       (metis index_conv_size_if_notin index_le_size index_less_size_conv insert_eq_iff linorder_not_le)+
+
+  with 4 distinct \<open>x = x'\<close> show ?case
+    by fastforce
+qed auto
+
+lemma list_eq_same_order:
+  assumes "xs = xs'"
+  shows "\<forall>x y. index xs x \<le> index xs y \<longleftrightarrow> index xs' x \<le> index xs' y"
+  using assms
+  by blast
+
+lemma move_to_filter_eq: "[x <- xs. x \<noteq> v][v \<mapsto> t] = xs[v \<mapsto> t]"
+  by (metis filter_id_conv filter_set member_filter move_to_def)
+
+lemma distinct_order_filter_eq:
+  assumes "distinct xs" "distinct xs'"
+  assumes "set xs = set xs'"
+  assumes "\<forall>x y. x \<noteq> v \<and> y \<noteq> v \<longrightarrow> (index xs x \<le> index xs y \<longleftrightarrow> index xs' x \<le> index xs' y)"
+  shows "[x <- xs. x \<noteq> v] = [x <- xs'. x \<noteq> v]"
+  using assms
+  apply (intro distinct_same_order_list_eq)
+     apply (auto)
+   apply (metis (mono_tags, lifting) index_filter_neq index_less_in_set index_less_size_conv leD leI mem_Collect_eq set_filter size_index_conv)+
+  done
+
+lemma distinct_filter_eq_order:
+  assumes "distinct xs" "distinct xs'"
+  assumes "set xs = set xs'"
+  assumes "[x <- xs. x \<noteq> v] = [x <- xs'. x \<noteq> v]"
+  shows "\<forall>x y. x \<noteq> v \<and> y \<noteq> v \<longrightarrow> (index xs x \<le> index xs y \<longleftrightarrow> index xs' x \<le> index xs' y)"
+  using assms
+  by auto (metis index_filter_neq)+
+
+lemma distinct_move_to_eq_if:
+  assumes "distinct xs" "distinct xs'"
+  assumes "set xs = set xs'"
+  assumes "v \<in> set xs" "index xs v = t"
+  assumes "\<forall>x y. x \<noteq> v \<and> y \<noteq> v \<longrightarrow> (index xs x \<le> index xs y \<longleftrightarrow> index xs' x \<le> index xs' y)"
+  shows "xs'[v \<mapsto> t] = xs"
+  using assms
+  by (smt (verit, ccfv_SIG) distinct_count_in_set distinct_order_filter_eq move_to_def move_to_id)
+
+lemma distinct_move_to_indices_if_eq:
+  assumes "xs'[v \<mapsto> t] = xs"
+  shows "\<forall>x y. x \<noteq> v \<and> y \<noteq> v \<longrightarrow> (index xs x \<le> index xs y \<longleftrightarrow> index xs' x \<le> index xs' y)"
+  by (metis assms move_to_others_leq)
+
 
 end
