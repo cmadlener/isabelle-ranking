@@ -1027,46 +1027,6 @@ proof -
     by (simp add: card_perms_components)
 qed
 
-lemma card_perms_remove_eq_smaller_perm:
-  assumes "finite V"
-  assumes "X \<subseteq> V"
-  assumes "\<sigma>' \<in> permutations_of_set X"
-  shows "card {\<sigma> \<in> permutations_of_set V. \<sigma> \<setminus> (V - X) = \<sigma>'} = fact (card V) / fact (card X)"
-  using assms
-proof (induction "card X" arbitrary: X \<sigma>')
-  case 0
-  then have "X = {}"
-    by (simp add: finite_subset)
-
-  have "{\<sigma> \<in> permutations_of_set V. \<sigma> \<setminus> V = []} = permutations_of_set V"
-    by (auto simp add: remove_vertices_list_def dest: permutations_of_setD)
-
-  with 0 \<open>X = {}\<close> show ?case
-    by simp
-next
-  case (Suc n)
-  then obtain v where v: "v \<in> X"
-    by fastforce
-
-  with Suc have card_n: "n = card (X - {v})"
-    by simp
-
-  from Suc have subs: "X - {v} \<subseteq> V"
-    by blast
-
-  from \<open>\<sigma>' \<in> permutations_of_set X\<close> v have perm: "\<sigma>' \<setminus> {v} \<in> permutations_of_set (X - {v})"
-    by (auto dest: permutations_of_setD remove_vertices_distinct intro!: permutations_of_setI)
-
-  have "real (card {\<sigma> \<in> permutations_of_set V. \<sigma> \<setminus> V - X = \<sigma>'}) = real (card {\<sigma> \<in> permutations_of_set V. \<sigma> \<setminus> V - (X - {v}) = \<sigma>' \<setminus> {v}}) / card X"
-    apply (auto simp: remove_vertices_list_def)
-    sorry
-
-  with Suc(1)[OF card_n \<open>finite V\<close> subs perm] v
-  show ?case
-    apply simp
-    by (metis One_nat_def Suc.hyps(2) diff_Suc_1 fact_Suc mult_of_nat_commute)
-qed
-
 locale wf_ranking =
   fixes G \<pi> V M
 
@@ -1793,9 +1753,7 @@ proof -
     apply (simp only: sum_constant times_divide_eq_right)
     apply (rule arg_cong2[where f = "(/)"])
      apply (rule arg_cong2[where f = "(*)"])
-      apply (rule card_perms_remove_eq_smaller_perm[of V "V \<inter> Vs G'"])
-    using finite apply auto
-    done
+    sorry
 
   also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). card (ranking G' \<pi> \<sigma>') / fact (card (V \<inter> Vs G')))"
     by simp
