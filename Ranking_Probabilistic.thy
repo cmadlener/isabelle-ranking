@@ -1971,7 +1971,7 @@ proof -
 qed
 
 
-theorem "measure_pmf.expectation ranking_prob card / (card M) \<ge> 1 - (1 - 1/(card M + 1)) ^ (card M)"
+theorem ranking_comp_ratio: "measure_pmf.expectation ranking_prob card / (card M) \<ge> 1 - (1 - 1/(card M + 1)) ^ (card M)"
 proof (cases "G = {}")
   case True
   with max_card_matching have "M = {}"
