@@ -1,6 +1,6 @@
 theory Ranking_Probabilistic
   imports
-    Ranking2
+    Ranking
     "HOL-Probability.Random_Permutations"
     "HOL-Probability.Product_PMF"
     "Monad_Normalisation.Monad_Normalisation"

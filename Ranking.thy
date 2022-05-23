@@ -1,4 +1,4 @@
-theory Ranking2
+theory Ranking
   imports
     More_Graph
     More_List
@@ -2881,7 +2881,7 @@ proof -
     case no_vertex
     then show ?thesis
       unfolding remove_vertex_path_def
-      by (smt (verit, ccfv_SIG) Ranking2.no_matching_zig assms(1) assms(2) edges_of_path.simps(2) insertCI ranking_matchingD ranking_matching_unique remove_vertex_not_in_graph set_empty subsetD symm_diff_empty vs_member zig.simps(1))
+      by (smt (verit, ccfv_SIG) no_matching_zig assms(1) assms(2) edges_of_path.simps(2) insertCI ranking_matchingD ranking_matching_unique remove_vertex_not_in_graph set_empty subsetD symm_diff_empty vs_member zig.simps(1))
   qed
 qed
 
