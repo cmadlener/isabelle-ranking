@@ -12,16 +12,28 @@ lemma index_less_induct[case_names index_less]:
   using assms
   by (rule measure_induct_rule)
 
+lemma length_minus_index_less_index_gt:
+  "length xs - index xs x < length xs - index xs x' \<longleftrightarrow> index xs x' < index xs x"
+  by (induction xs) auto
+
 lemma index_gt_induct[case_names index_gt]: 
   assumes "\<And>x. (\<And>y. index xs x < index xs y \<Longrightarrow> P y xs) \<Longrightarrow> P x xs"
   shows "P x xs"
   using assms
-  by (induction "length xs - index xs x" arbitrary: x rule: less_induct)
-     (metis diff_less_mono2 index_le_size le_less not_le)
+proof (induction "length xs - index xs x" arbitrary: x rule: less_induct)
+  case less
 
-lemma length_minus_index_less_index_gt:
-  "length xs - index xs x < length xs - index xs x' \<longleftrightarrow> index xs x' < index xs x"
-  by (induction xs) auto
+  show ?case
+  proof (rule less(2), rule less.hyps, goal_cases)
+    case (1 y)
+    then show ?case
+      by (simp add: length_minus_index_less_index_gt)
+  next
+    case (2 y x')
+    with less show ?case
+      by fast
+  qed
+qed
 
 lemma index_less_in_set: "index xs x < index xs x' \<Longrightarrow> x \<in> set xs"
   by (metis index_conv_size_if_notin index_le_size leD)
@@ -40,6 +52,10 @@ lemma length_at_least_two_Cons_Cons: "2 \<le> length xs \<Longrightarrow> \<exis
   by (metis Suc_le_length_iff numeral_2_eq_2)
 
 subsection \<open>Moving a vertex to a position\<close>
+text \<open>
+  Moving vertices to some index plays a crucial role in the probabilistic part of the proof.
+  It is used to argue about the probability of the vertex at index t being matched.
+\<close>
 no_syntax
   "_maplet"  :: "['a, 'a] \<Rightarrow> maplet"             ("_ /\<mapsto>/ _")
   "_maplets" :: "['a, 'a] \<Rightarrow> maplet"             ("_ /[\<mapsto>]/ _")
@@ -173,7 +189,6 @@ lemma move_to_insert_after:
   by (induction \<sigma> i rule: induct_list_nat)
      (auto simp: move_to_Cons_Suc)
 
-
 lemma index_less_filter_eq: "index xs w < index xs v \<Longrightarrow> index [x <- xs. x \<noteq> v] w = index xs w"
   by (induction xs) auto
 
@@ -194,7 +209,6 @@ lemma in_set_distinct_filter_length_eq: "v \<in> set xs \<Longrightarrow> distin
 
 lemma distinct_filter_length: "distinct xs \<Longrightarrow> (length [x <- xs. x \<noteq> v] = length xs \<and> v \<notin> set xs) \<or> (length [x <- xs. x \<noteq> v] = length xs - 1 \<and> v \<in> set xs)"
   by (metis in_set_distinct_filter_length_eq not_in_set_filter_length_eq)
-
 
 lemma filter_removeAll: "[x <- xs. x \<noteq> v] = removeAll v xs"
   by (induction xs) auto
@@ -463,12 +477,29 @@ proof (induction \<sigma> t rule: induct_list_nat)
         by (auto simp: move_hd_to move_to_Nil move_to_Cons_Suc)
     next
       case (Cons a as)
-      with cons_suc 2 show ?thesis
-        apply (cases "v = a")
-         apply (auto simp: move_hd_to move_to_Cons_Suc)
-        apply (cases n)
-         apply (auto simp: move_to_Cons_Suc move_to_0 move_to_count_list dest!: list_eq_count_list_eq[where x = x])
-        done
+      consider (snd_v_1) "v = a \<and> n = 0" | (snd_v_Suc) "v = a \<and> n \<noteq> 0" |
+        (snd_not_v_1) "v \<noteq> a \<and> n = 0" | (snd_not_v_Suc) "v \<noteq> a \<and> n \<noteq> 0" by blast
+      then show ?thesis
+      proof cases
+        case snd_v_1
+        with cons_suc 2 Cons show ?thesis
+          by (auto simp: move_to_0 move_to_Cons_Suc move_to_count_list dest: list_eq_count_list_eq[where x = x])          
+      next
+        case snd_v_Suc
+        then obtain n' where "n = Suc n'" "v = a"
+          by (auto dest: gr0_implies_Suc)
+
+        with cons_suc 2 Cons show ?thesis
+          by (auto simp: move_hd_to move_to_Cons_Suc move_to_count_list dest: list_eq_count_list_eq[where x = x])
+      next
+        case snd_not_v_1
+        with cons_suc 2 Cons show ?thesis
+          by (auto simp: move_hd_to move_to_Cons_Suc)
+      next
+        case snd_not_v_Suc
+        with cons_suc 2 Cons show ?thesis
+          by (auto simp: move_hd_to move_to_Cons_Suc)
+      qed
     qed
   next
     case 3
@@ -479,12 +510,29 @@ proof (induction \<sigma> t rule: induct_list_nat)
         by (auto simp: move_hd_to move_to_Nil move_to_Cons_Suc)
     next
       case (Cons a as)
-      with cons_suc 3 show ?thesis
-        apply (cases "w = a")
-         apply (auto simp: move_hd_to move_to_Cons_Suc)
-        apply (cases n)
-         apply (auto simp: move_to_Cons_Suc move_to_0 move_to_count_list dest!: list_eq_count_list_eq[where x = x])
-        done
+      consider (snd_w_1) "w = a \<and> n = 0" | (snd_w_Suc) "w = a \<and> n \<noteq> 0" |
+        (snd_not_w_1) "w \<noteq> a \<and> n = 0" | (snd_not_w_Suc) "w \<noteq> a \<and> n \<noteq> 0" by blast
+      then show ?thesis
+      proof cases
+        case snd_w_1
+        with cons_suc 3 Cons show ?thesis
+          by (auto simp: move_to_0 move_to_Cons_Suc move_to_count_list dest: list_eq_count_list_eq[where x = x])          
+      next
+        case snd_w_Suc
+        then obtain n' where "n = Suc n'" "w = a"
+          by (auto dest: gr0_implies_Suc)
+
+        with cons_suc 3 Cons show ?thesis
+          by (auto simp: move_to_0 move_to_Cons_Suc move_to_count_list dest: list_eq_count_list_eq[where x = x])
+      next
+        case snd_not_w_1
+        with cons_suc 3 Cons show ?thesis
+          by (auto simp: move_hd_to move_to_Cons_Suc)
+      next
+        case snd_not_w_Suc
+        with cons_suc 3 Cons show ?thesis
+          by (auto simp: move_hd_to move_to_Cons_Suc)
+      qed
     qed
   next
     case 4
@@ -503,14 +551,42 @@ lemma subset_butlast_only_one:
   using assms
   by (induction xs) (auto split: if_splits)
 
+lemma filter_without_hd:
+  assumes "v' \<notin> set \<sigma>'"
+  assumes "v' # \<sigma>' = filter (\<lambda>v. v \<in> X) \<sigma>"
+  shows "\<sigma>' = filter (\<lambda>v. v \<in> X - {v'}) \<sigma>"
+  using assms
+  by (induction \<sigma>)
+     (auto split: if_splits intro: filter_cong)
+
+lemma filter_tl:
+  assumes "\<not>P (hd \<sigma>)"
+  shows "filter P \<sigma> = filter P (tl \<sigma>)"
+  using assms
+  by (cases \<sigma>)
+      auto
+
+lemma filter_Cons_hd:
+  assumes "P (hd xs)"
+  assumes "y # ys = filter P xs"
+  shows "hd xs = y"
+  using assms
+  by (auto dest!: Cons_eq_filterD simp: hd_append)
+
 lemma filter_tl_without_hd:
   assumes "v' \<notin> set \<sigma>'"
   assumes "v' # \<sigma>' = filter (\<lambda>v. v \<in> X) \<sigma>"
   shows "\<sigma>' = filter (\<lambda>v. v \<in> X - {v'}) (tl \<sigma>)"
-  using assms
-  apply (induction \<sigma>)
-   apply (auto split: if_splits intro: filter_cong)
-  by (smt (verit) filter.simps(1) filter.simps(2) list.collapse list.distinct(1) list.inject)
+proof -
+  from assms have "\<sigma>' = filter (\<lambda>v. v \<in> X - {v'}) \<sigma>"
+    by (intro filter_without_hd)
+
+  also from assms have "\<dots> = filter (\<lambda>v. v \<in> X - {v'}) (tl \<sigma>)"
+    by (intro filter_tl, cases "hd \<sigma> \<in> X")
+       (auto dest: filter_Cons_hd)
+
+  finally show ?thesis .
+qed
 
 lemma sorted_list_of_set_image_Cons:
   assumes "finite X" "X \<noteq> {}"
@@ -541,8 +617,13 @@ lemma distinct_indexE:
   assumes "distinct xs"
   assumes "t < length xs"
   obtains x where "index xs x = t" "xs ! t = x" "x \<in> set xs"
-  using assms index_nth_id
-  by (smt (verit, ccfv_threshold) index_less_size_conv nth_index the_equality)
+proof
+  from assms index_nth_id show "index xs (xs ! t) = t"
+    by blast
+next
+  from \<open>t < length xs\<close> show "xs ! t \<in> set xs"
+    by simp
+qed blast
 
 lemma distinct_same_order_list_eq:
   assumes "distinct xs" "distinct xs'"
@@ -581,10 +662,30 @@ lemma distinct_order_filter_eq:
   assumes "\<forall>x y. x \<noteq> v \<and> y \<noteq> v \<longrightarrow> (index xs x \<le> index xs y \<longleftrightarrow> index xs' x \<le> index xs' y)"
   shows "[x <- xs. x \<noteq> v] = [x <- xs'. x \<noteq> v]"
   using assms
-  apply (intro distinct_same_order_list_eq)
-     apply (auto)
-   apply (metis (mono_tags, lifting) index_filter_neq index_less_in_set index_less_size_conv leD leI mem_Collect_eq set_filter size_index_conv)+
-  done
+proof (intro distinct_same_order_list_eq, goal_cases)
+  case 4
+  show ?case
+  proof (intro allI)
+    fix x y
+
+    consider "x = y" | "x = v \<and> x \<noteq> y" | "y = v \<and> x \<noteq> y" | "x \<noteq> y \<and> x \<noteq> v \<and> y \<noteq> v" by blast
+    then show "index [x <- xs. x \<noteq> v] x \<le> index [x <- xs. x \<noteq> v] y \<longleftrightarrow> index [x <- xs'. x \<noteq> v] x \<le> index [x <- xs'. x \<noteq> v] y"
+    proof cases
+      case 2
+      with assms(3) show ?thesis
+        by auto
+           (metis filter_set index_less_size_conv leD leI)+
+    next
+      case 3
+      with assms(3) show ?thesis
+        by (auto simp: index_le_size)
+    next
+      case 4
+      with assms show ?thesis
+        by (auto simp flip: index_filter_neq)
+    qed blast
+  qed
+qed auto
 
 lemma distinct_filter_eq_order:
   assumes "distinct xs" "distinct xs'"
@@ -617,9 +718,8 @@ lemma list_emb_drop_before_first:
   assumes "\<forall>y \<in> set ys. \<not>P (hd xs) y"
   shows "list_emb P xs zs"
   using assms
-  apply (induction ys)
-   apply simp_all
-  by (metis list.exhaust_sel list_emb_Cons_iff2 list_emb_Nil)
+  by (induction ys; simp)
+     (metis list.exhaust_sel list_emb_Cons_iff2 list_emb_Nil)
 
 lemma sorted_strict_last_geq_length_offset:
   assumes "ns \<noteq> []"
