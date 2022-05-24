@@ -1919,11 +1919,11 @@ proof -
     using perms_of_V
     by (auto simp: integral_pmf_of_set sum_divide_distrib)
 
-  also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. \<sigma> \<setminus> (V - (V \<inter> Vs G')) = \<sigma>'}. card (ranking G \<pi> \<sigma>) / fact (card V)))"
+  also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. [v <- \<sigma>. v \<in> V \<inter> Vs G'] = \<sigma>'}. card (ranking G \<pi> \<sigma>) / fact (card V)))"
     by (rule sum_split[symmetric], auto; intro permutations_of_setI)
-       (auto simp: remove_vertices_set dest: permutations_of_setD remove_vertices_distinct)
+       (auto dest: permutations_of_setD)
 
-  also have "\<dots> \<ge> (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. \<sigma> \<setminus> (V - (V \<inter> Vs G')) = \<sigma>'}. card (ranking G' \<pi> \<sigma>) / fact (card V)))" (is "_ \<ge> ?S")
+  also have "\<dots> \<ge> (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. [v <- \<sigma>. v \<in> V \<inter> Vs G'] = \<sigma>'}. card (ranking G' \<pi> \<sigma>) / fact (card V)))" (is "_ \<ge> ?S")
     unfolding assms
     apply (auto intro!: sum_mono divide_right_mono)
     subgoal for \<sigma>
@@ -1933,19 +1933,10 @@ proof -
     done
 
   finally have "?S \<le> ?R" .
-
-  have "?S = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. \<sigma> \<setminus> (V - (V \<inter> Vs G')) = \<sigma>'}. card (ranking G' \<pi> \<sigma>') / fact (card V)))"
+  note equalityI[rule del]
+  have "?S = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. [v <- \<sigma>. v \<in> V \<inter> Vs G'] = \<sigma>'}. card (ranking G' \<pi> \<sigma>') / fact (card V)))"
     by (intro sum.cong arg_cong2[where f = "(/)"] arg_cong[where f = card] arg_cong[where f = real])
-       (auto intro!: ranking_remove_vertices_not_in_graph_ranking[symmetric])
-
-  also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. filter (\<lambda>v. v \<in> V \<inter> Vs G') \<sigma> = \<sigma>'}. card (ranking G' \<pi> \<sigma>') / fact (card V)))"
-    apply (intro sum.cong)
-      apply (auto simp: remove_vertices_list_def)
-     apply (intro filter_cong)
-      apply (auto dest: permutations_of_setD)
-    apply (intro filter_cong)
-     apply (auto dest: permutations_of_setD)
-    done
+       (auto intro!: ranking_filter_vertices_in_graph_ranking[symmetric] dest: permutations_of_setD)
 
   also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (fact (card V) / fact (card (V \<inter> Vs G'))) * real (card (ranking G' \<pi> \<sigma>')) / fact (card V))"
     apply (rule sum.cong)

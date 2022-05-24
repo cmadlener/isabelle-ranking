@@ -34,43 +34,6 @@ lemma sorted_wrt_index_less_distinct:
 lemma index_filter_neq: "a \<noteq> v \<Longrightarrow> b \<noteq> v \<Longrightarrow> index xs a \<le> index xs b \<longleftrightarrow> index [x <- xs. x \<noteq> v] a \<le> index [x <- xs. x \<noteq> v] b"
   by (induction xs) auto
 
-
-subsection \<open>Removing Vertices from Lists\<close>
-definition remove_vertices_list :: "'a list \<Rightarrow> 'a set \<Rightarrow> 'a list" (infix "\<setminus>" 60) where
-  "\<sigma> \<setminus> X \<equiv> [v <- \<sigma>. v \<notin> X]"
-
-lemma remove_vertices_list_empty[simp]: "\<sigma> \<setminus> {} = \<sigma>"
-  unfolding remove_vertices_list_def
-  by simp
-
-lemma remove_vertices_Nil[simp]: "[] \<setminus> X = []"
-  unfolding remove_vertices_list_def
-  by simp
-
-lemma remove_vertices_set[simp]: "set (\<sigma> \<setminus> X) = set \<sigma> - X"
-  unfolding remove_vertices_list_def
-  by auto
-
-lemma remove_vertices_distinct: "distinct xs \<Longrightarrow> distinct (xs \<setminus> X)"
-  unfolding remove_vertices_list_def
-  by simp
-
-lemma remove_vertices_not_in_list:
-  "v \<in> X \<Longrightarrow> v \<notin> set (\<sigma> \<setminus> X)"
-  unfolding remove_vertices_list_def
-  by simp
-
-lemma remove_vertices_list_disjoint: "X \<inter> set \<sigma> = {} \<Longrightarrow> \<sigma> \<setminus> X = \<sigma>"
-  unfolding remove_vertices_list_def
-  by (auto intro: filter_True)
-
-lemma remove_vertices_Cons: "(v # \<sigma>) \<setminus> X = (if v \<in> X then (\<sigma> \<setminus> X) else v # (\<sigma> \<setminus> X))"
-  unfolding remove_vertices_list_def
-  by simp
-
-lemma remove_vertex_not_in_list: "x \<notin> set \<sigma> \<Longrightarrow> \<sigma> \<setminus> {x} = \<sigma>"
-  by (auto intro: remove_vertices_list_disjoint)
-
 lemma length_at_least_two_Cons_Cons: "2 \<le> length xs \<Longrightarrow> \<exists>x x' xs'. xs = x # x' # xs'"
   by (metis Suc_le_length_iff numeral_2_eq_2)
 

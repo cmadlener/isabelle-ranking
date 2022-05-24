@@ -1339,85 +1339,125 @@ lemma step_u_not_in_graph:
      (auto dest: edges_are_Vs)
 
 lemma ranking'_remove_vertices_graph_remove_vertices_arrival:
-  "ranking' (G \<setminus> X) (\<pi> \<setminus> X) \<sigma> M = ranking' (G \<setminus> X) \<pi> \<sigma> M"
+  "ranking' (G \<setminus> X) [u <- \<pi>. u \<notin> X] \<sigma> M = ranking' (G \<setminus> X) \<pi> \<sigma> M"
   by (induction "G \<setminus> X" \<pi> \<sigma> M rule: ranking'.induct)
-     (auto simp: remove_vertices_list_def remove_vertices_not_vs step_u_not_in_graph)
+     (auto simp: remove_vertices_not_vs step_u_not_in_graph)
 
 lemma ranking_remove_vertices_graph_remove_vertices_arrival:
-  "ranking (G \<setminus> X) (\<pi> \<setminus> X) \<sigma> = ranking (G \<setminus> X) \<pi> \<sigma>"
+  "ranking (G \<setminus> X) [u <- \<pi>. u \<notin> X] \<sigma> = ranking (G \<setminus> X) \<pi> \<sigma>"
   using ranking'_remove_vertices_graph_remove_vertices_arrival
   by blast
 
 lemma ranking'_remove_vertices_not_in_graph_arrival:
   assumes "\<And>x. x \<in> X \<Longrightarrow> x \<notin> Vs G"
-  shows "ranking' G (\<pi> \<setminus> X) \<sigma> M = ranking' G \<pi> \<sigma> M"
+  shows "ranking' G [u <- \<pi>. u \<notin> X] \<sigma> M = ranking' G \<pi> \<sigma> M"
   using assms
-  apply (induction G \<pi> \<sigma> M rule: ranking'.induct)
-   apply (simp_all)
-  by (metis disjoint_iff ranking'.simps(2) ranking'_remove_vertices_graph_remove_vertices_arrival remove_vertices_graph_disjoint)
+  by (induction G \<pi> \<sigma> M rule: ranking'.induct)
+     (auto simp: step_u_not_in_graph)
 
 lemma ranking_remove_vertices_not_in_graph_arrival:
   assumes "\<And>x. x \<in> X \<Longrightarrow> x \<notin> Vs G"
-  shows "ranking G (\<pi> \<setminus> X) \<sigma> = ranking G \<pi> \<sigma>"
+  shows "ranking G [u <- \<pi>. u \<notin> X] \<sigma> = ranking G \<pi> \<sigma>"
   using assms
   by (auto intro!: ranking'_remove_vertices_not_in_graph_arrival)
 
 lemma step_remove_vertices_not_in_graph:
   assumes "\<And>x. x \<in> X \<Longrightarrow> x \<notin> Vs G"
-  shows "step G u (\<sigma> \<setminus> X) M = step G u \<sigma> M"
+  shows "step G u [v <- \<sigma>. v \<notin> X] M = step G u \<sigma> M"
   using assms
   by (induction G u \<sigma> M rule: step.induct)
-     (auto simp: remove_vertices_list_def dest: edges_are_Vs)
+     (auto dest: edges_are_Vs)
 
 lemma ranking'_remove_vertices_not_in_graph_ranking:
   assumes "\<And>x. x \<in> X \<Longrightarrow> x \<notin> Vs G"
-  shows "ranking' G \<pi> (\<sigma> \<setminus> X) M = ranking' G \<pi> \<sigma> M"
+  shows "ranking' G \<pi> [v <- \<sigma>. v \<notin> X] M = ranking' G \<pi> \<sigma> M"
   using assms
   by (induction G \<pi> \<sigma> M rule: ranking'.induct)
      (simp_all add: step_remove_vertices_not_in_graph)
 
 lemma ranking_remove_vertices_not_in_graph_ranking:
   assumes "\<And>x. x \<in> X \<Longrightarrow> x \<notin> Vs G"
-  shows "ranking G \<pi> (\<sigma> \<setminus> X) = ranking G \<pi> \<sigma>"
+  shows "ranking G \<pi> [v <- \<sigma>. v \<notin> X] = ranking G \<pi> \<sigma>"
   using assms
   by (rule ranking'_remove_vertices_not_in_graph_ranking)
 
+lemma step_filter_vertices_in_graph:
+  assumes "\<And>x. x \<in> Vs G \<inter> set \<sigma> \<Longrightarrow> P x"
+  shows "step G u [v <- \<sigma>. P v] M = step G u \<sigma> M"
+  using assms
+  by (induction G u \<sigma> M rule: step.induct)
+     (auto dest: edges_are_Vs)
+
+lemma ranking'_filter_vertices_in_graph_ranking':
+  assumes "\<And>x. x \<in> Vs G \<inter> set \<sigma> \<Longrightarrow> P x"
+  shows "ranking' G \<pi> [v <- \<sigma>. P v] M = ranking' G \<pi> \<sigma> M"
+  using assms
+proof (induction G \<pi> \<sigma> M rule: ranking'.induct)
+  case (2 G u us \<sigma> M)
+  then have "step G u (filter P \<sigma>) M = step G u \<sigma> M"
+    by (auto intro!: step_filter_vertices_in_graph)
+
+  with 2 show ?case
+    by auto
+qed simp
+
+lemma ranking_filter_vertices_in_graph_ranking:
+  assumes "\<And>x. x \<in> Vs G \<inter> set \<sigma> \<Longrightarrow> P x"
+  shows "ranking G \<pi> [v <- \<sigma>. P v] = ranking G \<pi> \<sigma>"
+  using assms
+  by (rule ranking'_filter_vertices_in_graph_ranking')
+
 lemma step_remove_vertices_graph_remove_vertices_rank:
-  "step (G \<setminus> X) u (\<sigma> \<setminus> X) M = step (G \<setminus> X) u \<sigma> M"
+  "step (G \<setminus> X) u [v <- \<sigma>. v \<notin> X] M = step (G \<setminus> X) u \<sigma> M"
   by (induction "G \<setminus> X" u \<sigma> M rule: step.induct)
-     (simp_all add: remove_vertices_list_def remove_vertices_graph_def)
+     (simp_all add: remove_vertices_graph_def)
 
 lemma ranking'_remove_vertices_graph_remove_vertices_rank:
-  "ranking' (G \<setminus> X) \<pi> (\<sigma> \<setminus> X) M = ranking' (G \<setminus> X) \<pi> \<sigma> M"
+  "ranking' (G \<setminus> X) \<pi> [v <- \<sigma>. v \<notin> X] M = ranking' (G \<setminus> X) \<pi> \<sigma> M"
   by (induction "G \<setminus> X" \<pi> \<sigma> M rule: ranking'.induct)
      (simp_all add: step_remove_vertices_graph_remove_vertices_rank)
 
 lemma ranking_remove_vertices_graph_remove_vertices_rank:
-  "ranking (G \<setminus> X) \<pi> (\<sigma> \<setminus> X) = ranking (G \<setminus> X) \<pi> \<sigma>"
+  "ranking (G \<setminus> X) \<pi> [v <- \<sigma>. v \<notin> X] = ranking (G \<setminus> X) \<pi> \<sigma>"
   using ranking'_remove_vertices_graph_remove_vertices_rank
   by blast
 
 lemma step_remove_unmatched_vertex_same:
   assumes "x \<notin> Vs (step G u \<sigma> M)"
-  shows "step G u \<sigma> M = step (G \<setminus> {x}) u \<sigma> M"
+  shows "step (G \<setminus> {x}) u \<sigma> M = step G u \<sigma> M"
   using assms
-  apply (induction G u \<sigma> M rule: step.induct)
-   apply simp_all
-  by (smt (verit, ccfv_SIG) disjoint_insert(1) inf_bot_right insertCI mem_Collect_eq remove_vertices_graph_def vs_member)
+proof (induction G u \<sigma> M rule: step.induct)
+  case (2 G u v vs M)
+  show ?case
+  proof (cases "(v \<notin> Vs M \<and> u \<notin> Vs M \<and> {u, v} \<in> G)")
+    case True
+    with \<open>x \<notin> Vs (step G u (v # vs) M)\<close> show ?thesis
+      using in_remove_verticesI vs_member by fastforce
+  next
+    case False
+    with 2 show ?thesis
+      using remove_vertices_subgraph'
+      by (metis step.simps(2))
+  qed
+qed simp
 
 lemma ranking_remove_unmatched_vertex_same:
   assumes "x \<notin> Vs (ranking' G \<pi> \<sigma> M)"
   shows "ranking' G \<pi> \<sigma> M = ranking' (G \<setminus> {x}) \<pi> \<sigma> M"
   using assms
-  apply (induction G \<pi> \<sigma> M rule: ranking'.induct)
-   apply simp_all
-  by (metis ranking_mono_vs step_remove_unmatched_vertex_same)
+proof (induction G \<pi> \<sigma> M rule: ranking'.induct)
+  case (2 G u us \<sigma> M)
+  then have IH_assm: "x \<notin> Vs (ranking' G us \<sigma> (step G u \<sigma> M))" by simp
+  then have "x \<notin> Vs (step G u \<sigma> M)"
+    by (auto dest: ranking_mono_vs)
+
+  with 2 IH_assm show ?case
+    by (simp add: step_remove_unmatched_vertex_same)
+qed simp
 
 lemma ranking_filter_vs: "ranking' G [u <- \<pi>. u \<in> Vs G] \<sigma> M = ranking' G \<pi> \<sigma> M"
-  apply (induction G \<pi> \<sigma> M rule: ranking'.induct)
-   apply simp_all
-  by (metis step_u_not_in_graph)
-
+  by (induction G \<pi> \<sigma> M rule: ranking'.induct)
+     (auto simp: step_u_not_in_graph)
 
 lemma shifts_to_mono: 
   assumes "G' \<subseteq> G"
