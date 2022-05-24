@@ -6,7 +6,6 @@ begin
 
 sledgehammer_params [provers = cvc4 vampire verit e spass z3 zipperposition]
 
-
 fun step :: "'a graph \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a graph \<Rightarrow> 'a graph" where
   "step _ _ [] M = M"
 | "step G u (v#vs) M = (
@@ -268,7 +267,6 @@ proof -
     by simp
 qed
 
-
 lemma wf_zig_zag_relation_Inl_aux:
   assumes "\<forall>x. (\<forall>y. (y,x) \<in> zig_zag_relation \<longrightarrow> P y) \<longrightarrow> P x"
   shows "P (Inl a)"
@@ -459,7 +457,6 @@ lemma zag_casesE[case_names has_shifts_to has_no_shifts_to unmatched]:
 
 declare zig.simps[simp del] zag.simps[simp del]
 
-
 fun_cases zig_ConsE: "zig G M v \<pi> \<sigma> = v' # uvs"
 fun_cases zig_SingleE: "zig G M v \<pi> \<sigma> = [v']"
 fun_cases zig_NilE: "zig G M v \<pi> \<sigma> = []"
@@ -616,7 +613,6 @@ next
       by (auto simp: zag.simps intro: alt_list.intros)
   qed
 qed (auto simp: zig.simps zag.simps alt_list_step alt_list_empty)
-
 
 lemma rev_alt_path_zig_edges: "rev_alt_path M (zig G M v \<pi> \<sigma>)"
 proof (induction "zig G M v \<pi> \<sigma>" arbitrary: v rule: induct_list012)
@@ -3060,8 +3056,6 @@ proof -
   with max_cards_eq show ?thesis
     by (auto simp: divide_right_mono)
 qed
-
-
 
 \<comment> \<open>Lemma 4 from paper\<close>
 lemma v_unmatched_edge_matched_earlier:

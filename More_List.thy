@@ -1,5 +1,7 @@
 theory More_List
-  imports "List-Index.List_Index"
+  imports
+    "List-Index.List_Index"
+    "HOL-Library.Sublist"
 begin
 
 sledgehammer_params [provers = cvc4 vampire verit e spass z3 zipperposition]
@@ -606,5 +608,48 @@ lemma distinct_move_to_indices_if_eq:
   shows "\<forall>x y. x \<noteq> v \<and> y \<noteq> v \<longrightarrow> (index xs x \<le> index xs y \<longleftrightarrow> index xs' x \<le> index xs' y)"
   by (metis assms move_to_others_leq)
 
+lemma set_take_insert_drop: "set ((take n xs) @ x # (drop n xs)) = {x} \<union> set xs"
+  by (induction xs n rule: induct_list_nat)
+     (simp_all add: insert_commute)
+
+lemma list_emb_drop_before_first:
+  assumes "list_emb P xs (ys@zs)"
+  assumes "\<forall>y \<in> set ys. \<not>P (hd xs) y"
+  shows "list_emb P xs zs"
+  using assms
+  apply (induction ys)
+   apply simp_all
+  by (metis list.exhaust_sel list_emb_Cons_iff2 list_emb_Nil)
+
+lemma sorted_strict_last_geq_length_offset:
+  assumes "ns \<noteq> []"
+  assumes "sorted_wrt (<) ns"
+  assumes "h < hd ns"
+  shows "length ns + h \<le> last ns"
+  using assms
+proof (induction ns arbitrary: h)
+  case (Cons n ns)
+  note cons' = Cons
+  show ?case
+  proof (cases ns)
+    case Nil
+    with Cons show ?thesis
+      by simp
+  next
+    case (Cons n' ns')
+    with cons' have "Suc h < hd ns" by simp
+
+    with cons' show ?thesis
+      by fastforce
+  qed
+qed simp
+
+lemma sorted_strict_last_geq_length:
+  assumes "ns \<noteq> []"
+  assumes "sorted_wrt (<) ns"
+  assumes "0 < hd ns"
+  shows "length ns \<le> last ns"
+  using assms
+  by (auto dest: sorted_strict_last_geq_length_offset)
 
 end
