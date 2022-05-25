@@ -240,4 +240,12 @@ proof -
   finally show "?L \<le> ?R" .
 qed
 
+lemma card_True: "card {x. x} = 1"
+proof -
+  have "{x. x} = {True}"
+    by blast
+
+  then show ?thesis
+    by simp
+qed
 end

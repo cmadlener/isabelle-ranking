@@ -32,7 +32,7 @@ lemma permutation_move_to:
   assumes "v \<in> V"
   shows "\<sigma>[v \<mapsto> t] \<in> permutations_of_set V"
   using assms
-  by (metis move_to_distinct move_to_set_eq permutations_of_setD(1) permutations_of_setD(2) permutations_of_setI)
+  by (auto intro!: permutations_of_setI simp: move_to_set dest: permutations_of_setD move_to_distinct)
 
 lemma move_to_eq_unique_vertex:
   assumes "\<sigma>' \<in> permutations_of_set V"
@@ -58,9 +58,17 @@ proof (rule iffI)
              simp: distinct_move_to_indices_if_eq)
 
   from w card_1 assms have "(THE v. index \<sigma> v = t) = w"
-    apply (auto intro!: the_equality move_to_index_v dest: permutations_of_setD
-      simp: length_finite_permutations_of_set)
-    by (metis assms(2) index_less_size_conv move_to_eq_unique_vertex permutations_of_setD(1))
+  proof (intro the_equality, goal_cases)
+    case 1
+    then show ?case thm move_to_index_v
+      by (auto intro: move_to_index_v dest: permutations_of_setD simp: length_finite_permutations_of_set)
+  next
+    case (2 v)
+    then have "v \<in> V"
+      by (metis index_less_size_conv permutations_of_setD(1))
+    with 2 show ?case
+      by (auto intro: move_to_eq_unique_vertex)
+  qed
 
   with filter_eq show "[x <- \<sigma>'. x \<noteq> (THE v. index \<sigma> v = t)] = [x <- \<sigma>. x \<noteq> (THE v. index \<sigma> v = t)]"
     by blast
@@ -77,9 +85,14 @@ next
     by (metis distinct_count_in_set index_less_size_conv move_to_def move_to_id permutations_of_setD(2))
 
   have "\<And>v'. \<sigma> = \<sigma>'[v' \<mapsto> t] \<Longrightarrow> v' = v"
-    apply (rule move_to_eq_unique_vertex[symmetric, OF assms(3) assms(1) \<open>index \<sigma> v = t\<close>])
-     apply (metis \<open>index \<sigma> v = t\<close> assms(1) assms(2) index_less_size_conv permutations_of_setD(1))
-    by blast
+  proof (rule move_to_eq_unique_vertex[symmetric, OF assms(3) assms(1) \<open>index \<sigma> v = t\<close>], goal_cases)
+    case (1 v')
+    with \<open>index \<sigma> v = t\<close> assms(1) assms(2) show ?case
+     by (metis  index_less_size_conv permutations_of_setD(1))
+  next
+    case (2 v')
+    then show ?case by blast
+  qed
 
   with v \<open>\<sigma> = \<sigma>'[v \<mapsto> t]\<close> have "{v. \<sigma> = \<sigma>'[v \<mapsto> t]} = {v}"
     by blast
@@ -99,7 +112,8 @@ proof
     by (auto intro: move_to_index_v distinct_filter dest: permutations_of_setD)
 
   from assms perm show "[x <- \<sigma>[v \<mapsto> t]. x \<noteq> v] = [x <- \<sigma>. x \<noteq> v]"
-    by (smt (verit, ccfv_threshold) distinct_move_to_indices_if_eq distinct_order_filter_eq filter_cong permutations_of_setD(1) permutations_of_setD(2))
+    unfolding move_to_def
+    by (simp add: filter_take_filter filter_drop_filter)
 qed
 
 lemma permutations_but_v_bij_betw:
@@ -131,9 +145,8 @@ lemma permutations_but_v_card:
   assumes "\<sigma> \<in> permutations_of_set V"
   assumes "index \<sigma> v = t" "v \<in> V"
   shows "card {\<sigma>' \<in> permutations_of_set V. [x <- \<sigma>'. x \<noteq> v] = [x <- \<sigma>. x \<noteq> v]} = card V"
-  using assms
-  apply (auto dest!: permutations_but_v_bij_betw bij_betw_same_card)
-  using assms(1) length_finite_permutations_of_set by blast
+  using assms length_finite_permutations_of_set[OF assms(1)]
+  by (auto dest!: permutations_but_v_bij_betw dest: bij_betw_same_card)
 
 lemma matched_indices_set_eq:
   assumes "bipartite M U (set xs)"
@@ -322,7 +335,7 @@ next
         by (intro map_decr_gt) fastforce
     qed (use "3.prems" in auto)
 
-    from \<open>set (x # xs) \<inter> X = {}\<close> have filter_cons:"filter (\<lambda>v. v \<in> X) (rebuild (Suc n # ns) \<sigma>' (x # xs)) = filter (\<lambda>v. v \<in> X) (rebuild (map decr (Suc n # ns)) \<sigma>' xs)"
+    from \<open>set (x # xs) \<inter> X = {}\<close> have filter_cons: "filter (\<lambda>v. v \<in> X) (rebuild (Suc n # ns) \<sigma>' (x # xs)) = filter (\<lambda>v. v \<in> X) (rebuild (map decr (Suc n # ns)) \<sigma>' xs)"
       by simp
 
     with IH show ?case
@@ -372,8 +385,16 @@ lemma map_index_tl_map_decr_0:
   assumes "\<sigma> = v # \<sigma>s"
   shows "map decr ns = map (index \<sigma>s) \<sigma>'s"
   using assms
-  apply (auto split: if_splits)
-  by (meson subseq_order.dual_order.trans subseq_singleton_left)
+  by (auto split: if_splits simp flip: subseq_singleton_left)
+
+lemma map_index_tl_map_decr_Suc_Cons:
+  assumes "distinct (v#\<sigma>)"
+  assumes "subseq \<sigma>' (v#\<sigma>)"
+  assumes "Suc n # ns = map (index (v#\<sigma>)) \<sigma>'"
+  shows "map decr (Suc n # ns) = map (index \<sigma>) \<sigma>'"
+  using assms
+  by (auto split: if_splits)
+     (meson subseq_Cons' subseq_order.dual_order.trans subseq_singleton_left)
 
 lemma map_index_tl_map_decr_Suc:
   assumes "distinct \<sigma>"
@@ -381,9 +402,15 @@ lemma map_index_tl_map_decr_Suc:
   assumes "Suc n # ns = map (index \<sigma>) \<sigma>'"
   shows "map decr (Suc n # ns) = map (index (tl \<sigma>)) \<sigma>'"
   using assms
-  apply (induction \<sigma>)
-   apply (auto split: if_splits)
-  by (meson subseq_Cons' subseq_order.dual_order.trans subseq_singleton_left)
+proof (cases \<sigma>)
+  case Nil
+  with assms show ?thesis by force
+next
+  case (Cons a list)
+  show ?thesis
+    by (simp only: Cons, intro map_index_tl_map_decr_Suc_Cons)
+       (use assms Cons in force)+
+qed
 
 lemma map_decr_map_index_map_index_tl:
   assumes "hd \<sigma> \<notin> set \<sigma>'"
@@ -513,7 +540,7 @@ lemma rebuild_rebuilds:
 proof (induction "map (index \<sigma>) \<sigma>'" \<sigma>' xs arbitrary: \<sigma> X V rule: rebuild.induct)
   case (1 xs)
   then show ?case
-    by (metis filter_True filter_empty_conv rebuild.simps(1))
+    by (auto intro: filter_True simp: empty_filter_conv)
 next
   case (2 ns v' \<sigma>' xs)
 
@@ -523,8 +550,8 @@ next
   from 2 have v'_hd: "index \<sigma> v' = 0"
     by force
 
-  then have \<sigma>_tl: "\<sigma> = v' # tl \<sigma>"
-    by (metis "2.prems"(4) Nitpick.size_list_simp(2) filter.simps(1) index_Cons index_eq_index_conv list.collapse list.distinct(1) nat.simps(3) size_index_conv)
+  with \<open>v' # \<sigma>' = filter (\<lambda>v. v \<in> X) \<sigma>\<close> have \<sigma>_tl: "\<sigma> = v' # tl \<sigma>"
+    by (metis filter.simps(1) index_Cons index_eq_index_conv list.exhaust_sel list.set_intros(1) list.simps(3))
 
   then have \<sigma>_nonempty: "\<sigma> \<noteq> []" by blast
 
@@ -563,8 +590,8 @@ next
         by (auto dest: list.set_sel permutations_of_setD)
     next
       case (2 x)
-      with \<open>\<sigma> \<in> permutations_of_set V\<close> show ?case
-        by (metis \<sigma>_tl distinct.simps(2) permutations_of_setD(2) singletonD)
+      with \<sigma>_tl \<open>\<sigma> \<in> permutations_of_set V\<close> show ?case
+        by (metis distinct.simps(2) permutations_of_setD(2) singletonD)
     next
       case (3 x)
       with \<open>\<sigma> \<in> permutations_of_set V\<close> \<sigma>_tl show ?case
@@ -581,14 +608,24 @@ next
          (auto dest: permutations_of_setD intro: \<open>v' # \<sigma>' = filter (\<lambda>v. v \<in> X) \<sigma>\<close>)
   next
     case 5
-    from \<open>xs = filter (\<lambda>v. v \<notin> X) \<sigma>\<close> show ?case
-      apply (auto intro:)   
-      by (smt (verit, best) "2.prems"(3) \<sigma>_tl distinct.simps(2) filter.simps(2) filter_cong list.set_intros(1) perm' permutations_of_setD(1) permutations_of_setD(2))
+    show ?case
+    proof -
+      from perm' have "filter (\<lambda>v. v \<notin> X) \<sigma> = filter (\<lambda>v. v \<notin> X) (tl \<sigma>)"
+        by (subst \<sigma>_tl) (auto dest: permutations_of_setD)
+
+      also from \<open>\<sigma> \<in> permutations_of_set V\<close> have "\<dots> = filter (\<lambda>v. v \<notin> X - {v'}) (tl \<sigma>)"
+        by (intro filter_cong, blast)
+           (subst (asm) \<sigma>_tl, auto dest: permutations_of_setD)
+
+      finally have "filter (\<lambda>v. v \<notin> X) \<sigma> = filter (\<lambda>v. v \<notin> X - {v'}) (tl \<sigma>)" .
+
+      with \<open>xs = filter (\<lambda>v. v \<notin> X) \<sigma>\<close> show ?thesis by blast
+    qed
   qed
 
   note map_map[simp del]
   from \<open>v' # \<sigma>' \<in> permutations_of_set X\<close> have "hd \<sigma> \<notin> set \<sigma>'"
-    by (subst \<open>\<sigma> = v' # tl \<sigma>\<close>) (auto dest!: permutations_of_setD)
+    by (subst \<sigma>_tl) (auto dest!: permutations_of_setD)
 
   then show ?case
     by (simp add: v'_hd map_decr_map_index_map_index_tl rebuild_tl, subst (2) \<sigma>_tl) blast
@@ -596,7 +633,7 @@ next
   case (3 n ns \<sigma>' x xs)
 
   then have "x \<notin> X"
-    by (metis (no_types, lifting) list.set_intros(1) mem_Collect_eq set_filter)
+    by (auto dest: Cons_eq_filterD)
 
   from 3 have \<sigma>_tl: "\<sigma> = x # tl \<sigma>"
     by (smt (verit, ccfv_SIG) Cons_eq_map_D filter.simps(1) filter.simps(2) index_Cons list.collapse list.inject nat.simps(3))
@@ -656,7 +693,7 @@ next
 
   note list.map[simp del]
   show ?case
-    by (simp flip: \<open>Suc n # ns = map (index \<sigma>) \<sigma>'\<close> add: map_decr_nns_map_index_tl, subst \<sigma>_tl, simp add:  rebuild_tl)
+    by (simp flip: \<open>Suc n # ns = map (index \<sigma>) \<sigma>'\<close> add: map_decr_nns_map_index_tl, subst \<sigma>_tl, simp add: rebuild_tl)
 next
   case ("4_1" n ns \<sigma>')
   then show ?case
@@ -803,7 +840,7 @@ proof -
     proof (auto, goal_cases)
       case (1 \<sigma> x)
       then show ?case
-        by (metis index_less_size_conv length_finite_permutations_of_set permutations_of_setD(1) subsetD)
+        by (auto simp flip: length_finite_permutations_of_set simp: index_less_size_conv dest: permutations_of_setD)
     next
       case (2 \<sigma>)
       then show ?case
@@ -997,7 +1034,8 @@ lemma non_empty: "V \<noteq> {}"
   using bipartite bipartite_edgeE edge_exists by blast
 
 lemma non_empty_online[simp]: "\<pi> \<noteq> []"
-  by (metis Un_empty bipartite bipartite_empty_part_iff_empty empty_set non_empty vertices vs_empty)
+  using bipartite edge_exists
+  by (auto simp: bipartite_empty_part_iff_empty)
 
 lemma offline_subset_vs: "v \<in> V \<Longrightarrow> v \<in> Vs G"
   using vertices by simp
@@ -1005,15 +1043,52 @@ lemma offline_subset_vs: "v \<in> V \<Longrightarrow> v \<in> Vs G"
 lemma online_subset_vs: "u \<in> set \<pi> \<Longrightarrow> u \<in> Vs G"
   using vertices by simp
 
+lemma the_match_offline_Ex:
+  assumes "v \<in> V"
+  shows "\<exists>u. {u,v} \<in> M \<and> u \<in> set \<pi>"
+proof -
+  from assms perfect_matching vertices have "v \<in> Vs M"
+    unfolding perfect_matching_def
+    by fastforce
+
+  then obtain e where e: "e \<in> M" "v \<in> e"
+    unfolding Vs_def by blast
+
+  with assms bipartite_matching \<open>v \<in> Vs M\<close> obtain u where "e = {u,v}" "u \<in> set \<pi>"
+    by (auto elim: bipartite_edgeE dest: bipartite_vertex)
+
+  with e show "\<exists>u. {u,v} \<in> M \<and> u \<in> set \<pi>" by blast
+qed
+
 lemma the_match_offlineE:
   assumes "v \<in> V"
   obtains u where "{u,v} \<in> M" "u \<in> set \<pi>"
-  by (smt (verit, ccfv_SIG) assms bipartite_disjointD bipartite_edgeE bipartite_matching disjoint_iff_not_equal empty_iff insert_iff offline_subset_vs perfect_matching perfect_matching_edgeE)
+  using assms
+  by (auto dest: the_match_offline_Ex)
+
+lemma the_match_online_Ex:
+  assumes "u \<in> set \<pi>"
+  shows "\<exists>v. {u,v} \<in> M \<and> v \<in> V"
+  using assms
+proof -
+  from assms perfect_matching vertices have "u \<in> Vs M"
+    unfolding perfect_matching_def
+    by fastforce
+
+  then obtain e where e: "e \<in> M" "u \<in> e"
+    unfolding Vs_def by blast
+
+  with assms bipartite_matching \<open>u \<in> set \<pi>\<close> obtain v where "e = {u,v}" "v \<in> V"
+    by (auto elim!: bipartite_edgeE dest: bipartite_vertex bipartite_disjointD)
+
+  with e show "\<exists>v. {u,v} \<in> M \<and> v \<in> V" by blast
+qed
 
 lemma the_match_onlineE:
   assumes "u \<in> set \<pi>"
   obtains v where "{u,v} \<in> M" "v \<in> V"
-  by (smt (verit, ccfv_SIG) assms bipartite_disjointD bipartite_edgeE bipartite_matching empty_iff insertE insert_disjoint(1) mk_disjoint_insert online_subset_vs perfect_matching perfect_matching_edgeE)
+  using assms
+  by (auto dest: the_match_online_Ex)
 
 lemma the_match_online:
   assumes "u \<in> set \<pi>"
@@ -1031,17 +1106,23 @@ lemma the_match_offline:
 
 lemma perfect_matching_bij:
   "bij_betw (\<lambda>u. (THE v. {u,v} \<in> M)) (set \<pi>) V"
-  apply (rule bij_betwI[where g = "\<lambda>v. (THE u. {u,v} \<in> M)"])
-     apply (auto intro: the_match_online the_match_offline)
-   apply (rule the_equality)
-    apply (rule the_match_online)
-    apply blast
-   apply (smt (verit, del_insts) insert_commute perfect_matching perfect_matchingD(2) the_match' the_match_online(1))
-  apply (rule the_equality)
-   apply (rule the_match_offline)
-   apply blast
-  apply (smt (verit) insert_commute perfect_matching perfect_matchingD(2) the_match the_match_offline(1))
-  done
+proof (intro bij_betwI[where g = "\<lambda>v. (THE u. {u,v} \<in> M)"] funcsetI, goal_cases)
+  case (1 x)
+  then show ?case
+    by (auto dest: the_match_online)
+next
+  case (2 x)
+  then show ?case
+    by (auto dest: the_match_offline)
+next
+  case (3 x)
+  with perfect_matching show ?case
+    by (auto dest: the_match_online perfect_matchingD the_match)
+next
+  case (4 y)
+  with perfect_matching show ?case
+    by (auto dest: the_match_offline perfect_matchingD the_match')
+qed
 
 lemma card_online_eq_offline: "card (set \<pi>) = card V"
   using perfect_matching_bij
@@ -1056,13 +1137,25 @@ definition random_permutation_t :: "nat \<Rightarrow> ('a list) pmf" where
   }"
 
 lemma random_permutation_geq_card:
-  "card V \<le> t \<Longrightarrow> random_permutation_t t = random_permutation_t (card V - 1)"
-  using perms_of_V
-  unfolding random_permutation_t_def
-  apply (auto intro!: pmf_eqI simp:)
-  using finite non_empty
-  apply (auto simp add: pmf_bind_pmf_of_set intro!: sum.cong)
-  by (smt (verit) One_nat_def length_finite_permutations_of_set move_elem_to_gt_length permutations_of_setD(1) sum.cong)
+  "card V \<le> t \<Longrightarrow> random_permutation_t t = random_permutation_t (card V - 1)" (is "?geq \<Longrightarrow> ?L = ?R")
+proof (intro pmf_eqI)
+  fix i
+  assume ?geq
+
+  from finite non_empty have "pmf ?L i = (\<Sum>\<sigma>\<in>permutations_of_set V. (\<Sum>x\<in>V. indicat_real {i} \<sigma>[x \<mapsto> t]) / real (card V)) / fact (card V)"
+    unfolding random_permutation_t_def
+    by (simp add: pmf_bind_pmf_of_set)
+
+  also from \<open>?geq\<close> finite non_empty have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. (\<Sum>x\<in>V. indicat_real {i} \<sigma>[x \<mapsto> card V - 1]) / real (card V)) / fact (card V)"
+    by (intro arg_cong2[where f =  "(/)"] sum.cong arg_cong2[where f = "indicat_real"])
+       (auto simp add: length_finite_permutations_of_set move_elem_to_gt_length permutations_of_setD)
+
+  also from finite non_empty have "\<dots> = pmf ?R i"
+    unfolding random_permutation_t_def
+    by (simp add: pmf_bind_pmf_of_set)
+
+  finally show "pmf ?L i = pmf ?R i" .
+qed
 
 lemma move_to_t_eq_uniform_less: "t < card V \<Longrightarrow> random_permutation_t t = pmf_of_set (permutations_of_set V)"
 proof (rule pmf_eqI)
@@ -1363,26 +1456,53 @@ lemma matched_before_uniform_u: "matched_before t = do
       u \<leftarrow> pmf_of_set (set \<pi>);
       let R = ranking G \<pi> \<sigma>;
       return_pmf (u \<in> Vs R \<and> index \<sigma> (THE v. {u,v} \<in> R) \<le> t)
-    }"
-  unfolding matched_before_def Let_def
-  apply (rule pmf_eqI)
-  using finite non_empty
-  apply (simp add: pmf_bind_pmf_of_set indicator_singleton card_online_eq_offline sum.If_cases)
-  apply (rule sum.cong)
-   apply blast
-  apply (rule arg_cong2[where f =  "(/)"])
-   apply (simp)
-   apply (rule bij_betw_same_card[where f = "\<lambda>v. (THE u. {u,v} \<in> M)"])
-   apply (rule bij_betwI[where g = "\<lambda>u. (THE v. {u,v} \<in> M)"])
-      apply (auto)
-  using the_match_offline apply blast
-  using the_match_online apply blast
-       apply (metis perfect_matching perfect_matchingD(2) the_match the_match_online(1))
-      apply (metis perfect_matching perfect_matchingD(2) the_match the_match_online(1))
-     apply (metis perfect_matching perfect_matchingD(2) the_match the_match_online(1))
-    apply (metis perfect_matching perfect_matchingD(2) the_match the_match_online(1))
-  using perfect_matching perfect_matchingD(2) the_match' the_match_offline(1) apply fastforce
-  using perfect_matching perfect_matchingD(2) the_match the_match_online(1) by fastforce
+    }" (is "?L = ?R")
+proof (rule pmf_eqI)
+  fix i
+
+  from finite non_empty have "pmf ?L i =
+  (\<Sum>\<sigma>\<in>permutations_of_set V. real (card (V \<inter> {v'. i = ((THE u. {u, v'} \<in> M) \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {THE u. {u, v'} \<in> M, v} \<in> ranking G \<pi> \<sigma>) \<le> t)})) / real (card V)) / fact (card V)"
+    unfolding matched_before_def Let_def
+    by (simp add: pmf_bind_pmf_of_set indicator_singleton card_online_eq_offline sum.If_cases)
+
+  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. real (card (set \<pi> \<inter> {u. i = (u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u, v} \<in> ranking G \<pi> \<sigma>) \<le> t)})) / real (card V)) / fact (card V)"
+  proof (intro arg_cong2[where f = divide] sum.cong; simp, goal_cases)
+    case (1 \<sigma>)
+    then show ?case
+    proof (intro bij_betw_same_card[where f = "\<lambda>v. (THE u. {u,v} \<in> M)"]
+        bij_betwI[where g = "\<lambda>u. (THE v. {u,v} \<in> M)"] funcsetI IntI CollectI, goal_cases)
+      case (1 x)
+      then show ?case
+        by (auto intro: the_match_offline)
+    next
+      case (2 x)
+      then show ?case by auto
+    next
+      case (3 x)
+      then show ?case
+        by (auto intro: the_match_online)
+    next
+      case (4 x)
+      with perfect_matching show ?case
+        by (intro iffI; simp)
+           (metis perfect_matchingD(2) the_match the_match_online(1))+
+    next
+      case (5 x)
+      with perfect_matching show ?case
+        by (simp add: perfect_matchingD the_match' the_match_offline)
+    next
+      case (6 y)
+      with perfect_matching show ?case
+        by (fastforce simp: perfect_matchingD the_match the_match_online)
+    qed
+  qed
+
+  also from finite non_empty have "\<dots> = pmf ?R i"
+    unfolding Let_def
+    by (simp add: pmf_bind_pmf_of_set indicator_singleton card_online_eq_offline sum.If_cases)
+
+  finally show "pmf ?L i = pmf ?R i" .
+qed
 
 abbreviation "matched_before_t_set t \<equiv> 
   do {
@@ -1391,19 +1511,24 @@ abbreviation "matched_before_t_set t \<equiv>
     return_pmf {u \<in> set \<pi>. u \<in> Vs R \<and> index \<sigma> (THE v. {u,v} \<in> R) \<le> t}
   }"
 
-
 lemma expected_size_matched_before_sum: "measure_pmf.expectation (matched_before_t_set t) card =
   (\<Sum>\<sigma>\<in>permutations_of_set V. card {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> ranking G \<pi> \<sigma>) \<le> t}) / fact (card V)" (is "?L = ?R")
 proof -
-have "?L = (\<Sum>\<^sub>aU. (\<Sum>\<sigma>\<in>permutations_of_set V. (if U = {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u, v} \<in> ranking G \<pi> \<sigma>) \<le> t} then 1 else 0) / fact (card V)) * (card U))"
+  have "?L = (\<Sum>\<^sub>ax. (\<Sum>\<^sub>axa. indicat_real (permutations_of_set V) xa * (if x = {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> xa) \<and> index xa (THE v. {u, v} \<in> ranking G \<pi> xa) \<le> t} then 1 else 0) / fact (card V)) * real (card x))"
     using perms_of_V non_empty
-    apply (simp add: pmf_expectation_eq_infsetsum pmf_bind Let_def indicator_singleton)
-    apply (rule infsetsum_cong)
-     apply (rule arg_cong2[where f = "(*)"])
-      apply (rule infsetsum_sum_cong)
-           apply (rule finite_subset[where B = "permutations_of_set V"])
-    apply auto
-    done
+    by (simp add: pmf_expectation_eq_infsetsum pmf_bind Let_def indicator_singleton)
+
+  also have "\<dots> = (\<Sum>\<^sub>aU. (\<Sum>\<sigma>\<in>permutations_of_set V. (if U = {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u, v} \<in> ranking G \<pi> \<sigma>) \<le> t} then 1 else 0) / fact (card V)) * (card U))"
+  proof (intro infsetsum_cong arg_cong2[where f = "(*)"] infsetsum_sum_cong, goal_cases)
+    case (1 x)
+    show ?case
+      by (rule finite_subset[where B = "permutations_of_set V"])
+         (auto simp: indicator_eq_0_iff)
+  next
+    case (5 x a)
+    then show ?case
+      by (auto simp: indicator_eq_0_iff)
+  qed simp_all
 
   also have "\<dots> = (\<Sum>U\<in>Pow(set \<pi>). (\<Sum>\<sigma>\<in>permutations_of_set V. (if U = {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> ranking G \<pi> \<sigma>) \<le> t} then 1 else 0) / fact (card V)) * (card U))"
     by (intro infsetsum_sum_cong)
@@ -1420,23 +1545,12 @@ have "?L = (\<Sum>\<^sub>aU. (\<Sum>\<sigma>\<in>permutations_of_set V. (if U = 
     by (auto simp: sum_divide_distrib)
 qed
 
-
 lemma matched_before_prob_is_expected_size_div: "measure_pmf.prob (matched_before t) {True} = measure_pmf.expectation (matched_before_t_set t) card / (card V)" (is "?L = ?R")
   using perms_of_V
   by (subst expected_size_matched_before_sum)
      (auto simp add: matched_before_uniform_u pmf_bind_pmf_of_set Let_def measure_pmf_conv_infsetsum
        card_online_eq_offline indicator_singleton sum.If_cases simp flip: sum_divide_distrib 
        intro!: sum.cong arg_cong2[where f = divide] bij_betw_same_card[where f = id] bij_betwI[where g = id])
-
-
-lemma card_True: "card {x. x} = 1"
-proof -
-  have "{x. x} = {True}"
-    by blast
-
-  then show ?thesis
-    by simp
-qed
 
 lemma matched_before_card_eq: "\<sigma> \<in> permutations_of_set V \<Longrightarrow> card {u\<in>set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> ranking G \<pi> \<sigma>) \<le> t} = card {v\<in>V. v \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t}"
 proof (rule bij_betw_same_card[where f = "\<lambda>u. (THE v. {u,v} \<in> ranking G \<pi> \<sigma>)"],
@@ -1451,8 +1565,11 @@ proof (rule bij_betw_same_card[where f = "\<lambda>u. (THE v. {u,v} \<in> rankin
     then have u: "u \<in> set \<pi>" "u \<in> Vs (ranking G \<pi> \<sigma>)" "index \<sigma> (THE v. {u,v} \<in> ranking G \<pi> \<sigma>) \<le> t"
       by blast+
 
-    then obtain v where v: "{u,v} \<in> ranking G \<pi> \<sigma>" "v \<in> V"
-      by (smt (verit, best) bipartite bipartite_commute bipartite_eqI insertCI ranking_edgeE subgraph_ranking vs_member)
+    then obtain e where e: "e \<in> ranking G \<pi> \<sigma>" "u \<in> e"
+      by (auto elim: vs_member_elim)
+
+    with u bipartite obtain v where v: "{u,v} \<in> ranking G \<pi> \<sigma>" "v \<in> V"
+      by (metis bipartite_vertex(2) empty_iff insert_iff online_subset_vs ranking_edgeE)
 
     with 1 have "(THE v. {u,v} \<in> ranking G \<pi> \<sigma>) = v"
       by (auto intro: the_match' dest: matching_if_perm)
@@ -1470,8 +1587,11 @@ next
     then have v: "v \<in> V" "v \<in> Vs (ranking G \<pi> \<sigma>)" "index \<sigma> v \<le> t"
       by blast+
 
-    then obtain u where u: "{u,v} \<in> ranking G \<pi> \<sigma>" "u \<in> set \<pi>"
-      by (smt (verit, best) bipartite bipartite_eqI insertCI ranking_edgeE subgraph_ranking vs_member)
+    then obtain e where e: "e \<in> ranking G \<pi> \<sigma>" " v \<in> e"
+      by (auto elim: vs_member_elim)
+
+    with v bipartite obtain u where u: "{u,v} \<in> ranking G \<pi> \<sigma>" "u \<in> set \<pi>"
+      by (metis bipartite_vertex(2) doubleton_eq_iff graph_abs_G graph_abs_no_edge_no_vertex graph_abs_ranking offline_subset_vs ranking_edgeE)
 
     with 2 have "(THE u. {u,v} \<in> ranking G \<pi> \<sigma>) = u" "(THE v. {u,v} \<in> ranking G \<pi> \<sigma>) = v"
       by (auto intro: the_match the_match' dest: matching_if_perm)
@@ -1481,11 +1601,14 @@ next
   qed
 next
   case (3 u)
-  then have "u \<in> set \<pi>" "u \<in> Vs (ranking G \<pi> \<sigma>)"
+  then have u: "u \<in> set \<pi>" "u \<in> Vs (ranking G \<pi> \<sigma>)"
     by blast+
 
-  then obtain v where "{u,v} \<in> ranking G \<pi> \<sigma>"
-    by (smt (verit, del_insts) bipartite bipartite_disjointD empty_iff insert_disjoint(1) insert_iff mk_disjoint_insert ranking_edgeE vs_member)
+  then obtain e where e: "e \<in> ranking G \<pi> \<sigma>" "u \<in> e"
+    by (auto elim: vs_member_elim)
+
+  with u bipartite obtain v where "{u,v} \<in> ranking G \<pi> \<sigma>"
+    by (meson graph_abs_G graph_abs_no_edge_no_vertex graph_abs_ranking)
 
   with 3 have "(THE u. {u,v} \<in> ranking G \<pi> \<sigma>) = u" "(THE v. {u,v} \<in> ranking G \<pi> \<sigma>) = v"
     by (auto intro: the_match the_match' dest: matching_if_perm)
@@ -1494,11 +1617,14 @@ next
     by simp
 next
   case (4 v)
-  then have "v \<in> V" "v \<in> Vs (ranking G \<pi> \<sigma>)"
+  then have v: "v \<in> V" "v \<in> Vs (ranking G \<pi> \<sigma>)"
     by blast+
 
-  then obtain u where u: "{u,v} \<in> ranking G \<pi> \<sigma>"
-    by (smt (verit, del_insts) bipartite bipartite_disjointD empty_iff insert_disjoint(1) insert_iff mk_disjoint_insert ranking_edgeE vs_member)
+  then obtain e where e: "e \<in> ranking G \<pi> \<sigma>" "v \<in> e"
+    by (auto elim: vs_member_elim)
+
+  with v obtain u where u: "{u,v} \<in> ranking G \<pi> \<sigma>"
+    by (meson graph_abs_G graph_abs_ranking graph_abs_vertex_edgeE')
 
   with 4 have "(THE u. {u,v} \<in> ranking G \<pi> \<sigma>) = u" "(THE v. {u,v} \<in> ranking G \<pi> \<sigma>) = v"
     by (auto intro: the_match the_match' dest: matching_if_perm)
@@ -1518,16 +1644,50 @@ proof -
     by (simp add: matched_before_card_eq)
 
   also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. (\<Sum>s\<le>t. if (\<sigma> ! s \<in> Vs (ranking G \<pi> \<sigma>)) then 1 else 0)) / fact (card V)"
-    using t
-    apply (auto intro!: sum.cong simp: sum.If_cases)
-    subgoal for \<sigma>
-      apply (rule bij_betw_same_card[where f = "\<lambda>v. index \<sigma> v"])
-      apply (rule bij_betwI[where g = "(!) \<sigma>"])
-         apply (auto dest: permutations_of_setD)
-        apply (metis length_finite_permutations_of_set nth_mem order_le_less_trans permutations_of_setD(1))
-      apply (simp add: index_nth_id length_finite_permutations_of_set permutations_of_setD(2))
-      by (simp add: index_nth_id length_finite_permutations_of_set permutations_of_setD(2))
-    done
+  proof (intro arg_cong2[where f = divide], goal_cases)
+    case 1
+    have "(\<Sum>\<sigma>\<in>permutations_of_set V. card {v \<in> V. v \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t}) = (\<Sum>\<sigma>\<in>permutations_of_set V. \<Sum>s\<le>t. if \<sigma> ! s \<in> Vs (ranking G \<pi> \<sigma>) then 1 else 0)"
+    proof (intro sum.cong, goal_cases)
+      case (2 \<sigma>)
+      then have "card {v \<in> V. v \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t} = card ({..t} \<inter> {s. \<sigma> ! s \<in> Vs (ranking G \<pi> \<sigma>)})"
+      proof (intro bij_betw_same_card[where f = "index \<sigma>"] bij_betwI[where g = "(!) \<sigma>"] funcsetI CollectI IntI, goal_cases)
+        case (1 x)
+        then show ?case by blast
+      next
+        case (2 x)
+        then show ?case
+          by (simp add: permutations_of_setD)
+      next
+        case (3 x)
+        with t show ?case
+        proof (intro conjI, goal_cases)
+          case 1
+          then have "\<sigma> ! x \<in> set \<sigma>"
+            by (auto intro!: nth_mem simp: length_finite_permutations_of_set)
+          with 1 show ?case
+            by (auto dest: permutations_of_setD)
+        next
+          case 3
+          then show ?case
+            by (auto simp: index_nth_id length_finite_permutations_of_set permutations_of_setD)
+        qed simp
+
+      next
+        case (4 x)
+        then show ?case
+          by (simp add: permutations_of_setD)
+      next
+        case (5 y)
+        with t show ?case
+          by (auto simp: length_finite_permutations_of_set index_nth_id permutations_of_setD)
+      qed
+      then show ?case
+        by (auto simp: sum.If_cases)
+    qed simp
+
+    then show ?case
+      by (auto simp: sum.If_cases)
+  qed simp
 
   also have "\<dots> = ?R"
     using perms_of_V
@@ -1643,12 +1803,12 @@ proof -
 
   also have "\<dots> \<ge> (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. [v <- \<sigma>. v \<in> V \<inter> Vs G'] = \<sigma>'}. card (ranking G' \<pi> \<sigma>) / fact (card V)))" (is "_ \<ge> ?S")
     unfolding assms
-    apply (auto intro!: sum_mono divide_right_mono)
-    subgoal for \<sigma>
-      using bipartite
-        bipartite_subgraph[OF bipartite subgraph_make_perfect_matching, of M]
+  proof (intro sum_mono divide_right_mono, goal_cases)
+    case (1 \<sigma>' \<sigma>)
+    with bipartite bipartite_subgraph[OF bipartite subgraph_make_perfect_matching, of M]
+    show ?case
       by (auto intro!: ranking_matching_card_leq_on_perfect_matching_graph[of G _ \<pi> \<sigma> M] ranking_matching_ranking dest: permutations_of_setD)
-    done
+  qed simp
 
   finally have "?S \<le> ?R" .
   note equalityI[rule del]
@@ -1657,14 +1817,12 @@ proof -
        (auto intro!: ranking_filter_vertices_in_graph_ranking[symmetric] dest: permutations_of_setD)
 
   also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (fact (card V) / fact (card (V \<inter> Vs G'))) * real (card (ranking G' \<pi> \<sigma>')) / fact (card V))"
-    apply (rule sum.cong)
-     apply blast
-    apply (simp only: sum_constant times_divide_eq_right)
-    apply (rule arg_cong2[where f = "(/)"])
-     apply (rule arg_cong2[where f = "(*)"])
-    apply (intro card_restrict_permutation_eq_fact)
-        apply (auto)
-    done
+  proof (rule sum.cong, goal_cases)next
+    case (2 x)
+    then show ?case
+      by (simp only: sum_constant times_divide_eq_right, intro arg_cong2[where f = divide] arg_cong2[where f = times] card_restrict_permutation_eq_fact)
+         auto
+  qed simp
 
   also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). card (ranking G' \<pi> \<sigma>') / fact (card (V \<inter> Vs G')))"
     by simp
