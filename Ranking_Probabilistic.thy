@@ -1933,4 +1933,135 @@ next
 qed
 
 end
+
+abbreviation matching_instance_nat :: "nat \<Rightarrow> (nat \<times> nat) set set" where
+  "matching_instance_nat n \<equiv> {{(0,k),(Suc 0,k)} |k. k < n}"
+
+definition ranking_instance_nat :: "nat \<Rightarrow> (nat \<times> nat) set set" where
+  "ranking_instance_nat n \<equiv> (SOME G. max_card_matching G (matching_instance_nat n) \<and>
+     finite G \<and> G \<subseteq> {{(0,k),(Suc 0,l)} |k l. True})"
+
+definition arrival_instance_nat :: "nat \<Rightarrow> (nat \<times> nat) list" where
+  "arrival_instance_nat n \<equiv> (SOME \<pi>. set \<pi> = {(0,k) |k. \<exists>l. {(0,k),(Suc 0,l)} \<in> ranking_instance_nat n})"
+
+definition offline_instance_nat :: "nat \<Rightarrow> (nat \<times> nat) set" where
+  "offline_instance_nat n \<equiv> {(Suc 0, k) |k. \<exists>l. {(0, l),(Suc 0, k)} \<in> ranking_instance_nat n}"
+
+lemma matching_matching_instance_nat[simp]:
+  "matching (matching_instance_nat n)"
+  unfolding matching_def
+  by auto
+
+lemma card_matching_instance_nat:
+  "card (matching_instance_nat n) = card {..<n}"
+  apply (intro bij_betw_same_card[where f = "\<lambda>e. snd (SOME x. x \<in> e)"] bij_betwI[where g = "\<lambda>n. {(0,n),(Suc 0,n)}"])
+     apply auto
+           apply (metis (mono_tags, lifting) snd_conv some_eq_imp)+
+  done
+
+lemma ranking_instance_natE:
+  obtains G where "max_card_matching G (matching_instance_nat n)"
+    "finite G" "G \<subseteq> {{(0,k),(Suc 0,l)} |k l. True}"
+proof
+  show "max_card_matching (matching_instance_nat n) (matching_instance_nat n)"
+    by (auto intro: max_card_matchingI intro!: card_mono)
+next
+  show "finite (matching_instance_nat n)"
+    by auto
+next
+  show "matching_instance_nat n \<subseteq> {{(0,k), (Suc 0,l)} |k l. True}"
+    by auto
+qed
+
+lemma 
+  shows max_card_matching_instance: "max_card_matching (ranking_instance_nat n) (matching_instance_nat n)"
+    and finite_instance: "finite (ranking_instance_nat n)"
+    and subset_instance: "ranking_instance_nat n \<subseteq> {{(0,k),(Suc 0,l)} |k l. True}"
+proof -
+  obtain G where "max_card_matching G (matching_instance_nat n)" "finite G" "G \<subseteq> {{(0,k),(Suc 0,l)} |k l. True}"
+    using ranking_instance_natE by blast
+
+  then have "max_card_matching (ranking_instance_nat n) (matching_instance_nat n) \<and> finite (ranking_instance_nat n) \<and> ranking_instance_nat n \<subseteq> {{(0,k),(Suc 0,l)} |k l. True}"
+    unfolding ranking_instance_nat_def
+    by (intro someI) auto
+
+  then show "max_card_matching (ranking_instance_nat n) (matching_instance_nat n)" "finite (ranking_instance_nat n)"
+    "ranking_instance_nat n \<subseteq> {{(0,k), (Suc 0,l)} |k l. True}"
+    by blast+
+qed
+
+lemma finite_vs_instance: "finite (Vs (ranking_instance_nat n))"
+  using finite_instance subset_instance
+  unfolding Vs_def
+  by blast
+
+lemma
+  shows set_arrival_instance: "set (arrival_instance_nat n) = {(0,k) |k. \<exists>l. {(0,k),(Suc 0,l)} \<in> ranking_instance_nat n}"
+  unfolding arrival_instance_nat_def
+  by (rule someI_ex, rule finite_list, rule finite_subset[OF _ finite_vs_instance[where n = n]])
+     (use edges_are_Vs in blast)
+
+lemma wf_ranking_nat:
+  shows "wf_ranking (ranking_instance_nat n) (arrival_instance_nat n) (offline_instance_nat n) (matching_instance_nat n)"
+proof (unfold_locales, goal_cases)
+  case 1
+  then show bipartite_instance: ?case
+  proof (intro bipartiteI, goal_cases)
+    case 1
+    from subset_instance show ?case
+      unfolding offline_instance_nat_def
+      by (auto simp: set_arrival_instance)
+  next
+    case (2 e)
+    then show ?case
+      unfolding offline_instance_nat_def
+      apply (auto simp: set_arrival_instance dest: subset_instance[THEN subsetD])
+      apply (drule subset_instance[THEN subsetD])
+      using "2" by blast
+  qed
+
+  case 3
+  show ?case
+    apply rule
+     apply (rule bipartite_vs_subset[OF bipartite_instance])
+    apply (auto simp add: set_arrival_instance Vs_def offline_instance_nat_def intro: bipartite_vs_subset[OF bipartite_instance])
+    done
+next
+  case 2
+  from finite_instance show ?case by blast
+next
+  case 4
+  from max_card_matching_instance show ?case by blast
+qed
+term wf_ranking.ranking_prob
+thm wf_ranking.ranking_comp_ratio
+
+definition comp_ratio_nat where
+  "comp_ratio_nat n \<equiv> measure_pmf.expectation (wf_ranking.ranking_prob (ranking_instance_nat n) (arrival_instance_nat n) (offline_instance_nat n)) card / card (matching_instance_nat n)"
+
+lemma comp_ratio_nat_bound:
+  "1 - (1 - 1/real (n+1))^n \<le> comp_ratio_nat n"
+proof -
+  have "1 - (1 - 1/(card (matching_instance_nat n) + 1))^card (matching_instance_nat n) \<le> comp_ratio_nat n"
+    unfolding comp_ratio_nat_def
+    using wf_ranking.ranking_comp_ratio[OF wf_ranking_nat]
+    by blast
+
+  then show ?thesis
+    by (auto simp add: card_matching_instance_nat field_simps)
+qed
+
+lemma comp_ratio_limit:
+  assumes "comp_ratio_nat \<longlonglongrightarrow> cr"
+  shows "1 - exp(-1) \<le> cr"
+proof (rule LIMSEQ_le)
+  show "(\<lambda>n::nat. 1 - (1 - 1/(n+1))^n) \<longlonglongrightarrow> 1 - exp(-1)"
+    by real_asymp
+
+  from assms show "comp_ratio_nat \<longlonglongrightarrow> cr" by blast
+
+  show "\<exists>N. \<forall>n\<ge>N. 1 - (1 - 1 / real (n+1)) ^ n \<le> comp_ratio_nat n"
+    by (intro exI[of _ 0] allI impI comp_ratio_nat_bound)
+qed
+
 end
