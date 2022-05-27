@@ -5,6 +5,7 @@ theory Misc
     "HOL-Probability.Probability"
     "Monad_Normalisation.Monad_Normalisation"
 begin
+sledgehammer_params [provers = cvc4 vampire verit e spass z3 zipperposition]
 
 lemma bounded_by_sum_bounds_sum_aux:
   fixes x :: "nat \<Rightarrow> real"
@@ -72,26 +73,39 @@ next
     by simp
 
   also have "\<dots> = (\<Sum>s\<le>Suc t. (1-1/(n+1))^(s+1))" (is "_ = ?RHS")
-    apply (simp add: sum.atMost_shift)
-    apply (cases t)
-     apply simp
-    apply (simp only: sum.atLeast_Suc_atMost_Suc_shift)
-    apply (simp del:  sum.lessThan_Suc add: atLeast0AtMost lessThan_Suc_atMost)
-    done
+  proof (cases t)
+    case (Suc n)
+    then show ?thesis
+      by (simp only: sum.atMost_shift sum.atLeast_Suc_atMost_Suc_shift atLeast0AtMost lessThan_Suc_atMost)
+         simp
+  qed simp
 
   finally have final: "?S2 = ?RHS" .
 
   show ?case 
-    apply (intro order_trans[OF _ bound_rewrite_sum] ord_eq_le_trans[OF _ IH_applied])
-    apply (subst final)
-    apply (simp add: ac_simps)
-    done
+    by (intro order_trans[OF _ bound_rewrite_sum] ord_eq_le_trans[OF _ IH_applied], subst final)
+       (simp add: ac_simps)
 qed
 
-lemma sum_gp_strict_Suc: "(\<Sum>s<n. (1 - 1/(n+1))^(s+1)) = n - n*(n/(n+1))^n"
-  apply (auto simp flip: sum_distrib_left simp: sum_gp_strict)
-  apply (auto simp add: field_split_simps)
-  by (metis distrib_right mult_1 nat.simps(3) of_nat_Suc of_nat_eq_0_iff power.simps(2) power_eq_0_iff)
+lemma pos_pow_plus_nonneg_neq_0: "0 < (a::real) \<Longrightarrow> 0 \<le> b \<Longrightarrow> a ^ n + b = 0 \<Longrightarrow> False"
+  by (auto dest: zero_less_power[of a n] simp: add_eq_0_iff)
+
+lemma pow_n_plus_n_times_pow_n_neq_0: "(1 + real n) ^ n + real n * (1 + real n) ^ n = 0 \<Longrightarrow> False"
+  by (auto intro!: pos_pow_plus_nonneg_neq_0[of "1 + real n" "real n * (1 + real n) ^ n"])
+
+lemma sum_gp_strict_Suc: "(\<Sum>s<n. (1 - 1/(n+1))^(s+1)) = n - n*(n/(n+1))^n" (is "?L = ?R")
+proof -
+  have "?L = (1 - 1/(n+1)) * (\<Sum>s<n. (1-1/(n+1))^s)"
+    by (auto simp: sum_distrib_left)
+
+  also have "\<dots> = (1-1/(n+1)) * (1-(1-1/(n+1))^n)/(1/(n+1))"
+    by (auto simp: sum_gp_strict)
+
+  also have "\<dots> = ?R"
+    by (auto simp: field_split_simps dest: pow_n_plus_n_times_pow_n_neq_0)
+
+  finally show ?thesis .
+qed
 
 
 lemma card_singleton_UN:
@@ -110,8 +124,8 @@ lemma expectation_sum_pmf_of_set:
 
 lemma bool_pmf_is_bernoulli_pmf:
   "\<exists>p. bool_pmf = bernoulli_pmf p \<and> 0 \<le> p \<and> p \<le> 1"
-  apply (auto simp: pmf_eq_iff)
-  by (metis (full_types) pmf_False_conv_True pmf_bernoulli_True pmf_le_1 pmf_nonneg)
+  by (auto simp: pmf_eq_iff)
+     (metis (full_types) pmf_False_conv_True pmf_bernoulli_True pmf_le_1 pmf_nonneg)
 
 lemma bool_pmf_is_bernoulli_pmfE:
   obtains p where "bool_pmf = bernoulli_pmf p" "0 \<le> p" "p \<le> 1"
