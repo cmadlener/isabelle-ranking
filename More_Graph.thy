@@ -1,6 +1,6 @@
 theory More_Graph
   imports
-    "AGF.Berge"
+    Berge
     "HOL-Library.FuncSet"
 begin
 
