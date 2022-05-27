@@ -7,12 +7,14 @@ session "Ranking" = "HOL" +
     "Monad_Normalisation"
     "List-Index"
     
-  theories
+  theories [document=false]
     "Berge"
-    "Misc"
+
+  theories
     "More_List"
     "More_Graph"
     "Ranking"
+    "Misc"
     "Ranking_Probabilistic"
 
   document_files
