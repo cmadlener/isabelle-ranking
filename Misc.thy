@@ -248,4 +248,14 @@ proof -
   then show ?thesis
     by simp
 qed
+
+lemma snd_some_disj: "snd (SOME x. x = (0, k) \<or> x = (Suc 0, k)) = k"
+proof -
+  let ?some = "SOME x. x = (0,k) \<or> x =(Suc 0,k)"
+  have "?some = (0,k) \<or> ?some = (Suc 0, k)"
+    by (auto intro!: someI)
+
+  then show ?thesis
+    by auto
+qed
 end

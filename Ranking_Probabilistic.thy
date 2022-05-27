@@ -1954,10 +1954,8 @@ lemma matching_matching_instance_nat[simp]:
 
 lemma card_matching_instance_nat:
   "card (matching_instance_nat n) = card {..<n}"
-  apply (intro bij_betw_same_card[where f = "\<lambda>e. snd (SOME x. x \<in> e)"] bij_betwI[where g = "\<lambda>n. {(0,n),(Suc 0,n)}"])
-     apply auto
-           apply (metis (mono_tags, lifting) snd_conv some_eq_imp)+
-  done
+  by (intro bij_betw_same_card[where f = "\<lambda>e. snd (SOME x. x \<in> e)"] bij_betwI[where g = "\<lambda>n. {(0,n),(Suc 0,n)}"])
+     (auto simp: snd_some_disj)
 
 lemma ranking_instance_natE:
   obtains G where "max_card_matching G (matching_instance_nat n)"
@@ -2015,17 +2013,13 @@ proof (unfold_locales, goal_cases)
     case (2 e)
     then show ?case
       unfolding offline_instance_nat_def
-      apply (auto simp: set_arrival_instance dest: subset_instance[THEN subsetD])
-      apply (drule subset_instance[THEN subsetD])
-      using "2" by blast
+      using set_arrival_instance subsetD subset_instance by fastforce
   qed
 
   case 3
   show ?case
-    apply rule
-     apply (rule bipartite_vs_subset[OF bipartite_instance])
-    apply (auto simp add: set_arrival_instance Vs_def offline_instance_nat_def intro: bipartite_vs_subset[OF bipartite_instance])
-    done
+    by (intro equalityI bipartite_vs_subset[OF bipartite_instance])
+       (auto simp add: set_arrival_instance Vs_def offline_instance_nat_def intro: bipartite_vs_subset[OF bipartite_instance])
 next
   case 2
   from finite_instance show ?case by blast
