@@ -1,3 +1,4 @@
+section \<open>RANKING as Randomized Algorithm\label{sec:prob}\<close>
 theory Ranking_Probabilistic
   imports
     Ranking
@@ -6,8 +7,21 @@ theory Ranking_Probabilistic
     "HOL-Probability.Product_PMF"
     "HOL-Real_Asymp.Real_Asymp"
 begin
+text \<open>
+  In this final section we formulate RANKING as a randomized algorithm, and employ the previously
+  proven facts to analyze the expected size of the matching produced by it.
 
-no_syntax
+  Large parts of this section deal with relating the sizes of different sets of permutations
+  (\autoref{sec:prob-perms}.
+
+  The entire probabilistic analysis is presented in~\autoref{sec:prob-wf}. The Monad Normalisation
+  AFP entry by Schneider, Eberl, and Lochbihler~\cite{Monad_Normalisation-AFP} proved useful there.
+
+  The final part (\autoref{sec:prob-limit}) considers the competitve ratio in the limit to obtain
+  the original $1 - \frac{1}{e}$, which was made a breeze by Eberl's \<^emph>\<open>real\_asymp\<close>~\cite{eberl2019}.
+\<close>
+
+no_syntax\<^marker>\<open>tag invisible\<close>
   "_maplet"  :: "['a, 'a] \<Rightarrow> maplet"             ("_ /\<mapsto>/ _")
   "_maplets" :: "['a, 'a] \<Rightarrow> maplet"             ("_ /[\<mapsto>]/ _")
   ""         :: "maplet \<Rightarrow> maplets"             ("_")
@@ -15,18 +29,27 @@ no_syntax
   "_MapUpd"  :: "['a \<rightharpoonup> 'b, maplets] \<Rightarrow> 'a \<rightharpoonup> 'b" ("_/'(_')" [900, 0] 900)
   "_Map"     :: "maplets \<Rightarrow> 'a \<rightharpoonup> 'b"            ("(1[_])")
 
-no_syntax (ASCII)
+no_syntax (ASCII)\<^marker>\<open>tag invisible\<close>
   "_maplet"  :: "['a, 'a] \<Rightarrow> maplet"             ("_ /|->/ _")
   "_maplets" :: "['a, 'a] \<Rightarrow> maplet"             ("_ /[|->]/ _")
 
-no_translations
+no_translations\<^marker>\<open>tag invisible\<close>
   "_MapUpd m (_Maplets xy ms)"  \<rightleftharpoons> "_MapUpd (_MapUpd m xy) ms"
   "_MapUpd m (_maplet  x y)"    \<rightleftharpoons> "m(x := CONST Some y)"
   "_Map ms"                     \<rightleftharpoons> "_MapUpd (CONST empty) ms"
   "_Map (_Maplets ms1 ms2)"     \<leftharpoondown> "_MapUpd (_Map ms1) ms2"
   "_Maplets ms1 (_Maplets ms2 ms3)" \<leftharpoondown> "_Maplets (_Maplets ms1 ms2) ms3"
 
-
+subsection \<open>Permutations\label{sec:prob-perms}\<close>
+text \<open>
+  This first set of lemmas is required to prove that choosing a random permutation \<^term>\<open>\<sigma>::'a list\<close>
+  of a set \<^term>\<open>V::'a set\<close>, a random vertex \<^term>\<open>v \<in> V\<close> and putting it at some position \<^term>\<open>t::nat\<close>,
+  i.e.\ \<^term>\<open>\<sigma>[v \<mapsto> t]\<close>, is the same as simply choosing a permutation of \<^term>\<open>V::'a set\<close>
+  uniformly at random. To that end we show that for any permutation \<^term>\<open>\<sigma>::'a list\<close> of \<^term>\<open>V::'a set\<close>,
+  and \<^term>\<open>v \<in> V\<close>
+  there are exactly \<^term>\<open>card V\<close> permutations \<^term>\<open>\<sigma>'::'a list\<close> of \<^term>\<open>V::'a set\<close> s.t.
+  \<^term>\<open>\<sigma>'[v \<mapsto> t] = \<sigma>\<close>.
+\<close>
 lemma permutation_move_to:
   assumes "\<sigma> \<in> permutations_of_set V"
   assumes "v \<in> V"
@@ -118,13 +141,13 @@ qed
 
 lemma permutations_but_v_bij_betw:
   assumes "\<sigma> \<in> permutations_of_set V"
-  assumes "index \<sigma> v = t" "v \<in> V"
+  assumes "v \<in> V"
   shows "bij_betw (\<lambda>\<sigma>'. index \<sigma>' v) {\<sigma>' \<in> permutations_of_set V. [x <- \<sigma>'. x \<noteq> v] = [x <- \<sigma>. x \<noteq> v]} {..<length \<sigma>}" (is "bij_betw ?f ?L ?R")
   unfolding bij_betw_def
 proof
   show "inj_on ?f ?L"
     apply (auto intro!: inj_onI)
-    apply (smt (verit, del_insts) assms(3) distinct_count_in_set filter_cong mem_Collect_eq move_to_def move_to_id permutations_of_setD(1) permutations_of_setD(2))
+    apply (smt (verit, del_insts) assms(2) distinct_count_in_set filter_cong mem_Collect_eq move_to_def move_to_id permutations_of_setD(1) permutations_of_setD(2))
     done
 next
   from assms show "?f ` ?L = ?R"
@@ -143,7 +166,7 @@ qed
 
 lemma permutations_but_v_card:
   assumes "\<sigma> \<in> permutations_of_set V"
-  assumes "index \<sigma> v = t" "v \<in> V"
+  assumes "v \<in> V"
   shows "card {\<sigma>' \<in> permutations_of_set V. [x <- \<sigma>'. x \<noteq> v] = [x <- \<sigma>. x \<noteq> v]} = card V"
   using assms length_finite_permutations_of_set[OF assms(1)]
   by (auto dest!: permutations_but_v_bij_betw dest: bij_betw_same_card)
@@ -156,12 +179,29 @@ lemma matched_indices_set_eq:
   using assms
   by (auto elim: distinct_indexE intro!: rev_image_eqI simp: Vs_def)
 
-lemma pmf_of_perms_finite_support:
-  assumes "finite V"
-  shows  "finite (set_pmf (pmf_of_set (permutations_of_set V)))"
-  using assms
-  by simp
+text \<open>
+  Another aspect that was not dealt with in~\cite{birnbaum2008} is the fact that the probability
+  spaces over all permutations of the offline side changes when remove vertices from the offline
+  side. In the formal proof we can complete the argument by relating the sizes of two sets of
+  permutations:
+  1. permutations over the original set of offline vertices \<^term>\<open>V::'a set\<close>
+  2. permutations over the set of offline vertices in the reduced instance with a perfect
+     matching \<^term>\<open>X::'a set\<close> (where \<^term>\<open>X\<subseteq>V\<close> is the set of remaining offline vertices)
 
+  We want to show that for each permutation \<^term>\<open>\<sigma>' \<in> permutations_of_set X\<close>, there are
+  \<^term>\<open>(card V choose card X) * fact (card V - card X) = fact (card V) / fact (card X)\<close>
+  permutations \<^term>\<open>\<sigma> \<in> permutations_of_set V\<close>, s.t.\ \<^term>\<open>\<sigma>::'a list\<close> respects the order
+  of \<^term>\<open>\<sigma>'::'a list\<close> on the vertices in \<^term>\<open>X::'a set\<close>.
+
+  The intuition behind this number follows from the fact that when the order of the vertices of
+  \<^term>\<open>X::'a set\<close> is fixed by \<^term>\<open>\<sigma>'::'a list\<close>, then we can only choose the \<^term>\<open>card X\<close> indices
+  for them in \<^term>\<open>\<sigma>::'a list\<close>. The remaining vertices in \<^term>\<open>V - X::'a set\<close> can be ordered
+  arbitrarily in \<^term>\<open>\<sigma>::'a list\<close>.
+
+  The proof of this equicardinality is performed by explicitly stating a bijection between
+  the set of such \<^term>\<open>\<sigma> \<in> permutations_of_set V\<close> for fixed \<^term>\<open>X::'a set\<close> and
+  \<^term>\<open>\<sigma>' \<in> permutations_of_set X\<close>, and the set in the left-hand-side of the following lemma.
+\<close>
 lemma card_perms_components:
   assumes "finite V" "X \<subseteq> V"
   shows "card {(xs, vs). xs \<subseteq> {0..<card V} \<and> card xs = card X \<and> vs \<in> permutations_of_set (V - X)} = (card V choose card X) * fact (card V - card X)" (is "card ?L = ?R")
@@ -195,6 +235,16 @@ lemma decr_Suc: "x \<noteq> 0 \<Longrightarrow> Suc (decr x) = x"
 lemma decr_bij_betw: "\<forall>x \<in> X. x \<noteq> 0 \<Longrightarrow> bij_betw decr X (decr ` X)"
   by (rule bij_betwI[where g = Suc]) (auto simp: decr_Suc)
 
+text \<open>
+  \<^term>\<open>rebuild\<close> takes a sorted list of indices \<^term>\<open>ns::'a list\<close> (obtained by ordering a finite set), a
+  permutation \<^term>\<open>\<sigma>' \<in> permutations_of_set X\<close>, and a permutation \<^term>\<open>\<sigma>'' \<in> permutations_of_set (V - X)\<close>,
+  and rebuilds a permutation \<^term>\<open>\<sigma> \<in> permutations_of_set V\<close>, that respects both the orders
+  of \<^term>\<open>\<sigma>'\<close> and \<^term>\<open>\<sigma>''\<close>, while also putting the vertices of \<^term>\<open>\<sigma>'\<close> at indices \<^term>\<open>ns::'a list\<close>.
+
+  It serves as the inverse function for mapping a permutation \<^term>\<open>\<sigma> \<in> permutations_of_set V\<close>
+  to a pair \<^term>\<open>(index \<sigma> ` X, [v <- \<sigma>. v \<notin> X])\<close>. To show that these two functions are bijective
+  between the two sets in questions involves some lengthy inductions, but is not necessarily hard.
+\<close>
 fun rebuild :: "nat list \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> 'a list" where
   "rebuild [] [] xs = xs"
 | "rebuild (0#ns) (v#\<sigma>') xs = v # rebuild (map decr ns) \<sigma>' xs"
@@ -955,6 +1005,11 @@ proof -
     by (simp add: card_perms_components)
 qed
 
+text \<open>
+  Finally, we get the lemma in the form that allows us to go from a probability space over
+  permutations over a (generally) smaller set, to the one over permutations of our original
+  offline vertices.
+\<close>
 lemma card_restrict_permutation_eq_fact:
   assumes "finite V"
   assumes "X \<subseteq> V"
@@ -974,6 +1029,11 @@ proof -
     by simp
 qed
 
+subsection \<open>Formulation as Randomized Algorithm\label{sec:prob-wf}\<close>
+text \<open>
+  We phrase the algorithm in a probabilistic setting alongside some conditions for wellformed
+  inputs for the online bipartite matching problem in the following locale.
+\<close>
 locale wf_ranking =
   fixes G \<pi> V M
 
@@ -1024,6 +1084,10 @@ lemma perms_of_V:
 
 end
 
+text \<open>
+  On basis of Lemma 2, we restrict to instances where a perfect matching exists for the analysis
+  of the competitive ratio.
+\<close>
 locale ranking_on_perfect_matching = wf_ranking +
   assumes edge_exists:  "G \<noteq> {}"
 
@@ -1128,6 +1192,13 @@ lemma card_online_eq_offline: "card (set \<pi>) = card V"
   using perfect_matching_bij
   by (auto intro: bij_betw_same_card)
 
+text \<open>
+  Lemma 5 in~\cite{birnbaum2008} considers the probability of the offline vertex at
+  index \<^term>\<open>t::nat\<close> being matched. It is crucial to make the chosen permutation independent
+  of the vertex at that index \<^term>\<open>t::nat\<close>. To that end, the following way of drawing a random
+  permutation -- which will be shown to be equivalent to drawing one uniformly at random -- is
+  introduced.
+\<close>
 definition random_permutation_t :: "nat \<Rightarrow> ('a list) pmf" where
   "random_permutation_t t \<equiv> 
     do {
@@ -1172,9 +1243,9 @@ proof (rule pmf_eqI)
       using permutations_move_to_eq_iff
       by auto
 
-    from True \<open>t < length \<sigma>\<close> finite have "(\<Sum>xa\<in>permutations_of_set V. real (card (V \<inter> {xaa. \<sigma> = xa[xaa \<mapsto> t]}))) = real (card V)"
+    from True \<open>t < length \<sigma>\<close> finite have "(\<Sum>\<sigma>'\<in>permutations_of_set V. real (card (V \<inter> {v. \<sigma> = \<sigma>'[v \<mapsto> t]}))) = real (card V)"
       by (intro sum_eq_card_where_One)
-         (auto intro!: permutations_but_v_card[where t = t] 
+         (auto intro!: permutations_but_v_card
            intro: index_nth_id simp: set_eq the_index[OF permutations_of_setD(2)] move_to_eq_iff dest: permutations_of_setD)
 
     with True finite non_empty \<open>t < length \<sigma>\<close> show ?thesis
@@ -1191,6 +1262,13 @@ lemma move_to_t_eq_uniform: "random_permutation_t t = pmf_of_set (permutations_o
   by (cases "t < card V")
      (auto simp: random_permutation_geq_card card_gt_0_iff finite non_empty intro: move_to_t_eq_uniform_less)
 
+text \<open>
+  The proof of Lemma 5 then goes on to relate the probability of the vertex \<^term>\<open>v\<in>V\<close> of rank \<^term>\<open>t::nat\<close>
+  being unmatched to the probability that the online vertex \<^term>\<open>u\<in>set \<pi>\<close> which is matched to
+  \<^term>\<open>v\<close> in the perfect matching is matched to a vertex \<^term>\<open>\<sigma>'\<in>V\<close> s.t.\ its rank is at most
+  \<^term>\<open>t::nat\<close>. The following \<^typ>\<open>bool pmf\<close>s are used to model this in the
+  formalization.
+\<close>
 abbreviation rank_unmatched :: "nat \<Rightarrow> bool pmf" where
   "rank_unmatched t \<equiv>
     do {
@@ -1450,6 +1528,11 @@ proof -
   finally show ?thesis .
 qed
 
+text \<open>
+  Due to the (constructed) independence of the random permutation and the vertex of rank
+  \<^term>\<open>t::nat\<close>, we can then consider the probability of a uniformly random online vertex
+  \<^term>\<open>u \<in> set \<pi>\<close> being matched to a vertex of rank at most \<^term>\<open>t::nat\<close>.
+\<close>
 lemma matched_before_uniform_u: "matched_before t = do
     {
       \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
@@ -1545,6 +1628,10 @@ proof -
     by (auto simp: sum_divide_distrib)
 qed
 
+text \<open>
+  That probability is simply the expected size of the set of online vertices matched to offline
+  vertices of at most rank \<^term>\<open>t::nat\<close> divided by the number of online vertices.
+\<close>
 lemma matched_before_prob_is_expected_size_div: "measure_pmf.prob (matched_before t) {True} = measure_pmf.expectation (matched_before_t_set t) card / (card V)" (is "?L = ?R")
   using perms_of_V
   by (subst expected_size_matched_before_sum)
@@ -1633,6 +1720,10 @@ next
     by simp
 qed
 
+text \<open>
+  The expected size of that set is then again the sum of probabilities of the offline vertices
+  of rank at most \<^term>\<open>t::nat\<close> being matched.
+\<close>
 lemma expected_size_matched_before_is_sum_of_probs: "t < card V \<Longrightarrow> measure_pmf.expectation (matched_before_t_set t) card = (\<Sum>s\<le>t. measure_pmf.prob (rank_matched s) {True})" (is "_ \<Longrightarrow> ?L = ?R")
 proof -
   assume t: "t < card V"
@@ -1697,7 +1788,9 @@ proof -
   finally show ?thesis .
 qed
 
-\<comment> \<open>Lemma 5 from paper\<close>
+text \<open>
+  That closes the circle and yields the bound as shown in Lemma 5 in the paper.
+\<close>
 lemma rank_t_unmatched_prob_bound: "t < card V \<Longrightarrow> 1 - measure_pmf.prob (rank_matched t) {True} \<le> 1 / (card V) * (\<Sum>s\<le>t. measure_pmf.prob (rank_matched s) {True})" (is "_ \<Longrightarrow> ?L \<le> ?R")
 proof -
   assume t: "t < card V"
@@ -1746,6 +1839,11 @@ proof -
   finally show ?thesis .
 qed
 
+text \<open>
+  The upper bound on the probability that the vertex of rank \<^term>\<open>t::nat\<close> is unmatched is then
+  used to lower bound the ratio between the expected size of the matching RANKING produces
+  and the size of the perfect matching (i.e.\ the competitive ratio).
+\<close>
 lemma comp_ratio_no_limit: "measure_pmf.expectation ranking_prob card / (card V) \<ge> 1 - (1 - 1/(card V + 1)) ^ (card V)" (is "?L \<ge> ?R")
 proof -
   have "?R = ((card V) - (card V) * (1 - 1 / (card V + 1))^(card V)) / card V"
@@ -1837,7 +1935,10 @@ proof -
     by linarith
 qed
 
-
+text \<open>
+  What remains is to leverage the repeated application of Lemma 2 to obtain the bound for the
+  competitive ratio for all instances.
+\<close>
 theorem ranking_comp_ratio: "measure_pmf.expectation ranking_prob card / (card M) \<ge> 1 - (1 - 1/(card M + 1)) ^ (card M)"
 proof (cases "G = {}")
   case True
@@ -1934,6 +2035,12 @@ qed
 
 end
 
+subsection \<open>Competitive Ratio in the Limit\label{sec:prob-limit}\<close>
+text \<open>
+  In the final part of this section we define in dependence of \<^term>\<open>n::nat\<close> instances for
+  the online bipartite matching problem with a maximum matching of size \<^term>\<open>n::nat\<close>. Subsequently
+  we use that definition to prove that the competitive ratio tends to the famous $1 - \frac{1}{e}$.
+\<close>
 abbreviation matching_instance_nat :: "nat \<Rightarrow> (nat \<times> nat) set set" where
   "matching_instance_nat n \<equiv> {{(0,k),(Suc 0,k)} |k. k < n}"
 
@@ -2027,8 +2134,6 @@ next
   case 4
   from max_card_matching_instance show ?case by blast
 qed
-term wf_ranking.ranking_prob
-thm wf_ranking.ranking_comp_ratio
 
 definition comp_ratio_nat where
   "comp_ratio_nat n \<equiv> measure_pmf.expectation (wf_ranking.ranking_prob (ranking_instance_nat n) (arrival_instance_nat n) (offline_instance_nat n)) card / card (matching_instance_nat n)"
@@ -2045,7 +2150,7 @@ proof -
     by (auto simp add: card_matching_instance_nat field_simps)
 qed
 
-lemma comp_ratio_limit:
+theorem comp_ratio_limit:
   assumes "comp_ratio_nat \<longlonglongrightarrow> cr"
   shows "1 - exp(-1) \<le> cr"
 proof (rule LIMSEQ_le)

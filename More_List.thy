@@ -1,11 +1,25 @@
+subsection \<open>More on Lists\label{sec:more-list}\<close>
 theory More_List
   imports
     "List-Index.List_Index"
     "HOL-Library.Sublist"
 begin
+text \<open>
+  Permutations are modelled as distinct lists over some set in this formalization. That means both
+  the arrival order of the online vertices $U$ and the (later random) ordering of the offline
+  vertices $V$ are modelled as lists. We don't require \<^term>\<open>distinct\<close>ness for the most part in
+  the combinatorial part, but rely quite heavily on it in the probabilistic part.
 
-sledgehammer_params [provers = cvc4 vampire verit e spass z3 zipperposition]
+  To obtain an ordering from a list we use the \<^theory>\<open>List-Index.List_Index\<close> AFP entry by
+  Nipkow~\cite{List-Index-AFP}.
+\<close>
 
+text \<open>
+  An important strategy to prove properties of matchings produced by RANKING is by contradiction
+  through construction of an infinite chain of vertices with decreasing (or increasing) index.
+  The following two induction schemes are useful to this end. Of course, they are also useful
+  on their own as specialized forms of strong induction.
+\<close>
 lemma index_less_induct[case_names index_less]:
   assumes "\<And>x. (\<And>y. index xs y < index xs x \<Longrightarrow> P y xs) \<Longrightarrow> P x xs"
   shows "P x xs"
@@ -57,12 +71,14 @@ lemma filter_take_filter: "filter P (take i (filter P xs)) = take i (filter P xs
 lemma filter_drop_filter: "filter P (drop i (filter P xs)) = drop i (filter P xs)"
   by (auto intro!: filter_True dest: in_set_dropD)
 
-subsection \<open>Moving a vertex to a position\<close>
+subsubsection \<open>Moving a vertex to a position\<close>
 text \<open>
   Moving vertices to some index plays a crucial role in the probabilistic part of the proof.
-  It is used to argue about the probability of the vertex at index t being matched.
+  It is used to argue about the probability of the vertex at index $t$ being matched. Moving an
+  arbitrary vertex to index $t$ in an arbitrary permutation $\sigma$ is needed to ensure the
+  independence of certain events.
 \<close>
-no_syntax
+no_syntax\<^marker>\<open>tag invisible\<close>
   "_maplet"  :: "['a, 'a] \<Rightarrow> maplet"             ("_ /\<mapsto>/ _")
   "_maplets" :: "['a, 'a] \<Rightarrow> maplet"             ("_ /[\<mapsto>]/ _")
   ""         :: "maplet \<Rightarrow> maplets"             ("_")
@@ -70,11 +86,11 @@ no_syntax
   "_MapUpd"  :: "['a \<rightharpoonup> 'b, maplets] \<Rightarrow> 'a \<rightharpoonup> 'b" ("_/'(_')" [900, 0] 900)
   "_Map"     :: "maplets \<Rightarrow> 'a \<rightharpoonup> 'b"            ("(1[_])")
 
-no_syntax (ASCII)
+no_syntax (ASCII)\<^marker>\<open>tag invisible\<close>
   "_maplet"  :: "['a, 'a] \<Rightarrow> maplet"             ("_ /|->/ _")
   "_maplets" :: "['a, 'a] \<Rightarrow> maplet"             ("_ /[|->]/ _")
 
-no_translations
+no_translations\<^marker>\<open>tag invisible\<close>
   "_MapUpd m (_Maplets xy ms)"  \<rightleftharpoons> "_MapUpd (_MapUpd m xy) ms"
   "_MapUpd m (_maplet  x y)"    \<rightleftharpoons> "m(x := CONST Some y)"
   "_Map ms"                     \<rightleftharpoons> "_MapUpd (CONST empty) ms"
@@ -84,6 +100,9 @@ no_translations
 definition move_to :: "'a list \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a list" ("_[_ \<mapsto> _]" [100,100]) where 
   "move_to xs v i \<equiv> (take i [x <- xs. x \<noteq> v]) @ v # (drop i [x <- xs. x \<noteq> v])"
 
+text \<open>
+  This induction scheme is helpful in proving properties about \<^term>\<open>move_to\<close>.
+\<close>
 lemma induct_list_nat[case_names nil_zero nil_suc cons_zero cons_suc]:
   assumes "P [] 0"
   assumes "\<And>n. P [] n \<Longrightarrow> P [] (Suc n)"

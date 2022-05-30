@@ -1,3 +1,4 @@
+subsection\<open>Miscellaneous Preliminaries\label{sec:misc}\<close>
 theory Misc
   imports
     Complex_Main
@@ -5,7 +6,12 @@ theory Misc
     "HOL-Probability.Probability"
     "Monad_Normalisation.Monad_Normalisation"
 begin
-sledgehammer_params [provers = cvc4 vampire verit e spass z3 zipperposition]
+
+text \<open>
+  This theory contains auxiliary lemmas for the probabilistic part, i.e.\ mainly with inequalities
+  including sums, rewriting \<^term>\<open>infsetsum\<close>s to \<^term>\<open>sum\<close>s in the finite probability spaces we deal
+  with and some material on \<^typ>\<open>'a pmf\<close>s.
+\<close>
 
 lemma bounded_by_sum_bounds_sum_aux:
   fixes x :: "nat \<Rightarrow> real"
@@ -68,7 +74,6 @@ next
   also have "\<dots> = (1-1/(n+1)) + (\<Sum>s=Suc 0..Suc t. (1-1/(n+1))^(s+1))"
     by simp
 
-
   also have "\<dots> = (1-1/(n+1))^(0+1) + (\<Sum>s=Suc 0..Suc t. (1-1/(n+1))^(s+1))"
     by simp
 
@@ -106,7 +111,6 @@ proof -
 
   finally show ?thesis .
 qed
-
 
 lemma card_singleton_UN:
   assumes "\<forall>x \<in> X. \<exists>y. x = {y}"

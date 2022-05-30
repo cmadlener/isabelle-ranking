@@ -1,14 +1,23 @@
+subsection \<open>More on Graphs\label{sec:more-graph}\<close>
 theory More_Graph
   imports
     Berge
     "HOL-Library.FuncSet"
 begin
+text \<open>
+  Graphs are modelled as sets of undirected edges, where each edge is a doubleton set in a
+  wellformed (finite) graph (\<^term>\<open>graph_invar\<close>), i.e.\ graphs have type \<^typ>\<open>'a set set\<close>.
+  The main reason for choosing this representation is the existing formalization of Berge's
+  Lemma by Abdulaziz~\cite{abdulaziz2019}.
 
-sledgehammer_params [provers = cvc4 vampire verit e spass z3 zipperposition]
+  Newly introduced definitions are required to specify wellformed inputs for RANKING, and
+  properties of the output using those wellformed inputs.
+\<close>
+
+subsubsection \<open>More on general concepts, symmetric differences \& alternating paths\<close>
 
 type_synonym 'a graph = "'a set set"
 
-subsection \<open>Graphs\<close>
 lemma edge_commute: "{u,v} \<in> G \<Longrightarrow> {v,u} \<in> G"
   by (simp add: insert_commute)
 
@@ -107,8 +116,7 @@ lemma alt_list_distinct:
   by (induction xs rule: induct_alt_list012)
      (auto split: if_splits)
 
-
-subsection \<open>Matchings\<close>
+subsubsection \<open>More on Matchings\<close>
 lemma matching_empty[simp]: "matching {}"
   unfolding matching_def by simp
 
@@ -144,8 +152,23 @@ lemma matching_card_vs:
   using assms
   by (auto simp: Vs_def card_2_iff card_partition graph_abs.finite_E graph_abs_def matching_def)
 
+text \<open>
+  Maximal, maximum cardinality, and perfect matchings all play a role in the analysis of the
+  algorithm. It is relatively straightforward to prove that RANKING produces a maximal matching
+  \footnote{This immediately would lead to a competitive ratio of at least $\frac{1}{2}$.}.
+  Maximum cardinality matchings go directly into the competitive ratio, as they are the best
+  result an offline algorithm can produce on some input. Perfect matchings are of interest, since
+  we can in fact reduce the analysis of the competitive ratio to inputs where a perfect matching
+  exists~\cite{birnbaum2008}.
+\<close>
 definition maximal_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> bool" where
-  "maximal_matching G M \<equiv> matching M \<and> (\<forall>u v. {u,v} \<in> G \<longrightarrow> u \<in> Vs M \<or> v \<in> Vs M)"
+  "maximal_matching G M \<longleftrightarrow> matching M \<and> (\<forall>u v. {u,v} \<in> G \<longrightarrow> u \<in> Vs M \<or> v \<in> Vs M)"
+
+definition max_card_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> bool" where
+  "max_card_matching G M \<longleftrightarrow> M \<subseteq> G \<and> matching M \<and> (\<forall>M'. M' \<subseteq> G \<and> matching M' \<longrightarrow> card M' \<le> card M)"
+
+definition perfect_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> bool" where
+  "perfect_matching G M \<longleftrightarrow> M \<subseteq> G \<and> matching M \<and> Vs G = Vs M"
 
 lemma maximal_matchingI:
   assumes "matching M"
@@ -184,352 +207,6 @@ lemma not_maximal_matchingE:
   using assms
   unfolding maximal_matching_def graph_abs_def
   by auto
-
-subsection \<open>Bipartite graphs\<close>
-definition bipartite :: "'a graph \<Rightarrow> 'a set \<Rightarrow> 'a set \<Rightarrow> bool" where
-  "bipartite G X Y \<equiv> X \<inter> Y = {} \<and> (\<forall>e \<in> G. \<exists>u v. e = {u,v} \<and> u \<in> X \<and> v \<in> Y)"
-
-lemma bipartiteI:
-  assumes "X \<inter> Y = {}"
-  assumes "\<And>e. e \<in> G \<Longrightarrow> \<exists>u v. e = {u,v} \<and> u \<in> X \<and> v \<in> Y"
-  shows "bipartite G X Y"
-  using assms
-  unfolding bipartite_def
-  by auto
-
-lemma bipartite_disjointD:
-  assumes "bipartite G X Y"
-  shows "X \<inter> Y = {}"
-  using assms
-  unfolding bipartite_def
-  by blast
-
-lemma bipartite_edgeE:
-  assumes "e \<in> G"
-  assumes "bipartite G X Y"
-  obtains x y where "x \<in> X" "y \<in> Y" "e = {x,y}" "x \<noteq> y"
-  using assms
-  unfolding bipartite_def
-  by fast
-
-lemma bipartite_vertex:
-  assumes "x \<in> Vs G"
-  assumes "bipartite G U V"
-  shows "x \<in> U \<Longrightarrow> x \<notin> V"
-    and "x \<in> V \<Longrightarrow> x \<notin> U"
-    and "x \<notin> U \<Longrightarrow> x \<in> V"
-    and "x \<notin> V \<Longrightarrow> x \<in> U"
-  using assms
-  unfolding bipartite_def Vs_def
-  by auto
-
-lemma bipartite_edgeD:
-  assumes "{u,v} \<in> G"
-  assumes "bipartite G X Y"
-  shows
-    "u \<in> X \<Longrightarrow> v \<in> Y - X"
-    "u \<in> Y \<Longrightarrow> v \<in> X - Y"
-    "v \<in> X \<Longrightarrow> u \<in> Y - X"
-    "v \<in> Y \<Longrightarrow> u \<in> X - Y"
-  using assms
-  unfolding bipartite_def
-  by fast+
-
-lemma bipartite_empty[simp]: "X \<inter> Y = {} \<Longrightarrow> bipartite {} X Y"
-  unfolding bipartite_def by blast
-
-lemma bipartite_empty_part_iff_empty: "bipartite G {} Y \<longleftrightarrow> G = {}"
-  unfolding bipartite_def by blast
-
-lemma bipartite_commute:
-  "bipartite G X Y \<Longrightarrow> bipartite G Y X"
-  unfolding bipartite_def
-  by fast
-
-lemma bipartite_subgraph:
-  "bipartite G X Y \<Longrightarrow> G' \<subseteq> G \<Longrightarrow> bipartite G' X Y"
-  unfolding bipartite_def
-  by blast
-
-lemma bipartite_vs_subset: "bipartite G X Y \<Longrightarrow> Vs G \<subseteq> X \<union> Y"
-  unfolding bipartite_def Vs_def
-  by auto
-
-lemma finite_parts_bipartite_graph_abs:
-  "finite X \<Longrightarrow> finite Y \<Longrightarrow> bipartite G X Y \<Longrightarrow> graph_abs G"
-  unfolding graph_abs_def
-  by (auto dest: bipartite_vs_subset intro: finite_subset elim!: bipartite_edgeE)
-
-lemma finite_bipartite_graph_abs:
-  "finite G \<Longrightarrow> bipartite G X Y \<Longrightarrow> graph_abs G"
-  unfolding graph_abs_def
-  by (auto elim!: bipartite_edgeE simp: Vs_def)
-
-lemma bipartite_insertI:
-  assumes "bipartite G X Y"
-  assumes "u \<in> X" "v \<in> Y"
-  shows "bipartite (insert {u,v} G) X Y"
-  using assms
-  unfolding bipartite_def
-  by auto
-
-lemma bipartite_unionI:
-  assumes "bipartite G X Y"
-  assumes "bipartite H X Y"
-  shows "bipartite (G \<union> H) X Y"
-  using assms
-  unfolding bipartite_def
-  by auto
-
-lemma bipartite_reduced_to_vs:
-  "bipartite G X Y \<Longrightarrow> bipartite G (X \<inter> Vs G) (Y \<inter> Vs G)"
-  unfolding bipartite_def
-  by auto (metis edges_are_Vs)
-
-lemma bipartite_edge_In_Ex1:
-  assumes "bipartite M U V"
-  assumes "matching M"
-  assumes "e \<in> M"
-  shows "\<exists>!e'. e' \<in> M \<and> V \<inter> e \<subseteq> e'"
-proof
-  from assms show "e \<in> M \<and> V \<inter> e \<subseteq> e"
-    by blast
-next
-  fix e'
-  assume e': "e' \<in> M \<and> V \<inter> e \<subseteq> e'"
-
-  from assms obtain u v where e: "e = {u,v}" "v \<in> V" "u \<in> U"
-    by (auto elim: bipartite_edgeE)
-
-  from assms have "U \<inter> V = {}"
-    by (auto dest: bipartite_disjointD)
-
-  with e' e have "v \<in> e'" by blast
-
-  with assms e' e show "e' = e"
-    by (intro matching_unique_match) auto
-qed
-
-
-lemma the_bipartite_edge_In:
-  assumes "bipartite M U V"
-  assumes "matching M"
-  assumes "e \<in> M"
-  shows "(THE e'. e' \<in> M \<and> V \<inter> e \<subseteq> e') = e"
-  using assms
-  by (intro the1_equality bipartite_edge_In_Ex1) auto
-
-lemma card_bipartite_matching_In:
-  assumes "bipartite M U V"
-  assumes "matching M"
-  shows "card M = card (((\<inter>) V) ` M)"
-  using assms
-  by (auto intro!: bij_betw_same_card[of "(\<inter>) V"] intro: bij_betwI[where g = "\<lambda>v. (THE e. e \<in> M \<and> v \<subseteq> e)"]
-      simp: the_bipartite_edge_In)
-
-lemma bipartite_In_singletons:
-  assumes "bipartite G U V"
-  assumes "X \<in> ((\<inter>) V) ` G"
-  shows "\<exists>x. X = {x}"
-  using assms
-  by (auto elim!: bipartite_edgeE dest: bipartite_disjointD)
-
-lemma bipartite_eqI:
-  assumes "bipartite M U V"
-  assumes "e \<in> M"
-  assumes "x \<in> e" "x \<in> V" "y \<in> e" "y \<in> V"
-  shows "x = y"
-  using assms
-proof -
-  from assms obtain u v where e: "e = {u,v}" "u \<in> U" "v \<in> V"
-    by (auto elim: bipartite_edgeE)
-
-  from assms have "U \<inter> V = {}"
-    by (auto dest: bipartite_disjointD)
-
-  with assms e show "x = y"
-    by blast
-qed
-
-subsection \<open>Removing Vertices from Graphs\<close>
-definition remove_vertices_graph :: "'a graph \<Rightarrow> 'a set \<Rightarrow> 'a graph" (infixl "\<setminus>" 60) where
-  "G \<setminus> X \<equiv> {e. e \<in> G \<and> e \<inter> X = {}}"
-
-lemma remove_vertices_empty:
-  "G \<setminus> {} = G"
-  unfolding remove_vertices_graph_def by simp
-
-lemma remove_vertices_not_vs:
-  "v \<in> X \<Longrightarrow> v \<notin> Vs (G \<setminus> X)"
-  unfolding Vs_def remove_vertices_graph_def by blast
-
-lemma remove_vertices_not_vs':
-  "v \<in> X \<Longrightarrow> v \<in> Vs (G \<setminus> X) \<Longrightarrow> False"
-  using remove_vertices_not_vs by force
-
-lemma remove_vertices_subgraph:
-  "G \<setminus> X \<subseteq> G"
-  unfolding remove_vertices_graph_def
-  by simp
-
-lemma remove_vertices_subgraph':
-  "e \<in> G \<setminus> X \<Longrightarrow> e \<in> G"
-  using remove_vertices_subgraph 
-  by fast
-
-lemma remove_vertices_subgraph_Vs:
-  "v \<in> Vs (G \<setminus> X) \<Longrightarrow> v \<in> Vs G" 
-  using Vs_subset[OF remove_vertices_subgraph]
-  by fast
-
-lemma in_remove_verticesI:
-  "e \<in> G \<Longrightarrow> e \<inter> X = {} \<Longrightarrow> e \<in> G \<setminus> X"
-  unfolding remove_vertices_graph_def
-  by blast
-
-lemma in_remove_vertices_subsetI:
-  "X' \<subseteq> X \<Longrightarrow> e \<in> G \<setminus> X' \<Longrightarrow> e \<inter> X - X' = {} \<Longrightarrow> e \<in> G \<setminus> X"
-  unfolding remove_vertices_graph_def
-  by blast
-
-lemma in_remove_vertices_vsI:
-  "e \<in> G \<Longrightarrow> e \<inter> X = {} \<Longrightarrow> u \<in> e \<Longrightarrow> u \<in> Vs (G \<setminus> X)"
-  by (auto dest: in_remove_verticesI)
-
-lemma remove_vertices_only_vs:
-  "G \<setminus> X = G \<setminus> (X \<inter> Vs G)"
-  unfolding remove_vertices_graph_def Vs_def
-  by blast
-
-lemma remove_vertices_mono:
-  "G' \<subseteq> G \<Longrightarrow> e \<in> G' \<setminus> X \<Longrightarrow> e \<in> G \<setminus> X"
-  unfolding remove_vertices_graph_def by blast
-
-lemma remove_vertices_inv_mono:
-  "X \<subseteq> X' \<Longrightarrow> e \<in> G \<setminus> X' \<Longrightarrow> e \<in> G \<setminus> X"
-  unfolding remove_vertices_graph_def by blast
-
-lemma remove_vertices_inv_mono':
-  "X \<subseteq> X' \<Longrightarrow> G \<setminus> X' \<subseteq> G \<setminus> X"
-  by (auto dest: remove_vertices_inv_mono)
-
-lemma remove_vertices_graph_disjoint: "X \<inter> Vs G = {} \<Longrightarrow> G \<setminus> X = G"
-  unfolding Vs_def remove_vertices_graph_def by blast
-
-lemma remove_vertex_not_in_graph: "x \<notin> Vs G \<Longrightarrow> G \<setminus> {x} = G"
-  by (auto intro!: remove_vertices_graph_disjoint)
-
-lemma remove_vertex_psubset: "x \<in> Vs G \<Longrightarrow> x \<in> X \<Longrightarrow> G \<setminus> X < G"
-  by (auto intro: remove_vertices_subgraph' dest: remove_vertices_not_vs vs_neq_graphs_neq)
-
-lemma remove_vertex_card_less: "finite G \<Longrightarrow> x \<in> Vs G \<Longrightarrow> x \<in> X \<Longrightarrow> card (G \<setminus> X) < card G"
-  by (auto intro: psubset_card_mono intro!: remove_vertex_psubset)
-
-lemma graph_abs_remove_vertices:
-  "graph_abs G \<Longrightarrow> graph_abs (G \<setminus> X)"
-  by (simp add: graph_abs_subgraph remove_vertices_graph_def)
-
-lemma bipartite_remove_vertices:
-  "bipartite G U V \<Longrightarrow> bipartite (G \<setminus> X) U V"
-  using remove_vertices_subgraph
-  by (auto intro: bipartite_subgraph)
-
-lemma matching_remove_vertices:
-  "matching M \<Longrightarrow> matching (M \<setminus> X)"
-  using remove_vertices_subgraph
-  by (auto intro: matching_subgraph)
-
-lemma finite_remove_vertices:
-  "finite G \<Longrightarrow> finite (G \<setminus> X)"
-  by (auto intro: finite_subset[OF remove_vertices_subgraph])
-
-lemma remove_remove_union: "G \<setminus> X \<setminus> Y = G \<setminus> X \<union> Y"
-  unfolding remove_vertices_graph_def by blast
-
-lemma remove_edge_matching: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {u,v} = M - {{u,v}}"
-  unfolding remove_vertices_graph_def
-  by auto (metis empty_iff insert_iff matching_unique_match)+
-
-lemma remove_vertex_matching: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {u} = M - {{u,v}}"
-  unfolding remove_vertices_graph_def
-  by auto (metis empty_iff insert_iff matching_unique_match)+
-
-lemma remove_vertex_matching': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {v} = M - {{u,v}}"
-  unfolding remove_vertices_graph_def
-  by auto (metis empty_iff insert_iff matching_unique_match)+
-
-lemma remove_edge_matching_vs: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> Vs (M \<setminus> {u,v}) = Vs M - {u,v}"
-  by (auto simp add: remove_edge_matching Vs_def) (metis empty_iff insert_iff matching_unique_match)+
-
-lemma remove_vertex_matching_vs: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> Vs (M \<setminus> {u}) = Vs M - {u,v}"
-  by (metis remove_edge_matching remove_edge_matching_vs remove_vertex_matching)
-
-lemma remove_vertex_matching_vs': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> Vs (M \<setminus> {v}) = Vs M - {u,v}"
-  by (metis remove_edge_matching remove_edge_matching_vs remove_vertex_matching')
-
-lemma remove_vertices_in_diff: "{u,v} \<in> G \<setminus> X \<Longrightarrow> {u,v} \<notin> G \<setminus> X' \<Longrightarrow> u \<in> X' - X \<or> v \<in> X' - X"
-  unfolding remove_vertices_graph_def
-  by simp
-
-lemma maximal_matching_remove_edges:
-  assumes "M \<subseteq> G"
-  assumes "E \<subseteq> M"
-  assumes "X = Vs E"
-  assumes "maximal_matching G M"
-  shows "maximal_matching (G \<setminus> X) (M \<setminus> X)"
-  unfolding maximal_matching_def
-proof (intro conjI allI impI)
-  show "matching (M \<setminus> X)" using assms
-    by (auto simp: maximal_matching_def intro: matching_remove_vertices)
-next
-  fix u v
-  assume "{u,v} \<in> G \<setminus> X"
-
-  then have "{u,v} \<in> G" "u \<notin> X" "v \<notin> X"
-    by (auto dest: remove_vertices_subgraph' remove_vertices_not_vs edges_are_Vs)
-
-  with \<open>maximal_matching G M\<close> consider "u \<in> Vs M" | "v \<in> Vs M"
-    by (auto dest: maximal_matching_edgeD)
-
-  then show "u \<in> Vs (M \<setminus> X) \<or> v \<in> Vs (M \<setminus> X)"
-  proof cases
-    case 1
-    then obtain e where "e \<in> M" "u \<in> e"
-      by (auto simp: vs_member)
-
-    with assms \<open>u \<notin> X\<close> have "e \<in> M \<setminus> X"
-    proof (intro in_remove_verticesI, goal_cases)
-      case 2
-      then show ?case
-        by (auto simp: vs_member)
-           (metis matching_unique_match maximal_matchingD subsetD)
-    qed blast
-
-    with \<open>u \<in> e\<close> show ?thesis
-      by blast
-  next
-    case 2
-    then obtain e where "e \<in> M" "v \<in> e"
-      by (auto simp: vs_member)
-
-    with assms \<open>v \<notin> X\<close> have "e \<in> M \<setminus> X"
-    proof (intro in_remove_verticesI, goal_cases)
-      case 2
-      then show ?case
-        by (auto simp: vs_member)
-           (metis matching_unique_match maximal_matchingD subsetD)
-    qed blast
-
-    with \<open>v \<in> e\<close> show ?thesis
-      by blast
-  qed
-qed
-
-definition max_card_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> bool" where
-  "max_card_matching G M \<longleftrightarrow> M \<subseteq> G \<and> matching M \<and> (\<forall>M'. M' \<subseteq> G \<and> matching M' \<longrightarrow> card M' \<le> card M)"
-
-definition perfect_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> bool" where
-  "perfect_matching G M \<longleftrightarrow> M \<subseteq> G \<and> matching M \<and> Vs G = Vs M"
 
 lemma max_card_matchingI:
   assumes "M \<subseteq> G" "matching M"
@@ -666,6 +343,354 @@ proof (rule ccontr)
     by (auto simp: Vs_def Union_mono card_mono leD dest: graph_abs.graph)
 qed
 
+subsubsection \<open>Bipartite Graphs\<close>
+text \<open>
+  We are considering the online \<^emph>\<open>bipartite\<close> matching problem, hence, a definition of
+  bipartiteness.
+\<close>
+definition bipartite :: "'a graph \<Rightarrow> 'a set \<Rightarrow> 'a set \<Rightarrow> bool" where
+  "bipartite G X Y \<equiv> X \<inter> Y = {} \<and> (\<forall>e \<in> G. \<exists>u v. e = {u,v} \<and> u \<in> X \<and> v \<in> Y)"
+
+lemma bipartiteI:
+  assumes "X \<inter> Y = {}"
+  assumes "\<And>e. e \<in> G \<Longrightarrow> \<exists>u v. e = {u,v} \<and> u \<in> X \<and> v \<in> Y"
+  shows "bipartite G X Y"
+  using assms
+  unfolding bipartite_def
+  by auto
+
+lemma bipartite_disjointD:
+  assumes "bipartite G X Y"
+  shows "X \<inter> Y = {}"
+  using assms
+  unfolding bipartite_def
+  by blast
+
+lemma bipartite_edgeE:
+  assumes "e \<in> G"
+  assumes "bipartite G X Y"
+  obtains x y where "x \<in> X" "y \<in> Y" "e = {x,y}" "x \<noteq> y"
+  using assms
+  unfolding bipartite_def
+  by fast
+
+lemma bipartite_vertex:
+  assumes "x \<in> Vs G"
+  assumes "bipartite G U V"
+  shows "x \<in> U \<Longrightarrow> x \<notin> V"
+    and "x \<in> V \<Longrightarrow> x \<notin> U"
+    and "x \<notin> U \<Longrightarrow> x \<in> V"
+    and "x \<notin> V \<Longrightarrow> x \<in> U"
+  using assms
+  unfolding bipartite_def Vs_def
+  by auto
+
+lemma bipartite_edgeD:
+  assumes "{u,v} \<in> G"
+  assumes "bipartite G X Y"
+  shows
+    "u \<in> X \<Longrightarrow> v \<in> Y - X"
+    "u \<in> Y \<Longrightarrow> v \<in> X - Y"
+    "v \<in> X \<Longrightarrow> u \<in> Y - X"
+    "v \<in> Y \<Longrightarrow> u \<in> X - Y"
+  using assms
+  unfolding bipartite_def
+  by fast+
+
+lemma bipartite_empty[simp]: "X \<inter> Y = {} \<Longrightarrow> bipartite {} X Y"
+  unfolding bipartite_def by blast
+
+lemma bipartite_empty_part_iff_empty: "bipartite G {} Y \<longleftrightarrow> G = {}"
+  unfolding bipartite_def by blast
+
+lemma bipartite_commute:
+  "bipartite G X Y \<Longrightarrow> bipartite G Y X"
+  unfolding bipartite_def
+  by fast
+
+lemma bipartite_subgraph:
+  "bipartite G X Y \<Longrightarrow> G' \<subseteq> G \<Longrightarrow> bipartite G' X Y"
+  unfolding bipartite_def
+  by blast
+
+lemma bipartite_vs_subset: "bipartite G X Y \<Longrightarrow> Vs G \<subseteq> X \<union> Y"
+  unfolding bipartite_def Vs_def
+  by auto
+
+lemma finite_parts_bipartite_graph_abs:
+  "finite X \<Longrightarrow> finite Y \<Longrightarrow> bipartite G X Y \<Longrightarrow> graph_abs G"
+  unfolding graph_abs_def
+  by (auto dest: bipartite_vs_subset intro: finite_subset elim!: bipartite_edgeE)
+
+lemma finite_bipartite_graph_abs:
+  "finite G \<Longrightarrow> bipartite G X Y \<Longrightarrow> graph_abs G"
+  unfolding graph_abs_def
+  by (auto elim!: bipartite_edgeE simp: Vs_def)
+
+lemma bipartite_insertI:
+  assumes "bipartite G X Y"
+  assumes "u \<in> X" "v \<in> Y"
+  shows "bipartite (insert {u,v} G) X Y"
+  using assms
+  unfolding bipartite_def
+  by auto
+
+lemma bipartite_unionI:
+  assumes "bipartite G X Y"
+  assumes "bipartite H X Y"
+  shows "bipartite (G \<union> H) X Y"
+  using assms
+  unfolding bipartite_def
+  by auto
+
+lemma bipartite_reduced_to_vs:
+  "bipartite G X Y \<Longrightarrow> bipartite G (X \<inter> Vs G) (Y \<inter> Vs G)"
+  unfolding bipartite_def
+  by auto (metis edges_are_Vs)
+
+lemma bipartite_edge_In_Ex1:
+  assumes "bipartite M U V"
+  assumes "matching M"
+  assumes "e \<in> M"
+  shows "\<exists>!e'. e' \<in> M \<and> V \<inter> e \<subseteq> e'"
+proof
+  from assms show "e \<in> M \<and> V \<inter> e \<subseteq> e"
+    by blast
+next
+  fix e'
+  assume e': "e' \<in> M \<and> V \<inter> e \<subseteq> e'"
+
+  from assms obtain u v where e: "e = {u,v}" "v \<in> V" "u \<in> U"
+    by (auto elim: bipartite_edgeE)
+
+  from assms have "U \<inter> V = {}"
+    by (auto dest: bipartite_disjointD)
+
+  with e' e have "v \<in> e'" by blast
+
+  with assms e' e show "e' = e"
+    by (intro matching_unique_match) auto
+qed
+
+lemma the_bipartite_edge_In:
+  assumes "bipartite M U V"
+  assumes "matching M"
+  assumes "e \<in> M"
+  shows "(THE e'. e' \<in> M \<and> V \<inter> e \<subseteq> e') = e"
+  using assms
+  by (intro the1_equality bipartite_edge_In_Ex1) auto
+
+lemma card_bipartite_matching_In:
+  assumes "bipartite M U V"
+  assumes "matching M"
+  shows "card M = card (((\<inter>) V) ` M)"
+  using assms
+  by (auto intro!: bij_betw_same_card[of "(\<inter>) V"] intro: bij_betwI[where g = "\<lambda>v. (THE e. e \<in> M \<and> v \<subseteq> e)"]
+      simp: the_bipartite_edge_In)
+
+lemma bipartite_In_singletons:
+  assumes "bipartite G U V"
+  assumes "X \<in> ((\<inter>) V) ` G"
+  shows "\<exists>x. X = {x}"
+  using assms
+  by (auto elim!: bipartite_edgeE dest: bipartite_disjointD)
+
+lemma bipartite_eqI:
+  assumes "bipartite M U V"
+  assumes "e \<in> M"
+  assumes "x \<in> e" "x \<in> V" "y \<in> e" "y \<in> V"
+  shows "x = y"
+  using assms
+proof -
+  from assms obtain u v where e: "e = {u,v}" "u \<in> U" "v \<in> V"
+    by (auto elim: bipartite_edgeE)
+
+  from assms have "U \<inter> V = {}"
+    by (auto dest: bipartite_disjointD)
+
+  with assms e show "x = y"
+    by blast
+qed
+
+subsubsection \<open>Removing Vertices from Graphs\<close>
+text \<open>
+  As mentioned above we can reduce the analysis of the competitive ratio to inputs where a perfect
+  matching exists. In order to reason about all inputs, we need to remove vertices from the graph
+  which are not in a maximum matching.
+\<close>
+definition remove_vertices_graph :: "'a graph \<Rightarrow> 'a set \<Rightarrow> 'a graph" (infixl "\<setminus>" 60) where
+  "G \<setminus> X \<equiv> {e. e \<in> G \<and> e \<inter> X = {}}"
+
+lemma remove_vertices_empty:
+  "G \<setminus> {} = G"
+  unfolding remove_vertices_graph_def by simp
+
+lemma remove_vertices_not_vs:
+  "v \<in> X \<Longrightarrow> v \<notin> Vs (G \<setminus> X)"
+  unfolding Vs_def remove_vertices_graph_def by blast
+
+lemma remove_vertices_not_vs':
+  "v \<in> X \<Longrightarrow> v \<in> Vs (G \<setminus> X) \<Longrightarrow> False"
+  using remove_vertices_not_vs by force
+
+lemma remove_vertices_subgraph:
+  "G \<setminus> X \<subseteq> G"
+  unfolding remove_vertices_graph_def
+  by simp
+
+lemma remove_vertices_subgraph':
+  "e \<in> G \<setminus> X \<Longrightarrow> e \<in> G"
+  using remove_vertices_subgraph 
+  by fast
+
+lemma remove_vertices_subgraph_Vs:
+  "v \<in> Vs (G \<setminus> X) \<Longrightarrow> v \<in> Vs G" 
+  using Vs_subset[OF remove_vertices_subgraph]
+  by fast
+
+lemma in_remove_verticesI:
+  "e \<in> G \<Longrightarrow> e \<inter> X = {} \<Longrightarrow> e \<in> G \<setminus> X"
+  unfolding remove_vertices_graph_def
+  by blast
+
+lemma in_remove_vertices_subsetI:
+  "X' \<subseteq> X \<Longrightarrow> e \<in> G \<setminus> X' \<Longrightarrow> e \<inter> X - X' = {} \<Longrightarrow> e \<in> G \<setminus> X"
+  unfolding remove_vertices_graph_def
+  by blast
+
+lemma in_remove_vertices_vsI:
+  "e \<in> G \<Longrightarrow> e \<inter> X = {} \<Longrightarrow> u \<in> e \<Longrightarrow> u \<in> Vs (G \<setminus> X)"
+  by (auto dest: in_remove_verticesI)
+
+lemma remove_vertices_only_vs:
+  "G \<setminus> X = G \<setminus> (X \<inter> Vs G)"
+  unfolding remove_vertices_graph_def Vs_def
+  by blast
+
+lemma remove_vertices_mono:
+  "G' \<subseteq> G \<Longrightarrow> e \<in> G' \<setminus> X \<Longrightarrow> e \<in> G \<setminus> X"
+  unfolding remove_vertices_graph_def by blast
+
+lemma remove_vertices_inv_mono:
+  "X \<subseteq> X' \<Longrightarrow> e \<in> G \<setminus> X' \<Longrightarrow> e \<in> G \<setminus> X"
+  unfolding remove_vertices_graph_def by blast
+
+lemma remove_vertices_inv_mono':
+  "X \<subseteq> X' \<Longrightarrow> G \<setminus> X' \<subseteq> G \<setminus> X"
+  by (auto dest: remove_vertices_inv_mono)
+
+lemma remove_vertices_graph_disjoint: "X \<inter> Vs G = {} \<Longrightarrow> G \<setminus> X = G"
+  unfolding Vs_def remove_vertices_graph_def by blast
+
+lemma remove_vertex_not_in_graph: "x \<notin> Vs G \<Longrightarrow> G \<setminus> {x} = G"
+  by (auto intro!: remove_vertices_graph_disjoint)
+
+lemma remove_vertex_psubset: "x \<in> Vs G \<Longrightarrow> x \<in> X \<Longrightarrow> G \<setminus> X \<subset> G"
+  by (auto intro: remove_vertices_subgraph' dest: remove_vertices_not_vs vs_neq_graphs_neq)
+
+lemma remove_vertex_card_less: "finite G \<Longrightarrow> x \<in> Vs G \<Longrightarrow> x \<in> X \<Longrightarrow> card (G \<setminus> X) < card G"
+  by (auto intro: psubset_card_mono intro!: remove_vertex_psubset)
+
+lemma graph_abs_remove_vertices:
+  "graph_abs G \<Longrightarrow> graph_abs (G \<setminus> X)"
+  by (simp add: graph_abs_subgraph remove_vertices_graph_def)
+
+lemma bipartite_remove_vertices:
+  "bipartite G U V \<Longrightarrow> bipartite (G \<setminus> X) U V"
+  using remove_vertices_subgraph
+  by (auto intro: bipartite_subgraph)
+
+lemma matching_remove_vertices:
+  "matching M \<Longrightarrow> matching (M \<setminus> X)"
+  using remove_vertices_subgraph
+  by (auto intro: matching_subgraph)
+
+lemma finite_remove_vertices:
+  "finite G \<Longrightarrow> finite (G \<setminus> X)"
+  by (auto intro: finite_subset[OF remove_vertices_subgraph])
+
+lemma remove_remove_union: "G \<setminus> X \<setminus> Y = G \<setminus> X \<union> Y"
+  unfolding remove_vertices_graph_def by blast
+
+lemma remove_edge_matching: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {u,v} = M - {{u,v}}"
+  unfolding remove_vertices_graph_def
+  by auto (metis empty_iff insert_iff matching_unique_match)+
+
+lemma remove_vertex_matching: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {u} = M - {{u,v}}"
+  unfolding remove_vertices_graph_def
+  by auto (metis empty_iff insert_iff matching_unique_match)+
+
+lemma remove_vertex_matching': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> M \<setminus> {v} = M - {{u,v}}"
+  unfolding remove_vertices_graph_def
+  by auto (metis empty_iff insert_iff matching_unique_match)+
+
+lemma remove_edge_matching_vs: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> Vs (M \<setminus> {u,v}) = Vs M - {u,v}"
+  by (auto simp add: remove_edge_matching Vs_def) (metis empty_iff insert_iff matching_unique_match)+
+
+lemma remove_vertex_matching_vs: "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> Vs (M \<setminus> {u}) = Vs M - {u,v}"
+  by (metis remove_edge_matching remove_edge_matching_vs remove_vertex_matching)
+
+lemma remove_vertex_matching_vs': "matching M \<Longrightarrow> {u,v} \<in> M \<Longrightarrow> Vs (M \<setminus> {v}) = Vs M - {u,v}"
+  by (metis remove_edge_matching remove_edge_matching_vs remove_vertex_matching')
+
+lemma remove_vertices_in_diff: "{u,v} \<in> G \<setminus> X \<Longrightarrow> {u,v} \<notin> G \<setminus> X' \<Longrightarrow> u \<in> X' - X \<or> v \<in> X' - X"
+  unfolding remove_vertices_graph_def
+  by simp
+
+lemma maximal_matching_remove_edges:
+  assumes "M \<subseteq> G"
+  assumes "E \<subseteq> M"
+  assumes "X = Vs E"
+  assumes "maximal_matching G M"
+  shows "maximal_matching (G \<setminus> X) (M \<setminus> X)"
+  unfolding maximal_matching_def
+proof (intro conjI allI impI)
+  show "matching (M \<setminus> X)" using assms
+    by (auto simp: maximal_matching_def intro: matching_remove_vertices)
+next
+  fix u v
+  assume "{u,v} \<in> G \<setminus> X"
+
+  then have "{u,v} \<in> G" "u \<notin> X" "v \<notin> X"
+    by (auto dest: remove_vertices_subgraph' remove_vertices_not_vs edges_are_Vs)
+
+  with \<open>maximal_matching G M\<close> consider "u \<in> Vs M" | "v \<in> Vs M"
+    by (auto dest: maximal_matching_edgeD)
+
+  then show "u \<in> Vs (M \<setminus> X) \<or> v \<in> Vs (M \<setminus> X)"
+  proof cases
+    case 1
+    then obtain e where "e \<in> M" "u \<in> e"
+      by (auto simp: vs_member)
+
+    with assms \<open>u \<notin> X\<close> have "e \<in> M \<setminus> X"
+    proof (intro in_remove_verticesI, goal_cases)
+      case 2
+      then show ?case
+        by (auto simp: vs_member)
+           (metis matching_unique_match maximal_matchingD subsetD)
+    qed blast
+
+    with \<open>u \<in> e\<close> show ?thesis
+      by blast
+  next
+    case 2
+    then obtain e where "e \<in> M" "v \<in> e"
+      by (auto simp: vs_member)
+
+    with assms \<open>v \<notin> X\<close> have "e \<in> M \<setminus> X"
+    proof (intro in_remove_verticesI, goal_cases)
+      case 2
+      then show ?case
+        by (auto simp: vs_member)
+           (metis matching_unique_match maximal_matchingD subsetD)
+    qed blast
+
+    with \<open>v \<in> e\<close> show ?thesis
+      by blast
+  qed
+qed
+
 lemma max_card_matching_remove_vertices:
   assumes "max_card_matching G M"
   assumes "X \<subseteq> Vs G - Vs M"
@@ -686,6 +711,14 @@ proof (rule ccontr)
     by (simp add: leD max_card_matchingD)
 qed
 
+text \<open>
+  This function takes two graphs \<^term>\<open>G::'a graph\<close>, \<^term>\<open>M::'a graph\<close> and removes all vertices
+  (and edges incident to them) from \<^term>\<open>G::'a graph\<close> which are not in \<^term>\<open>M::'a graph\<close>.
+  Under the assumptions \<^term>\<open>matching M\<close> and \<^term>\<open>(M::'a graph) \<subseteq> G\<close>, this returns a graph where
+  \<^term>\<open>M::'a graph\<close> is a perfect matching. We explicitly state the function this way, as it
+  yields an induction scheme that allows to reason about removing single vertices as compared to
+  removing sets of vertices.
+\<close>
 function make_perfect_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> 'a graph" where
   "make_perfect_matching G M = (
     if (\<exists>x. x \<in> Vs G \<and> x \<notin> Vs M)
