@@ -3,6 +3,7 @@ theory More_List
   imports
     "List-Index.List_Index"
     "HOL-Library.Sublist"
+    "HOL-Library.LaTeXsugar"
 begin
 text \<open>
   Permutations are modelled as distinct lists over some set in this formalization. That means both

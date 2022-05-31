@@ -5,10 +5,11 @@ theory Misc
     "HOL-Library.FuncSet"
     "HOL-Probability.Probability"
     "Monad_Normalisation.Monad_Normalisation"
+    "HOL-Library.LaTeXsugar"
 begin
 
 text \<open>
-  This theory contains auxiliary lemmas for the probabilistic part, i.e.\ mainly with inequalities
+  This theory contains auxiliary lemmas for the probabilistic part, i.e.\ mainly inequalities
   including sums, rewriting \<^term>\<open>infsetsum\<close>s to \<^term>\<open>sum\<close>s in the finite probability spaces we deal
   with and some material on \<^typ>\<open>'a pmf\<close>s.
 \<close>

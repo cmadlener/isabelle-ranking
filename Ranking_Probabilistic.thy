@@ -12,7 +12,7 @@ text \<open>
   proven facts to analyze the expected size of the matching produced by it.
 
   Large parts of this section deal with relating the sizes of different sets of permutations
-  (\autoref{sec:prob-perms}.
+  (\autoref{sec:prob-perms}).
 
   The entire probabilistic analysis is presented in~\autoref{sec:prob-wf}. The Monad Normalisation
   AFP entry by Schneider, Eberl, and Lochbihler~\cite{Monad_Normalisation-AFP} proved useful there.
@@ -20,6 +20,16 @@ text \<open>
   The final part (\autoref{sec:prob-limit}) considers the competitve ratio in the limit to obtain
   the original $1 - \frac{1}{e}$, which was made a breeze by Eberl's \<^emph>\<open>real\_asymp\<close>~\cite{eberl2019}.
 \<close>
+
+
+translations\<^marker>\<open>tag invisible\<close>
+  "n" <= "CONST of_nat n"
+  "n" <= "CONST int n"
+  "n" <= "CONST real n"
+  "n" <= "CONST real_of_nat n"
+  "n" <= "CONST real_of_int n"
+  "n" <= "CONST of_real n"
+  "n" <= "CONST complex_of_real n"
 
 no_syntax\<^marker>\<open>tag invisible\<close>
   "_maplet"  :: "['a, 'a] \<Rightarrow> maplet"             ("_ /\<mapsto>/ _")
@@ -48,7 +58,9 @@ text \<open>
   uniformly at random. To that end we show that for any permutation \<^term>\<open>\<sigma>::'a list\<close> of \<^term>\<open>V::'a set\<close>,
   and \<^term>\<open>v \<in> V\<close>
   there are exactly \<^term>\<open>card V\<close> permutations \<^term>\<open>\<sigma>'::'a list\<close> of \<^term>\<open>V::'a set\<close> s.t.
-  \<^term>\<open>\<sigma>'[v \<mapsto> t] = \<sigma>\<close>.
+  \<^term>\<open>\<sigma>'[v \<mapsto> t] = \<sigma>\<close>. This follows intuitively from the fact that we can put \<^term>\<open>v\<close> at any one
+  of \<^term>\<open>card V\<close> positions in \<^term>\<open>\<sigma>'::'a list\<close> as it will be moved to index \<^term>\<open>t::nat\<close>
+  anyways.
 \<close>
 lemma permutation_move_to:
   assumes "\<sigma> \<in> permutations_of_set V"
@@ -181,14 +193,14 @@ lemma matched_indices_set_eq:
 
 text \<open>
   Another aspect that was not dealt with in~\cite{birnbaum2008} is the fact that the probability
-  spaces over all permutations of the offline side changes when remove vertices from the offline
-  side. In the formal proof we can complete the argument by relating the sizes of two sets of
+  spaces over all permutations of the offline side changes when removing vertices.
+  In the formal proof we can complete the argument by relating the sizes of two sets of
   permutations:
-  1. permutations over the original set of offline vertices \<^term>\<open>V::'a set\<close>
-  2. permutations over the set of offline vertices in the reduced instance with a perfect
-     matching \<^term>\<open>X::'a set\<close> (where \<^term>\<open>X\<subseteq>V\<close> is the set of remaining offline vertices)
+  \<^enum> permutations over the original set of offline vertices \<^term>\<open>V::'a set\<close>
+  \<^enum> permutations over the set of remaining offline vertices \<^term>\<open>X \<subseteq> V\<close> in the reduced instance
+    with a perfect matching
 
-  We want to show that for each permutation \<^term>\<open>\<sigma>' \<in> permutations_of_set X\<close>, there are
+We want to show that for each permutation \<^term>\<open>\<sigma>' \<in> permutations_of_set X\<close>, there are
   \<^term>\<open>(card V choose card X) * fact (card V - card X) = fact (card V) / fact (card X)\<close>
   permutations \<^term>\<open>\<sigma> \<in> permutations_of_set V\<close>, s.t.\ \<^term>\<open>\<sigma>::'a list\<close> respects the order
   of \<^term>\<open>\<sigma>'::'a list\<close> on the vertices in \<^term>\<open>X::'a set\<close>.
@@ -243,7 +255,7 @@ text \<open>
 
   It serves as the inverse function for mapping a permutation \<^term>\<open>\<sigma> \<in> permutations_of_set V\<close>
   to a pair \<^term>\<open>(index \<sigma> ` X, [v <- \<sigma>. v \<notin> X])\<close>. To show that these two functions are bijective
-  between the two sets in questions involves some lengthy inductions, but is not necessarily hard.
+  between the two sets in question involves some lengthy inductions, but is not necessarily hard.
 \<close>
 fun rebuild :: "nat list \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> 'a list" where
   "rebuild [] [] xs = xs"
@@ -1007,7 +1019,7 @@ qed
 
 text \<open>
   Finally, we get the lemma in the form that allows us to go from a probability space over
-  permutations over a (generally) smaller set, to the one over permutations of our original
+  permutations over a subset of the offline vertices, to the one over permutations of our original
   offline vertices.
 \<close>
 lemma card_restrict_permutation_eq_fact:
@@ -1874,7 +1886,6 @@ qed
 
 end (* locale ranking_on_perfect_matching *)
 
-
 lemma sum_split:
   assumes "finite A" "finite B"
   assumes "\<Union>(g ` A) = B"
@@ -2037,7 +2048,7 @@ end
 
 subsection \<open>Competitive Ratio in the Limit\label{sec:prob-limit}\<close>
 text \<open>
-  In the final part of this section we define in dependence of \<^term>\<open>n::nat\<close> instances for
+  In the final part of this section we define in dependence of \<^term>\<open>n::nat\<close> arbitrary instances for
   the online bipartite matching problem with a maximum matching of size \<^term>\<open>n::nat\<close>. Subsequently
   we use that definition to prove that the competitive ratio tends to the famous $1 - \frac{1}{e}$.
 \<close>

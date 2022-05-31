@@ -14,7 +14,7 @@ text \<open>
   identifiers for the online side are \<^term>\<open>U::'a set\<close>, \<^term>\<open>u::'a\<close>, and \<^term>\<open>\<pi>::'a list\<close>.
   
   We will see at a later point that the online and offline side are interchangeable, which also
-  plays an important part in the proof of Lemma 2 in the Birnbaum, and Mathieu
+  plays an important part in the formal proof of Lemma 2 of the Birnbaum, and Mathieu
   paper~\cite{birnbaum2008}. The formal proof of that \<^emph>\<open>simple structural observation\<close>, as the
   "proof" was phrased there, is actually the most involved part of this formalization and makes
   up the majority of this section. Lemma 2 is the key to arguing that we can consider instances
@@ -54,7 +54,7 @@ lemma ranking_append: "ranking G (us@us') \<sigma> = ranking' G us' \<sigma> (ra
 text \<open>
   The following predicate fully specifies a matching \<^term>\<open>M::'a graph\<close> resulting from RANKING
   on graph \<^term>\<open>G::'a graph\<close> with arrival order \<^term>\<open>\<pi>::'a list\<close> and ranking \<^term>\<open>\<sigma>::'a list\<close>.
-  It also includes a wellformedness condition for \<^term>\<open>G::'a graph\<close> wrt.\ the inputs \<^term>\<open>\<pi>::'a list\<close>,
+  It also includes a wellformedness condition for \<^term>\<open>G::'a graph\<close> wrt.\ the inputs \<^term>\<open>\<pi>::'a list\<close>
   and \<^term>\<open>\<sigma>::'a list\<close>.
   The predicate is useful as many of the proofs where we are arguing about removing vertices don't
   follow the induction scheme provided by \<^term>\<open>ranking'\<close>.
@@ -112,8 +112,10 @@ lemma ranking_matching_maximalE:
 
 text \<open>
   The following two elimination rules are useful to obtain the required vertices for the
-  induction hypothesis of @{thm index_less_induct}.
+  induction hypothesis of
 \<close>
+thm index_less_induct
+
 lemma ranking_matching_earlier_match_onlineE:
   assumes "ranking_matching G M \<pi> \<sigma>"
   assumes "{u,v} \<in> M"
@@ -676,18 +678,19 @@ lemma ranking_matchingE:
 subsection \<open>Removing a Vertex (Lemma 2)\label{sec:ranking-zigzag}\<close>
 text \<open>
   Lemma 2 from~\cite{birnbaum2008} describes what happens when we remove a vertex \<^term>\<open>x::'a\<close> from
-  a graph \<^term>\<open>G::'a graph\<close>, resulting in \<^term>\<open>G'::'a graph\<close> and run RANKING on them with
+  a graph \<^term>\<open>G::'a graph\<close>, resulting in \<^term>\<open>G'::'a graph\<close>, and run RANKING on them with
   the same arrival order \<^term>\<open>\<pi>::'a set\<close>, and ranking \<^term>\<open>\<sigma>::'a set\<close> (removing \<^term>\<open>x::'a\<close> from
-  them as well for the run on \<^term>\<open>G'\<close>\<^footnote>\<open>For the given definition of \<^term>\<open>ranking\<close> it is sufficient
-  to remove the vertex from the graph (or the arrival, resp.\ ranking).\<close>). It states that the run
-  on \<^term>\<open>G::'a graph\<close>, and \<^term>\<open>G'::'a graph\<close> differ by at most one \<^emph>\<open>alternating\<close> (not
+  them as well for the run on \<^term>\<open>G'\<close>\<^footnote>\<open>For the given definition of \<^term>\<open>ranking\<close> removing a vertex
+  from any of the inputs (i.e.\ graph, arrival order, or ranking) is equivalent to removing it
+  from all of them.\<close>). It states that the run
+  on \<^term>\<open>G::'a graph\<close> and \<^term>\<open>G'::'a graph\<close> differ by at most one \<^emph>\<open>alternating\<close> (not
   necessarily augmenting) path starting at \<^term>\<open>x::'a\<close>. Hence, the produced matching on \<^term>\<open>G::'a graph\<close>
   is always at least as big as the one produced on \<^term>\<open>G'::'a graph\<close>. By repeatedly applying this
   to vertices which are not in a maximum matching, we can reduce the analysis of the competitive
   ratio to instances with a perfect matching.
 
   In~\cite{birnbaum2008} only a brief explanation and an illustration was provided as proof of this
-  statement. The formal proof of this statement required much more rigor and a complete specification
+  statement. The formal proof required much more rigor and a complete specification
   of the alternating path that results when removing a vertex.
 \<close>
 
@@ -707,7 +710,7 @@ definition "shifts_to G M u v v' \<pi> \<sigma> \<equiv>
       ({u,v''} \<notin> G \<or> (\<exists>u'. index \<pi> u' < index \<pi> u \<and> {u',v''} \<in> M)))"
 
 text \<open>
-  The following mutually recursive functions describe the path the alternating path that
+  The following mutually recursive functions describe the alternating path that
   results when removing a vertex. In particular \<^term>\<open>zig G M v \<pi> \<sigma>\<close> gives the path when
   removing \<^term>\<open>v \<in> set \<sigma>\<close> from \<^term>\<open>G::'a graph\<close> (where again generally assume
   \<^term>\<open>ranking_matching G M \<pi> \<sigma>\<close>). \<^term>\<open>zig\<close> simply selects the vertex \<^term>\<open>u\<close> that is matched to
@@ -720,11 +723,11 @@ text \<open>
   This cascading of choosing a matching partner and shifting those matching partners to the next
   available partner fully describes the resulting path when removing a vertex. Note, that due to
   the interchangeability of the online and offline vertices, this also works for removing a vertex
-  \<^term>\<open>u \<in> set \<pi>\<close> via \<^term>\<open>zig G M u \<sigma> \<pi>\<close> (observe the swapping of \<^term>\<open>\<pi>::'a list\<close>, and
+  \<^term>\<open>u \<in> set \<pi>\<close> via \<^term>\<open>zig G M u \<sigma> \<pi>\<close> (observe the swap of \<^term>\<open>\<pi>::'a list\<close> and
   \<^term>\<open>\<sigma>::'a list\<close>).
 
   The induction scheme these mutually recursive functions yield is key in proving properties
-  required for showing that the difference between the two matchings in questions is this
+  required for showing that the difference between the two matchings in question is this
   alternating path.
 \<close>
 function zig :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> 'a list"
@@ -955,7 +958,7 @@ next
 qed
 
 text \<open>
-  Redefining the induction scheme of \<^term>\<open>zig\<close>-\<^term>\<open>zag\<close> and explicitly stating a case distinction
+  Restating the induction scheme of \<^term>\<open>zig\<close>-\<^term>\<open>zag\<close> and explicitly stating a case distinction
   makes dealing with the definite description easier.
 \<close>
 lemma zig_zag_induct[case_names zig_matched zig_unmatched zig_no_matching zag zag_no_matching]:
@@ -1135,7 +1138,7 @@ proof -
 qed
 
 text \<open>
-  \<^term>\<open>zig\<close>-\<^term>\<open>zag\<close> produces a list of vertices which alternate between \<^term>\<open>set \<sigma>\<close>, and
+  \<^term>\<open>zig\<close>-\<^term>\<open>zag\<close> produces a list of vertices which alternate between \<^term>\<open>set \<sigma>\<close> and
   \<^term>\<open>set \<pi>\<close>.
 \<close>
 lemma
@@ -1441,6 +1444,10 @@ next
   qed (auto simp: zag.simps the_match' zag)
 qed (auto simp: zig.simps zag.simps)
 
+text \<open>
+  All but the last vertex of \<^term>\<open>zig\<close> (and \<^term>\<open>zag\<close>) are in the original matching. This
+  fact is crucial in proving that there can never be an augmenting path for \<^term>\<open>M::'a graph\<close>.
+\<close>
 lemma
   shows zig_butlast_subset_M: "v \<in> Vs M \<Longrightarrow> set (butlast (zig G M v \<pi> \<sigma>)) \<subseteq> Vs M"
     and zag_butlast_subset_M: "u \<in> Vs M \<Longrightarrow> set (butlast (zag G M u \<pi> \<sigma>)) \<subseteq> Vs M"
@@ -1481,7 +1488,8 @@ next
 qed (auto simp: zig.simps)
 
 text \<open>
-  There are several simple equalities regarding removing vertices from the different input parameters.
+  There are several simple equalities regarding removing vertices from the different input parameters
+  we need.
 \<close>
 lemma step_u_not_in_graph:
   "u \<notin> Vs G \<Longrightarrow> step G u \<sigma> M = M"
@@ -1591,6 +1599,9 @@ proof (induction G u \<sigma> M rule: step.induct)
   qed
 qed simp
 
+text \<open>
+  Removing an unmatched vertex does not change the result of \<^term>\<open>ranking\<close>.
+\<close>
 lemma ranking_remove_unmatched_vertex_same:
   assumes "x \<notin> Vs (ranking' G \<pi> \<sigma> M)"
   shows "ranking' G \<pi> \<sigma> M = ranking' (G \<setminus> {x}) \<pi> \<sigma> M"
@@ -3261,7 +3272,7 @@ lemma rev_alt_path_remove_vertex_path: "rev_alt_path M (remove_vertex_path G M x
 
 text \<open>
   Finally, we state Lemma 2 in multiple steps:
-  - The difference between the matchings of is precisely \<^term>\<open>remove_vertex_path G M \<pi> \<sigma>\<close>
+  \<^item> The difference between the matchings is precisely \<^term>\<open>remove_vertex_path G M \<pi> \<sigma>\<close>
 \<close>
 lemma remove_vertex_diff_is_zig:\<^marker>\<open>tag important\<close>
   assumes "ranking_matching G M \<pi> \<sigma>"
@@ -3306,7 +3317,7 @@ lemma remove_vertex_diff_is_zigE:
   by (auto dest: remove_vertex_diff_is_zig)
 
 text \<open>
-  - which is an alternating path
+  \<^item> which is an alternating path
 \<close>
 lemma remove_vertex_alt_path:
   assumes "ranking_matching G M \<pi> \<sigma>"
@@ -3318,7 +3329,7 @@ lemma remove_vertex_alt_path:
            dest: ranking_matchingD)
 
 text \<open>
-  - starting at x
+  \<^item> starting at \<^term>\<open>x\<close>
 \<close>
 lemma remove_vertex_path_hd:
   shows "hd (remove_vertex_path G M x \<pi> \<sigma>) = x"
@@ -3397,7 +3408,6 @@ proof (cases "x \<in> Vs M")
       by (auto intro!: subset_butlast_only_one[OF remove_vertex_path_butlast_subset_M[OF True]]
                dest: augmenting_path_feats)
 
-
     with aug_path show False
       by (auto dest: augmenting_path_feats)
   qed
@@ -3455,7 +3465,7 @@ subsection \<open>Moving Unmatched Vertices (Lemma 4)\label{sec:ranking-move-to}
 text \<open>
   Lemma 4 from~\cite{birnbaum2008} is required to ensure the independence of probabilistic events
   in the analysis of the randomized version of RANKING. In comparison to Lemma 2, the proof
-  is relatively straightforward, and follows immediately from the specification
+  is relatively straightforward and follows immediately from the specification
   \<^term>\<open>ranking_matching\<close>.
 \<close>
 lemma v_unmatched_edge_matched_earlier:

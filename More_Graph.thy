@@ -3,6 +3,7 @@ theory More_Graph
   imports
     Berge
     "HOL-Library.FuncSet"
+    "HOL-Library.LaTeXsugar"
 begin
 text \<open>
   Graphs are modelled as sets of undirected edges, where each edge is a doubleton set in a
@@ -154,8 +155,8 @@ lemma matching_card_vs:
 
 text \<open>
   Maximal, maximum cardinality, and perfect matchings all play a role in the analysis of the
-  algorithm. It is relatively straightforward to prove that RANKING produces a maximal matching
-  \footnote{This immediately would lead to a competitive ratio of at least $\frac{1}{2}$.}.
+  algorithm. It is relatively straightforward to prove that RANKING produces a maximal
+  matching\<^footnote>\<open>This immediately would lead to a competitive ratio of at least $\frac{1}{2}$.\<close>.
   Maximum cardinality matchings go directly into the competitive ratio, as they are the best
   result an offline algorithm can produce on some input. Perfect matchings are of interest, since
   we can in fact reduce the analysis of the competitive ratio to inputs where a perfect matching
@@ -519,7 +520,7 @@ text \<open>
   which are not in a maximum matching.
 \<close>
 definition remove_vertices_graph :: "'a graph \<Rightarrow> 'a set \<Rightarrow> 'a graph" (infixl "\<setminus>" 60) where
-  "G \<setminus> X \<equiv> {e. e \<in> G \<and> e \<inter> X = {}}"
+  "G \<setminus> X \<equiv> {e \<in> G. e \<inter> X = {}}"
 
 lemma remove_vertices_empty:
   "G \<setminus> {} = G"
