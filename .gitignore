@@ -4,3 +4,16 @@
 *~
 
 output/
+
+# latex auxiliary files
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.nav
+*.out
+*.snm
+*.toc
+
