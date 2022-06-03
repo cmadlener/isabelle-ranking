@@ -6,6 +6,19 @@
 \newcommand*{\Term}[1]{{\isaspacing\isastyle #1}}
 \newcommand*{\mTerm}[1]{\text{\Term{#1}}}
 
+\usepackage{mathtools}
+
+\DeclarePairedDelimiter\card{\lvert}{\rvert}
+
+\usepackage[ruled]{algorithm2e}
+\resetcounteronoverlays{algocf}
+
+
+\SetKwInput{Init}{Initialization}
+\SetKwInput{Online}{Online Matching}
+\SetKwFor{Arrival}{On arrival of}{}{}
+\SetKwIF{If}{ElseIf}{Else}{if}{}{else if}{else}{}
+
 \title{Formal Verification of the RANKING algorithm for Online Bipartite Matching}
 \author{Christoph Madlener}
 \date{22.06.2022}
@@ -17,40 +30,162 @@
 
 \section{Introduction}
 \begin{frame}
-  \frametitle{Online Bipartite Matching}
+  \frametitle{Online Bipartite Matching (OBM)}
+  \begin{columns}
+    \begin{column}{.65\textwidth}
+      \begin{exampleblock}{Input}
+        \begin{itemize}[<+->]
+          \item \emph{bipartite} graph $G = (U,V,E)$
+          \item \emph{offline} vertices $V$ are known
+          \item \emph{online} vertices $U$ reveal edges on arrival
+        \end{itemize}
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{.3\textwidth}
+      \only<1>{\includegraphics[scale=0.7]{figures/graph_complete}}%
+      \only<2-3>{\includegraphics[scale=0.7]{figures/graph_offline_only}}%
+      \only<4>{\includegraphics[scale=0.7]{figures/graph_arrival_1}}%
+      \only<5>{\includegraphics[scale=0.7]{figures/graph_arrival_2}}%
+      \only<6>{\includegraphics[scale=0.7]{figures/graph_arrival_3}}%
+      \only<7>{\includegraphics[scale=0.7]{figures/graph_arrival_4}}%
+      \only<8-9>{\includegraphics[scale=0.7]{figures/graph_matching_1}}%
+      \only<10>{\includegraphics[scale=0.7]{figures/graph_matching_2}}%
+      \only<11>{\includegraphics[scale=0.7]{figures/graph_matching_3}}%
+      \only<12>{\includegraphics[scale=0.7]{figures/graph_matching_4}}%
+      \only<13>{\includegraphics[scale=0.7]{figures/graph_matching_5}}%
+      \only<14>{\includegraphics[scale=0.7]{figures/graph_matching_6}}%
+      \only<15>{\includegraphics[scale=0.7]{figures/graph_matching_7}}%
+      \only<16>{\includegraphics[scale=0.7]{figures/graph_matching_8}}%
+    \end{column}
+  \end{columns}
+  \onslide<8->
+  \begin{alertblock}{Task}
+    \begin{itemize}
+      \item<8-> on arrival of $u \in U$, match to \emph{unmatched} neighbor $v \in V$ (or not)
+      \item<9-> maximize size of resulting matching
+    \end{itemize}   
+  \end{alertblock}
 \end{frame}
 
 \begin{frame}
   \frametitle{Competitive Ratio}
+  \begin{columns}
+    \begin{column}{.65\textwidth}
+      \begin{alertblock}{Performance of online algorithm $\mathcal{A}$}
+        \begin{itemize}
+          \item Compare $\mathcal{A}$ to best offline algorithm
+        \end{itemize}
+      \end{alertblock}
+    \end{column}
+    \begin{column}{.3\textwidth}
+      \only<1>{\includegraphics[scale=0.7]{figures/graph_matching_8}}%
+      \only<2->{\includegraphics[scale=0.7]{figures/graph_comp_ratio}}
+    \end{column}
+  \end{columns}
+  \onslide<3->
+  \begin{block}{Competitive ratio for OBM}
+    \only<-3>{\[
+      \min_G \min_\pi \frac{\card{\mathcal{A}(G,\pi)}}{\card{M}}
+    \]}
+    \only<4->{\[
+      \min_G \min_\pi \frac{\mathbb{E}\big[\card{\mathcal{A}(G,\pi)}\big]}{\card{M}}
+    \]}
+    where $M$ is a maximum cardinality matching in $G$.
+  \end{block}
 \end{frame}
 
 \begin{frame}
   \frametitle{RANKING}
-  \cite{karp1990}
-  \cite{birnbaum2008}
+  \onslide<+->
+  \begin{itemize}
+    \item simple randomized algorithm due to Karp, Vazirani, and Vazirani is optimal~\cite{karp1990}
+  \end{itemize}
+  \onslide<+->
+  \begin{algorithm}[H]
+  \small
+  \DontPrintSemicolon
+  \caption{RANKING}\label{alg:ranking}
+  \Init{Choose a random permutation (ranking) $\sigma$ of $V$}
+  \Online{}
+  \Arrival{$u \in U$}{
+    $N(u) \gets \text{set of unmatched neighbors of }u$\\
+    \If{$N(u) \neq \emptyset$}{
+      match $u$ to the vertex $v \in N(u)$ that minimizes $\sigma(v)$
+    }
+  }
+  \end{algorithm}
+  \onslide<+->
+  \begin{itemize}
+    \item competitive ratio of $1 - \frac{1}{e}$ (best possible)
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Formalization Outline}
+  \begin{itemize}[<+->]
+    \item formalization follows proof due to Birnbaum, and Mathieu~\cite{birnbaum2008}
+    \item two \emph{sections}
+    \begin{enumerate}
+      \item \only<3-4>{Combinatorics} \only<5->{\textbf{Combinatorics}}
+      \item Probability theory
+    \end{enumerate}
+    \item Most involved part: \emph{Lemma 2}
+    
+    \emph{"when removing a vertex $x$ from the graph, then the runs on the original
+      graph, and the one without $x$, differ by at most one alternating path, starting
+      at $x$"}
+  \end{itemize}
 \end{frame}
 
 \section{Combinatorics}
 \begin{frame}
-  \frametitle{Analysis on instances with a perfect matching}
-\end{frame}
-
-\begin{frame}
   \frametitle{A "simple structural observation"}
-  \cite{abdulaziz2019}
+  \begin{columns}
+    \begin{column}{.3\textwidth}
+      \only<1>{\includegraphics[scale=1]{figures/ranking_before}}%
+      \only<2->{\includegraphics[scale=1]{figures/ranking_after}}
+    \end{column}
+    \begin{column}{.65\textwidth}
+      \onslide<3->
+      \begin{alertblock}{Keys to formal proof}
+        \begin{itemize}
+          \item<3-> \emph{non-recursive} specification of matching on $G$ with arrival order $\pi$,
+          and ranking $\sigma$
+          \item<4-> gives interchangebility of offline and online vertices
+          \item<5-> full specification of path with mutually recursive functions \emph{zig} and \emph{zag}
+          \item<6-> Berge's Lemma formalized by Abdulaziz~\cite{abdulaziz2019}
+        \end{itemize}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+  
+  \note[itemize]{
+    \item Berge's Lemma not required for Lemma 2, but for consequence
+  }
 \end{frame}
 
-\begin{frame}
-  \frametitle{Remaining combinatorics}
-\end{frame}
+%\begin{frame}
+%  \frametitle{Remaining combinatorics}
+%\end{frame}
 
 \section{Randomization}
 \begin{frame}
   \frametitle{Randomization}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Permutations}
+  \begin{itemize}[<+->]
+    \item rephrase everything as \emph{\_ pmf} (probability mass function)
+    \item finite probability spaces over permutations \textrightarrow{} lots of sums
+  \end{itemize}
+  \onslide<+->
+  \begin{alertblock}{Switching probability spaces}
+    \begin{itemize}[<+->]
+      \item choosing a random permutation \textbf{vs.}
+      
+      choosing a random permutation, a random vertex, and putting that vertex at index $t$
+      \item choosing a random permutation of the original offline vertices \textbf{vs.}
+      
+      choosing a random permutation of the \emph{reduced} offline vertices
+    \end{itemize}
+  \end{alertblock}
 \end{frame}
 
 \begin{frame}
