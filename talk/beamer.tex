@@ -9,6 +9,7 @@
 \usepackage{mathtools}
 
 \DeclarePairedDelimiter\card{\lvert}{\rvert}
+\newcommand{\cons}{\mathbin{\#}}
 
 \usepackage[ruled]{algorithm2e}
 \resetcounteronoverlays{algocf}
@@ -123,23 +124,40 @@
 \begin{frame}
   \frametitle{Formalization Outline}
   \begin{itemize}[<+->]
-    \item formalization follows proof due to Birnbaum, and Mathieu~\cite{birnbaum2008}
-    \item two \emph{sections}
+    \item formalization follows proof due to Birnbaum \& Mathieu~\cite{birnbaum2008}
+    \item three parts
     \begin{enumerate}
-      \item \only<3-4>{Combinatorics} \only<5->{\textbf{Combinatorics}}
+      \item \only<3-5>{Combinatorics} \only<6->{\textbf{Combinatorics}}
       \item Probability theory
+      \item Competitive ratio in the limit
     \end{enumerate}
-    \item Most involved part: \emph{Lemma 2}
-    
-    \emph{"when removing a vertex $x$ from the graph, then the runs on the original
-      graph, and the one without $x$, differ by at most one alternating path, starting
-      at $x$"}
   \end{itemize}
 \end{frame}
 
 \section{Combinatorics}
+
 \begin{frame}
-  \frametitle{A "simple structural observation"}
+  \frametitle{Reducing Analysis to Graphs with Perfect Matching}
+  \begin{itemize}[<+->]
+    \item original paper (and earlier simplifications) assume $G$ has a perfect matching
+    \item Birnbaum \& Mathieu state a \alert{\emph{simple structural observation}} which allows to
+      generalize to arbitrary graphs:
+      
+      \vspace{1em}
+      \includegraphics[width=0.9\textwidth]{figures/lemma2}
+  \end{itemize}
+  \onslide<3->
+  Let $G_i$ be the graph resulting from removing $i$ vertices from $G$, which are not in a maximum cardinality matching $M$, and
+  $R_i := Ranking(H_i, \pi_{H_i}, \sigma_{H_i})$.
+  \onslide<4->
+  \[
+    \frac{\card{Ranking(G,\pi,\sigma)}}{\card{M}} \geq \frac{{\card{R_1}}}{\card{M}} \geq \dots 
+    \geq \frac{{\card{Ranking(G^*, \pi_{G^*}, \sigma_{G^*})}}}{\card{M}}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{First proof of a \emph{simple structural observation}}
   \begin{columns}
     \begin{column}{.3\textwidth}
       \only<1>{\includegraphics[scale=1]{figures/ranking_before}}%
@@ -147,19 +165,30 @@
     \end{column}
     \begin{column}{.65\textwidth}
       \onslide<3->
-      \begin{alertblock}{Keys to formal proof}
-        \begin{itemize}
-          \item<3-> \emph{non-recursive} specification of matching on $G$ with arrival order $\pi$,
-          and ranking $\sigma$
-          \item<4-> gives interchangebility of offline and online vertices
-          \item<5-> full specification of path with mutually recursive functions \emph{zig} and \emph{zag}
-          \item<6-> Berge's Lemma formalized by Abdulaziz~\cite{abdulaziz2019}
-        \end{itemize}
+      Let $R := Ranking(G,\pi,\sigma)$ for a fixed graph $G$, arrival order $\pi$, and ranking $\sigma$.
+      \begin{alertblock}{Specification of alternating path}
+      \begin{align*}
+        zig(x) &=
+          \begin{cases}
+            x \cons zag(y) & \{x,y\} \in R \\
+            [x] & x \text{ unmatched}
+          \end{cases} \\\\
+        zag(y) &=
+          \begin{cases}
+            y \cons zag(x') & x' \text{ \alert{matched instead}} \\
+            [y] & \text{no other match}
+          \end{cases}
+      \end{align*}
       \end{alertblock}
     \end{column}
   \end{columns}
-  
   \note[itemize]{
+    \item \emph{non-recursive} specification of matching on $G$ with arrival order $\pi$,
+          and ranking $\sigma$
+    \item gives interchangeability of offline and online vertices
+    \item symmetry \textrightarrow{} $zig$-$zag$ also works for removing online vertex
+    \item full specification of path with mutually recursive functions \emph{zig} and \emph{zag}
+    \item Berge's Lemma formalized by Abdulaziz~\cite{abdulaziz2019}
     \item Berge's Lemma not required for Lemma 2, but for consequence
   }
 \end{frame}
@@ -181,10 +210,14 @@
       \item choosing a random permutation \textbf{vs.}
       
       choosing a random permutation, a random vertex, and putting that vertex at index $t$
-      \item choosing a random permutation of the original offline vertices \textbf{vs.}
-      
-      choosing a random permutation of the \emph{reduced} offline vertices
     \end{itemize}
+    \onslide<+->
+    For $t = 1$ and $V = \{1,2,3\}$:
+    \begin{align*}
+      \mathbb{P}\Big(\big\{[3,2,1]\big\}\Big) &= \frac{1}{3!} \\
+        &= \frac{3}{3!} \cdot \frac{1}{3} \\
+        &= \mathbb{P}\Big(\big\{[2,3,1], [3,1,2], [3,2,1]\big\}\Big) \cdot \mathbb{P}\big(\{2\}\big)
+    \end{align*}
   \end{alertblock}
 \end{frame}
 
