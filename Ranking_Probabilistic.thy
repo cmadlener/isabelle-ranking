@@ -1950,7 +1950,7 @@ text \<open>
   What remains is to leverage the repeated application of Lemma 2 to obtain the bound for the
   competitive ratio for all instances.
 \<close>
-theorem ranking_comp_ratio: "measure_pmf.expectation ranking_prob card / (card M) \<ge> 1 - (1 - 1/(card M + 1)) ^ (card M)"
+theorem\<^marker>\<open>tag important\<close> ranking_comp_ratio: "measure_pmf.expectation ranking_prob card / (card M) \<ge> 1 - (1 - 1/(card M + 1)) ^ (card M)"
 proof (cases "G = {}")
   case True
   with max_card_matching have "M = {}"
@@ -2161,7 +2161,7 @@ proof -
     by (auto simp add: card_matching_instance_nat field_simps)
 qed
 
-theorem comp_ratio_limit:
+theorem\<^marker>\<open>tag important\<close> comp_ratio_limit:
   assumes "comp_ratio_nat \<longlonglongrightarrow> cr"
   shows "1 - exp(-1) \<le> cr"
 proof (rule LIMSEQ_le)

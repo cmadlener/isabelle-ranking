@@ -14,8 +14,8 @@ text \<open>
   identifiers for the online side are \<^term>\<open>U::'a set\<close>, \<^term>\<open>u::'a\<close>, and \<^term>\<open>\<pi>::'a list\<close>.
   
   We will see at a later point that the online and offline side are interchangeable, which also
-  plays an important part in the formal proof of Lemma 2 of the Birnbaum, and Mathieu
-  paper~\cite{birnbaum2008}. The formal proof of that \<^emph>\<open>simple structural observation\<close>, as the
+  plays an important part in our proof of Lemma 2 of the Birnbaum, and Mathieu
+  paper~\cite{birnbaum2008}. The first proper proof of that \<^emph>\<open>simple structural observation\<close>, as the
   "proof" was phrased there, is actually the most involved part of this formalization and makes
   up the majority of this section. Lemma 2 is the key to arguing that we can consider instances
   where a perfect matching exists in \<^term>\<open>G::'a graph\<close> to determine the competitive ratio,
@@ -79,7 +79,7 @@ text \<open>
   This lemma shows that for the given specification \<^term>\<open>ranking_matching\<close>, the online and offline
   side are interchangeable.
 \<close>
-lemma ranking_matching_commute:\<^marker>\<open>tag important\<close>
+lemma\<^marker>\<open>tag important\<close> ranking_matching_commute:
   assumes "ranking_matching G M \<pi> \<sigma>"
   shows "ranking_matching G M \<sigma> \<pi>"
   using assms
@@ -214,7 +214,7 @@ text \<open>
   There is only one matching \<^term>\<open>M::'a graph\<close> that satisfies \<^term>\<open>ranking_matching G M \<pi> \<sigma>\<close> for
   a given graph \<^term>\<open>G::'a graph\<close>, arrival order \<^term>\<open>\<pi>::'a list\<close> and ranking \<^term>\<open>\<sigma>::'a list\<close>.
 \<close>
-lemma ranking_matching_unique:\<^marker>\<open>tag important\<close>
+lemma\<^marker>\<open>tag important\<close> ranking_matching_unique:
   assumes "ranking_matching G M \<pi> \<sigma>"
   assumes "ranking_matching G M' \<pi> \<sigma>"
   shows "M = M'"
@@ -653,7 +653,7 @@ qed
 text \<open>
   The algorithm produces a matching which satisfies \<^term>\<open>ranking_matching\<close>.
 \<close>
-lemma ranking_matching_ranking:\<^marker>\<open>tag important\<close>
+lemma\<^marker>\<open>tag important\<close> ranking_matching_ranking:
   "bipartite G (set \<pi>) (set \<sigma>) \<Longrightarrow> ranking_matching G (ranking G \<pi> \<sigma>) \<pi> \<sigma>"
   unfolding ranking_matching_def
   by (auto dest: bipartite_disjointD ranking_lowest_free_rank_match ranking_earliest_match
@@ -690,8 +690,8 @@ text \<open>
   ratio to instances with a perfect matching.
 
   In~\cite{birnbaum2008} only a brief explanation and an illustration was provided as proof of this
-  statement. The formal proof required much more rigor and a complete specification
-  of the alternating path that results when removing a vertex.
+  statement. The following formal proof is the first proper proof of this statement. It required
+  much more rigor and a complete specification of the alternating path that results when removing a vertex.
 \<close>
 
 text \<open>
@@ -2924,7 +2924,7 @@ text \<open>
   the relationship of the two steps in the cascading (\<^term>\<open>zig\<close> and \<^term>\<open>zag\<close>) on a graph
   \<^term>\<open>G::'a graph\<close> and on \<^term>\<open>G \<setminus> {x}\<close> (the graph where we removed \<^term>\<open>x\<close>).
 \<close>
-lemma ranking_matching_zig_zag_eq:\<^marker>\<open>tag important\<close>
+lemma\<^marker>\<open>tag important\<close> ranking_matching_zig_zag_eq:
   assumes "{u,x} \<in> M"
   assumes "x \<in> set \<sigma>"
   assumes "ranking_matching G M \<pi> \<sigma>"
@@ -3178,7 +3178,7 @@ text \<open>
   The lemmas after this just deal with using the interchangeability of the online and offline side
   to obtain the lemma for removing arbitrary (and not just offline) vertices.
 \<close>
-lemma remove_offline_vertex_diff_is_zig:
+lemma\<^marker>\<open>tag important\<close> remove_offline_vertex_diff_is_zig:
   assumes "ranking_matching G M \<pi> \<sigma>"
   assumes "ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>"
   assumes "x \<in> set \<sigma>"
@@ -3274,7 +3274,7 @@ text \<open>
   Finally, we state Lemma 2 in multiple steps:
   \<^item> The difference between the matchings is precisely \<^term>\<open>remove_vertex_path G M \<pi> \<sigma>\<close>
 \<close>
-lemma remove_vertex_diff_is_zig:\<^marker>\<open>tag important\<close>
+lemma\<^marker>\<open>tag important\<close> remove_vertex_diff_is_zig:
   assumes "ranking_matching G M \<pi> \<sigma>"
   assumes "ranking_matching (G \<setminus> {x}) M' \<pi> \<sigma>"
   shows "M \<oplus> M' = set (edges_of_path (remove_vertex_path G M x \<pi> \<sigma>))"
@@ -3446,7 +3446,7 @@ text \<open>
   Thus, by repeatedly applying this we finally obtain that the competitive ratio is lower bounded
   by instances where a perfect matching exists.
 \<close>
-lemma ranking_matching_comp_ratio_perfect_matching_lower_bound:
+lemma\<^marker>\<open>tag important\<close> ranking_matching_comp_ratio_perfect_matching_lower_bound:
   assumes "ranking_matching G M \<pi> \<sigma>" "ranking_matching (make_perfect_matching G N) M' \<pi> \<sigma>"
   assumes "max_card_matching G N" "max_card_matching (make_perfect_matching G N) N'"
   shows "(real (card M)) / card N \<ge> card M' / card N'"
