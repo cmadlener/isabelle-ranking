@@ -11,9 +11,14 @@
 \DeclarePairedDelimiter\card{\lvert}{\rvert}
 \newcommand{\cons}{\mathbin{\#}}
 
-\usepackage[ruled]{algorithm2e}
+\usepackage{algorithm2e}
 \resetcounteronoverlays{algocf}
 
+\usepackage{tikz}
+\usepackage{tkz-graph}
+\usetikzlibrary{calc,shapes.multipart,chains,arrows,backgrounds}
+
+\usepackage{adjustbox}
 
 \SetKwInput{Init}{Initialization}
 \SetKwInput{Online}{Online Matching}
@@ -43,20 +48,316 @@
       \end{exampleblock}
     \end{column}
     \begin{column}{.3\textwidth}
-      \only<1>{\includegraphics[scale=0.7]{figures/graph_complete}}%
-      \only<2-3>{\includegraphics[scale=0.7]{figures/graph_offline_only}}%
-      \only<4>{\includegraphics[scale=0.7]{figures/graph_arrival_1}}%
-      \only<5>{\includegraphics[scale=0.7]{figures/graph_arrival_2}}%
-      \only<6>{\includegraphics[scale=0.7]{figures/graph_arrival_3}}%
-      \only<7>{\includegraphics[scale=0.7]{figures/graph_arrival_4}}%
-      \only<8-9>{\includegraphics[scale=0.7]{figures/graph_matching_1}}%
-      \only<10>{\includegraphics[scale=0.7]{figures/graph_matching_2}}%
-      \only<11>{\includegraphics[scale=0.7]{figures/graph_matching_3}}%
-      \only<12>{\includegraphics[scale=0.7]{figures/graph_matching_4}}%
-      \only<13>{\includegraphics[scale=0.7]{figures/graph_matching_5}}%
-      \only<14>{\includegraphics[scale=0.7]{figures/graph_matching_6}}%
-      \only<15>{\includegraphics[scale=0.7]{figures/graph_matching_7}}%
-      \only<16>{\includegraphics[scale=0.7]{figures/graph_matching_8}}%
+      \vspace{0.5em}
+      
+      \only<1>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$U$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertices[Math,x=0,y=1,Lpos=180,dir=\SO,unit=1.8]{line}{v_0, v_1, v_2};
+          \Vertices[Math,x=2,y=1,dir=\SO,unit=1.2]{line}{u_0,u_1,u_2,u_3};
+          \Edge(v_0)(u_1);
+          \Edge(v_1)(u_0);
+          \Edge(v_1)(u_2);
+          \Edge(v_2)(u_1);
+          \Edge(v_2)(u_3);
+        \end{tikzpicture} 
+      }%
+      \only<2>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertices[Math,x=0,y=1,Lpos=180,dir=\SO,unit=1.8]{line}{v_0, v_1, v_2};
+        \end{tikzpicture} 
+      }%
+      \only<3>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertices[Math,x=0,y=1,Lpos=180,dir=\SO,unit=1.8]{line}{v_0, v_1, v_2};
+        \end{tikzpicture} 
+      }%
+      \only<4>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertices[Math,x=0,y=1,Lpos=180,dir=\SO,unit=1.8]{line}{v_0, v_1, v_2};
+          \Vertices[Math,x=2,y=1,dir=\SO,unit=1.2]{line}{u_0};
+          \Edge(v_1)(u_0);
+        \end{tikzpicture} 
+      }%
+      \only<5>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertices[Math,x=0,y=1,Lpos=180,dir=\SO,unit=1.8]{line}{v_0, v_1, v_2};
+          \Vertices[Math,x=2,y=1,dir=\SO,unit=1.2]{line}{u_0,u_1};
+          \Edge(v_1)(u_0);
+          \Edge(v_0)(u_1);
+          \Edge(v_2)(u_1);
+        \end{tikzpicture}
+      }%
+      \only<6>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertices[Math,x=0,y=1,Lpos=180,dir=\SO,unit=1.8]{line}{v_0, v_1, v_2};
+          \Vertices[Math,x=2,y=1,dir=\SO,unit=1.2]{line}{u_0,u_1,u_2};
+          \Edge(v_1)(u_0);
+          \Edge(v_0)(u_1);
+          \Edge(v_2)(u_1);
+          \Edge(v_1)(u_2);
+        \end{tikzpicture}
+      }%
+      \only<7>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertices[Math,x=0,y=1,Lpos=180,dir=\SO,unit=1.8]{line}{v_0, v_1, v_2};
+          \Vertices[Math,x=2,y=1,dir=\SO,unit=1.2]{line}{u_0,u_1,u_2,u_3};
+          \Edge(v_1)(u_0);
+          \Edge(v_0)(u_1);
+          \Edge(v_2)(u_1);
+          \Edge(v_1)(u_2);
+          \Edge(v_2)(u_3);
+        \end{tikzpicture}
+      }%
+      \only<8-9>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertices[Math,x=0,y=1,Lpos=180,dir=\SO,unit=1.8]{line}{v_0, v_1, v_2};
+          \Vertices[Math,x=2,y=1,dir=\SO,unit=1.2]{line}{u_0};
+          \Edge(v_1)(u_0);
+        \end{tikzpicture}}%
+      \only<10>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertex[Math,x=0,y=1,Lpos=180]{v_0};
+          \SetVertexNormal[MinSize=1pt,FillColor=orange]
+          \Vertex[Math,x=0,y=-0.8,Lpos=180]{v_1};
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertex[Math,x=0,y=-2.6,Lpos=180]{v_2};
+          \SetVertexNormal[MinSize=1pt,FillColor=blue]
+          \Vertex[Math,x=2,y=1]{u_0};
+          \Edge(v_1)(u_0);
+        \end{tikzpicture}}%
+      \only<11>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertex[Math,x=0,y=1,Lpos=180]{v_0};
+          \Vertex[Math,x=0,y=-2.6,Lpos=180]{v_2};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=green]
+          \Vertex[Math,x=0,y=-0.8,Lpos=180]{v_1};
+          \Vertex[Math,x=2,y=1]{u_0};
+          
+          % matching edges
+          \tikzset{EdgeStyle/.append style = {green}};
+          \Edge(v_1)(u_0);
+        \end{tikzpicture}}%
+      \only<12>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=orange]
+          \Vertex[Math,x=0,y=1,Lpos=180]{v_0};
+          \Vertex[Math,x=0,y=-2.6,Lpos=180]{v_2};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=blue]
+          \Vertex[Math,x=2,y=-0.2]{u_1};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=green]
+          \Vertex[Math,x=0,y=-0.8,Lpos=180]{v_1};
+          \Vertex[Math,x=2,y=1]{u_0};
+          
+          \Edge(v_0)(u_1);
+          \Edge(v_2)(u_1);
+          
+          % matching edges
+          \tikzset{EdgeStyle/.append style = {green}};
+          \Edge(v_1)(u_0);
+        \end{tikzpicture}}%
+      \only<13>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertex[Math,x=0,y=1,Lpos=180]{v_0};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=orange]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=blue]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=green]
+          \Vertex[Math,x=0,y=-0.8,Lpos=180]{v_1};
+          \Vertex[Math,x=0,y=-2.6,Lpos=180]{v_2};
+          \Vertex[Math,x=2,y=1]{u_0};
+          \Vertex[Math,x=2,y=-0.2]{u_1};
+                    
+          % matching edges
+          \tikzset{EdgeStyle/.append style = {green}};
+          \Edge(v_1)(u_0);
+          \Edge(v_2)(u_1);
+          
+          % discarded eges
+          \tikzset{EdgeStyle/.append style = {gray}};
+          \Edge(v_0)(u_1);
+        \end{tikzpicture}}%
+      \only<14>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertex[Math,x=0,y=1,Lpos=180]{v_0};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=orange]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=blue]
+          \Vertex[Math,x=2,y=-1.4]{u_2};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=green]
+          \Vertex[Math,x=0,y=-0.8,Lpos=180]{v_1};
+          \Vertex[Math,x=0,y=-2.6,Lpos=180]{v_2};
+          \Vertex[Math,x=2,y=1]{u_0};
+          \Vertex[Math,x=2,y=-0.2]{u_1};
+          
+          \Edge(v_1)(u_2);
+                    
+          % matching edges
+          \tikzset{EdgeStyle/.append style = {green}};
+          \Edge(v_1)(u_0);
+          \Edge(v_2)(u_1);
+          
+          % discarded eges
+          \tikzset{EdgeStyle/.append style = {gray}};
+          \Edge(v_0)(u_1);
+        \end{tikzpicture}}%
+      \only<15>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertex[Math,x=0,y=1,Lpos=180]{v_0};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=orange]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=blue]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=green]
+          \Vertex[Math,x=0,y=-0.8,Lpos=180]{v_1};
+          \Vertex[Math,x=0,y=-2.6,Lpos=180]{v_2};
+          \Vertex[Math,x=2,y=1]{u_0};
+          \Vertex[Math,x=2,y=-0.2]{u_1};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=gray]
+          \Vertex[Math,x=2,y=-1.4]{u_2};
+          
+          % matching edges
+          \tikzset{EdgeStyle/.append style = {green}};
+          \Edge(v_1)(u_0);
+          \Edge(v_2)(u_1);
+          
+          % discarded eges
+          \tikzset{EdgeStyle/.append style = {gray}};
+          \Edge(v_0)(u_1);
+          \Edge(v_1)(u_2);
+        \end{tikzpicture}}%
+      \only<16>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertex[Math,x=0,y=1,Lpos=180]{v_0};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=orange]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=blue]
+          \Vertex[Math,x=2,y=-2.6]{u_3};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=green]
+          \Vertex[Math,x=0,y=-0.8,Lpos=180]{v_1};
+          \Vertex[Math,x=0,y=-2.6,Lpos=180]{v_2};
+          \Vertex[Math,x=2,y=1]{u_0};
+          \Vertex[Math,x=2,y=-0.2]{u_1};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=gray]
+          \Vertex[Math,x=2,y=-1.4]{u_2};
+          
+          \Edge(v_2)(u_3);
+          
+          % matching edges
+          \tikzset{EdgeStyle/.append style = {green}};
+          \Edge(v_1)(u_0);
+          \Edge(v_2)(u_1);
+          
+          % discarded eges
+          \tikzset{EdgeStyle/.append style = {gray}};
+          \Edge(v_0)(u_1);
+          \Edge(v_1)(u_2);
+        \end{tikzpicture}}%
+      \only<17>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=orange]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=blue]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=green]
+          \Vertex[Math,x=0,y=-0.8,Lpos=180]{v_1};
+          \Vertex[Math,x=0,y=-2.6,Lpos=180]{v_2};
+          \Vertex[Math,x=2,y=1]{u_0};
+          \Vertex[Math,x=2,y=-0.2]{u_1};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=gray]
+          \Vertex[Math,x=0,y=1,Lpos=180]{v_0};
+          \Vertex[Math,x=2,y=-1.4]{u_2};
+          \Vertex[Math,x=2,y=-2.6]{u_3};
+          
+          % matching edges
+          \tikzset{EdgeStyle/.append style = {green}};
+          \Edge(v_1)(u_0);
+          \Edge(v_2)(u_1);
+          
+          % discarded eges
+          \tikzset{EdgeStyle/.append style = {gray}};
+          \Edge(v_0)(u_1);
+          \Edge(v_1)(u_2);
+          \Edge(v_2)(u_3);
+        \end{tikzpicture}
+      }%
     \end{column}
   \end{columns}
   \onslide<8->
@@ -79,8 +380,72 @@
       \end{alertblock}
     \end{column}
     \begin{column}{.3\textwidth}
-      \only<1>{\includegraphics[scale=0.7]{figures/graph_matching_8}}%
-      \only<2->{\includegraphics[scale=0.7]{figures/graph_comp_ratio}}
+      \only<1>{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=orange]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=blue]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=green]
+          \Vertex[Math,x=0,y=-0.8,Lpos=180]{v_1};
+          \Vertex[Math,x=0,y=-2.6,Lpos=180]{v_2};
+          \Vertex[Math,x=2,y=1]{u_0};
+          \Vertex[Math,x=2,y=-0.2]{u_1};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=gray]
+          \Vertex[Math,x=0,y=1,Lpos=180]{v_0};
+          \Vertex[Math,x=2,y=-1.4]{u_2};
+          \Vertex[Math,x=2,y=-2.6]{u_3};
+          
+          % matching edges
+          \tikzset{EdgeStyle/.append style = {green}};
+          \Edge(v_1)(u_0);
+          \Edge(v_2)(u_1);
+          
+          % discarded eges
+          \tikzset{EdgeStyle/.append style = {gray}};
+          \Edge(v_0)(u_1);
+          \Edge(v_1)(u_2);
+          \Edge(v_2)(u_3);
+        \end{tikzpicture}}%
+      \only<2->{
+        \begin{tikzpicture}
+          \node at (0,1.5){$V$};
+          \node at (2,1.5){$\pi$};
+          \GraphInit[vstyle=Classic];
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=orange]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=blue]
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=green]
+          \Vertex[Math,x=0,y=-0.8,Lpos=180]{v_1};
+          \Vertex[Math,x=0,y=-2.6,Lpos=180]{v_2};
+          \Vertex[Math,x=2,y=1]{u_0};
+          \Vertex[Math,x=2,y=-0.2]{u_1};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=gray]
+          \Vertex[Math,x=0,y=1,Lpos=180]{v_0};
+          \Vertex[Math,x=2,y=-1.4]{u_2};
+          \Vertex[Math,x=2,y=-2.6]{u_3};
+          
+          % matching edges
+          \tikzset{EdgeStyle/.append style = {green}};
+          \Edge(v_1)(u_0);
+          \Edge(v_2)(u_1);
+          
+          % discarded eges
+          \tikzset{EdgeStyle/.append style = {orange}};
+          \Edge(v_0)(u_1);
+          \Edge(v_1)(u_2);
+          \Edge(v_2)(u_3);
+        \end{tikzpicture}}
     \end{column}
   \end{columns}
   \onslide<3->
@@ -102,20 +467,318 @@
     \item simple randomized algorithm due to Karp, Vazirani, and Vazirani is optimal~\cite{karp1990}
   \end{itemize}
   \onslide<+->
-  \begin{algorithm}[H]
-  \small
-  \DontPrintSemicolon
-  \caption{RANKING}\label{alg:ranking}
-  \Init{Choose a random permutation (ranking) $\sigma$ of $V$}
-  \Online{}
-  \Arrival{$u \in U$}{
-    $N(u) \gets \text{set of unmatched neighbors of }u$\\
-    \If{$N(u) \neq \emptyset$}{
-      match $u$ to the vertex $v \in N(u)$ that minimizes $\sigma(v)$
-    }
-  }
-  \end{algorithm}
-  \onslide<+->
+  \begin{columns}
+    \begin{column}{.3\textwidth}
+      \only<-2>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){$V$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_0};
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_2};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_3};
+          \end{tikzpicture}
+        }
+      }%
+      \only<3>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+          \end{tikzpicture}
+         }
+      }%
+      \only<4>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            \Vertex[Math,x=2,y=0]{u_2};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            
+            \Edge(u_2)(v_3);
+          \end{tikzpicture}
+        }
+      }%
+      \only<5>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+          \end{tikzpicture}
+        }
+      }%
+      \only<6>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            \Vertex[Math,x=2,y=-1]{u_1};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            
+            \Edge(u_1)(v_2);
+            \Edge(u_1)(v_3);
+            \Edge(u_1)(v_1);
+            
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+          \end{tikzpicture}
+        }
+      }%
+      \only<7>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+                        
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+                        
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+            \Edge(u_1)(v_2);
+            
+            \tikzset{EdgeStyle/.append style={gray}};
+            \Edge(u_1)(v_3);
+            \Edge(u_1)(v_1);
+          \end{tikzpicture}
+        }
+      }%
+      \only<8>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            \Vertex[Math,x=2,y=-2]{u_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            
+            \Edge(u_0)(v_3);
+                        
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+            \Edge(u_1)(v_2);
+            
+            \tikzset{EdgeStyle/.append style={gray}};
+            \Edge(u_1)(v_3);
+            \Edge(u_1)(v_1);
+          \end{tikzpicture}
+        }
+      }%
+      \only<9>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=gray]
+            \Vertex[Math,x=2,y=-2]{u_0};
+                        
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+            \Edge(u_1)(v_2);
+            
+            \tikzset{EdgeStyle/.append style={gray}};
+            \Edge(u_1)(v_3);
+            \Edge(u_1)(v_1);
+            \Edge(u_0)(v_3);
+          \end{tikzpicture}
+        }
+      }%
+      \only<10>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            \Vertex[Math,x=2,y=-3]{u_3};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=gray]
+            \Vertex[Math,x=2,y=-2]{u_0};
+            
+            \Edge(u_3)(v_1);
+            \Edge(u_3)(v_0);
+                        
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+            \Edge(u_1)(v_2);
+            
+            \tikzset{EdgeStyle/.append style={gray}};
+            \Edge(u_1)(v_3);
+            \Edge(u_1)(v_1);
+            \Edge(u_0)(v_3);
+          \end{tikzpicture}
+        }
+      }%
+      \only<11->{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            \Vertex[Math,x=2,y=-3]{u_3};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=gray]
+            \Vertex[Math,x=2,y=-2]{u_0};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+                                    
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+            \Edge(u_1)(v_2);
+            \Edge(u_3)(v_1);
+            
+            \tikzset{EdgeStyle/.append style={gray}};
+            \Edge(u_1)(v_3);
+            \Edge(u_1)(v_1);
+            \Edge(u_0)(v_3);
+            \Edge(u_3)(v_0);
+          \end{tikzpicture}
+        }
+      }%
+    \end{column}
+    \begin{column}{.65\textwidth}
+      \begin{algorithm}[H]
+        \footnotesize
+        \DontPrintSemicolon
+        \Init{Choose a random permutation (ranking) $\sigma$ of $V$}
+        \Online{}
+        \Arrival{$u \in U$}{
+          $N(u) \gets \text{set of unmatched neighbors of }u$\\
+          \If{$N(u) \neq \emptyset$}{
+            match $u$ to the vertex $v \in N(u)$ that minimizes $\sigma(v)$
+          }
+        }
+      \end{algorithm}
+    \end{column}
+  \end{columns}
+  \onslide<12->
   \begin{itemize}
     \item competitive ratio of $1 - \frac{1}{e}$ (best possible)
   \end{itemize}
@@ -142,46 +805,576 @@
     \item original paper (and earlier simplifications) assume $G$ has a perfect matching
     \item Birnbaum \& Mathieu state a \alert{\emph{simple structural observation}} which allows to
       generalize to arbitrary graphs:
-      
-      \vspace{1em}
-      \includegraphics[width=0.9\textwidth]{figures/lemma2}
   \end{itemize}
-  \onslide<3->
-  Let $G_i$ be the graph resulting from removing $i$ vertices from $G$, which are not in a maximum cardinality matching $M$, and
-  $R_i := Ranking(H_i, \pi_{H_i}, \sigma_{H_i})$.
-  \onslide<4->
-  \[
-    \frac{\card{Ranking(G,\pi,\sigma)}}{\card{M}} \geq \frac{{\card{R_1}}}{\card{M}} \geq \dots 
-    \geq \frac{{\card{Ranking(G^*, \pi_{G^*}, \sigma_{G^*})}}}{\card{M}}
-  \]
+  \begin{columns}
+    \begin{column}{.3\textwidth}
+      \onslide<3->{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            \Vertex[Math,x=2,y=-3]{u_3};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=gray]
+            \Vertex[Math,x=2,y=-2]{u_0};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+                                    
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+            \Edge(u_1)(v_2);
+            \Edge(u_3)(v_1);
+            
+            \tikzset{EdgeStyle/.append style={gray}};
+            \Edge(u_1)(v_3);
+            \Edge(u_1)(v_1);
+            \Edge(u_0)(v_3);
+            \Edge(u_3)(v_0);
+          \end{tikzpicture}
+        }
+      }%
+    \end{column}
+    \begin{column}{.3\textwidth}
+      \only<3-4>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (1,0.5){$\oplus$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+          \end{tikzpicture}
+        }
+      }%
+      \only<5-6>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (1,0.5){$\oplus$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green!30]
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=0]{u_2};
+            
+            \tikzset{EdgeStyle/.append style={green!30}};
+            \Edge(v_3)(u_2);
+          
+          \end{tikzpicture}
+        }
+      }%
+      \only<7-8>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (1,0.5){$\oplus$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green!30]
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=0]{u_2};
+            
+            \tikzset{EdgeStyle/.append style={green!30}};
+            \Edge(v_3)(u_2);
+            
+            \tikzset{EdgeStyle/.append style={gray!30}};
+            \Edge(v_3)(u_1);
+            
+            \tikzset{EdgeStyle/.append style={blue}};
+            \Edge(v_2)(u_1);
+            
+            \tikzset{EdgeStyle/.append style={red}};
+            \Edge(v_1)(u_1);            
+          \end{tikzpicture}
+        }
+      }%
+      \only<9-10>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (1,0.5){$\oplus$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green!30]
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=0]{u_2};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=gray!30]
+            \Vertex[Math,x=2,y=-2]{u_0}
+            
+            \tikzset{EdgeStyle/.append style={green!30}};
+            \Edge(v_3)(u_2);
+            
+            \tikzset{EdgeStyle/.append style={gray!30}};
+            \Edge(v_3)(u_1);
+            \Edge(v_3)(u_0);
+            
+            \tikzset{EdgeStyle/.append style={blue}};
+            \Edge(v_2)(u_1);
+            
+            \tikzset{EdgeStyle/.append style={red}};
+            \Edge(v_1)(u_1);            
+          \end{tikzpicture}
+        }
+      }%
+      \only<11>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (1,0.5){$\oplus$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            \Vertex[Math,x=2,y=-3]{u_3};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green!30]
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=0]{u_2};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=gray!30]
+            \Vertex[Math,x=2,y=-2]{u_0}
+            
+            \tikzset{EdgeStyle/.append style={green!30}};
+            \Edge(v_3)(u_2);
+            
+            \tikzset{EdgeStyle/.append style={gray!30}};
+            \Edge(v_3)(u_1);
+            \Edge(v_3)(u_0);
+            
+            \tikzset{EdgeStyle/.append style={blue}};
+            \Edge(v_2)(u_1);
+            \Edge(v_1)(u_3);
+            
+            \tikzset{EdgeStyle/.append style={red}};
+            \Edge(v_1)(u_1);
+            \Edge(v_0)(u_3);            
+          \end{tikzpicture}
+        }
+      }%
+      \only<12>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (1,0.5){$\oplus$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            \Vertex[Math,x=2,y=-3]{u_3};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            \Vertex[Math,x=2,y=-3]{u_3};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=red]
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green!30]
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=0]{u_2};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=gray!30]
+            \Vertex[Math,x=2,y=-2]{u_0}
+            
+            \tikzset{EdgeStyle/.append style={green!30}};
+            \Edge(v_3)(u_2);
+            
+            \tikzset{EdgeStyle/.append style={gray!30}};
+            \Edge(v_3)(u_1);
+            \Edge(v_3)(u_0);
+            
+            \tikzset{EdgeStyle/.append style={blue}};
+            \Edge(v_2)(u_1);
+            \Edge(v_1)(u_3);
+            
+            \tikzset{EdgeStyle/.append style={red}};
+            \Edge(v_1)(u_1);
+            \Edge(v_0)(u_3);            
+          \end{tikzpicture}
+        }
+      }%
+    \end{column}
+    \begin{column}{.3\textwidth}
+      \only<3>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma'$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+          \end{tikzpicture}
+        }
+      }%
+      \only<4>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma'$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            \Vertex[Math,x=2,y=0]{u_2};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            
+            \Edge(u_2)(v_3);
+          \end{tikzpicture}
+        }
+      }%
+      \only<5>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma'$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+          \end{tikzpicture}
+        }
+      }%
+      \only<6>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma'$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            \Vertex[Math,x=2,y=-1]{u_1};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            
+            \Edge(u_1)(v_3);
+            \Edge(u_1)(v_1);
+            
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+          \end{tikzpicture}
+        }
+      }%
+      \only<7>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma'$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+                        
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+            \Edge(u_1)(v_1);
+            
+            \tikzset{EdgeStyle/.append style={gray}};
+            \Edge(u_1)(v_3);
+          \end{tikzpicture}
+        }
+      }%
+      \only<8>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma'$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            \Vertex[Math,x=2,y=-2]{u_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            
+            \Edge(v_3)(u_0);
+                        
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+            \Edge(u_1)(v_1);
+            
+            \tikzset{EdgeStyle/.append style={gray}};
+            \Edge(u_1)(v_3);
+          \end{tikzpicture}
+        }
+      }%
+      \only<9>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma'$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=gray]
+            \Vertex[Math,x=2,y=-2]{u_0};
+            
+                        
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+            \Edge(u_1)(v_1);
+            
+            \tikzset{EdgeStyle/.append style={gray}};
+            \Edge(u_1)(v_3);
+            \Edge(v_3)(u_0);
+          \end{tikzpicture}
+        }
+      }%
+      \only<10>{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma'$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            \Vertex[Math,x=2,y=-3]{u_3};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=gray]
+            \Vertex[Math,x=2,y=-2]{u_0};
+            
+            \Edge(v_0)(u_3);
+            \Edge(v_1)(u_3);
+            
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+            \Edge(u_1)(v_1);
+            
+            \tikzset{EdgeStyle/.append style={gray}};
+            \Edge(u_1)(v_3);
+            \Edge(v_3)(u_0);
+          \end{tikzpicture}
+        }
+      }%
+      \only<11->{
+        \adjustbox{scale=0.8}{
+          \begin{tikzpicture}
+            \node at (0,0.5){\phantom{$V$}};
+            \node at (0,0.5){$\sigma'$};
+            \node at (2,0.5){$\pi$};
+            \GraphInit[vstyle=Classic];
+               
+            \SetVertexNormal[MinSize=1pt,FillColor=black]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=blue]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=orange]
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=green]
+            \Vertex[Math,x=2,y=0]{u_2};            
+            \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+            \Vertex[Math,x=2,y=-1]{u_1};
+            \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+            \Vertex[Math,x=2,y=-3]{u_3};
+            \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+            
+            \SetVertexNormal[MinSize=1pt,FillColor=gray]
+            \Vertex[Math,x=2,y=-2]{u_0};
+            
+                        
+            \tikzset{EdgeStyle/.append style={green}};
+            \Edge(u_2)(v_3);
+            \Edge(u_1)(v_1);
+            \Edge(v_0)(u_3);
+            
+            \tikzset{EdgeStyle/.append style={gray}};
+            \Edge(u_1)(v_3);
+            \Edge(v_3)(u_0);
+            \Edge(v_1)(u_3);
+          \end{tikzpicture}
+        }
+      }%
+    \end{column}
+  \end{columns}
 \end{frame}
 
 \begin{frame}
   \frametitle{First proof of a \emph{simple structural observation}}
   \begin{columns}
     \begin{column}{.3\textwidth}
-      \only<1>{\includegraphics[scale=1]{figures/ranking_before}}%
-      \only<2->{\includegraphics[scale=1]{figures/ranking_after}}
+      \adjustbox{scale=0.8}{
+        \begin{tikzpicture}
+          \GraphInit[vstyle=Classic];
+             
+          \SetVertexNormal[MinSize=1pt,FillColor=black]
+          \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+          \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+          \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+          \Vertex[Math,x=2,y=-1]{u_1};
+          \Vertex[Math,x=2,y=-3]{u_3};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=blue]
+          \Vertex[Math,Lpos=180,x=0,y=0]{v_2};
+          \Vertex[Math,Lpos=180,x=0,y=-2.4]{v_1};
+          \Vertex[Math,x=2,y=-1]{u_1};
+          \Vertex[Math,x=2,y=-3]{u_3};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=red]
+          \Vertex[Math,Lpos=180,x=0,y=-3.6]{v_0};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=green!30]
+          \Vertex[Math,Lpos=180,x=0,y=-1.2]{v_3};
+          \Vertex[Math,x=2,y=0]{u_2};
+          
+          \SetVertexNormal[MinSize=1pt,FillColor=gray!30]
+          \Vertex[Math,x=2,y=-2]{u_0}
+          
+          \tikzset{EdgeStyle/.append style={green!30}};
+          \Edge(v_3)(u_2);
+          
+          \tikzset{EdgeStyle/.append style={gray!30}};
+          \Edge(v_3)(u_1);
+          \Edge(v_3)(u_0);
+          
+          \tikzset{EdgeStyle/.append style={blue}};
+          \Edge(v_2)(u_1);
+          \Edge(v_1)(u_3);
+          
+          \tikzset{EdgeStyle/.append style={red}};
+          \Edge(v_1)(u_1);
+          \Edge(v_0)(u_3);            
+        \end{tikzpicture}
+      }
     \end{column}
     \begin{column}{.65\textwidth}
-      \onslide<3->
-      Let $R := Ranking(G,\pi,\sigma)$ for a fixed graph $G$, arrival order $\pi$, and ranking $\sigma$.
-      \begin{alertblock}{Specification of alternating path}
-      \begin{align*}
-        zig(x) &=
-          \begin{cases}
-            x \cons zag(y) & \{x,y\} \in R \\
-            [x] & x \text{ unmatched}
-          \end{cases} \\\\
-        zag(y) &=
-          \begin{cases}
-            y \cons zag(x') & x' \text{ \alert{matched instead}} \\
-            [y] & \text{no other match}
-          \end{cases}
-      \end{align*}
-      \end{alertblock}
+      \onslide<2->{\scriptsize
+        Let $R := Ranking(G,\pi,\sigma)$ for a fixed graph $G$, arrival order $\pi$, and ranking $\sigma$.
+        \begin{alertblock}{\scriptsize Specification of alternating path}
+          \begin{align*}
+            zig(x) &=
+              \begin{cases}
+                x \cons zag(y) & \{x,y\} \in R \\
+                [x] & x \text{ unmatched}
+              \end{cases} \\\\
+            zag(y) &=
+              \begin{cases}
+                y \cons zag(x') & x' \text{ \alert{matched instead}} \\
+                [y] & \text{no other match}
+              \end{cases}
+          \end{align*}
+        \end{alertblock}  
+      }
     \end{column}
   \end{columns}
+  \onslide<3->
+  \begin{itemize}
+    \item<3-> \alert{non-recursive} specification of $Ranking(G,\pi,\sigma)$ \textrightarrow interchangeability of $U,V$
+    \item<4-> Berge's Lemma~\cite{abdulaziz2019} for repeated application
+  \end{itemize}
   \note[itemize]{
     \item \emph{non-recursive} specification of matching on $G$ with arrival order $\pi$,
           and ranking $\sigma$
