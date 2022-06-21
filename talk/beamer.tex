@@ -1,6 +1,9 @@
 \documentclass{beamer}
 \usetheme[sectionpage=none]{metropolis}
 
+\usepackage{pgfpages}
+%\setbeameroption{show notes on second screen=right}
+
 \usepackage{isabelle,isabellesym}
 \newcommand*{\term}[1]{{\isaspacing\isastyle \input{#1}}}
 \newcommand*{\Term}[1]{{\isaspacing\isastyle #1}}
@@ -363,8 +366,9 @@
   \onslide<8->
   \begin{alertblock}{Task}
     \begin{itemize}
-      \item<8-> on arrival of $u \in U$, match to \emph{unmatched} neighbor $v \in V$ (or not)
-      \item<9-> maximize size of resulting matching
+      \item<8-> match as many vertices as possible
+      \item<9-> on arrival of $u \in U$, \alert{irrevocably} match to \emph{unmatched}
+        neighbor $v \in V$ (or not)
     \end{itemize}   
   \end{alertblock}
 \end{frame}
@@ -458,13 +462,20 @@
     \]}
     where $M$ is a maximum cardinality matching in $G$.
   \end{block}
+  \note{
+    \begin{itemize}
+      \item as seen before: Hopcroft-Karp for max-card matching
+      \item deterministic \textrightarrow{} competitive ratio of $\frac{1}{2}$
+      \item add randomiztion \textrightarrow{} consider expected size
+    \end{itemize}
+  }
 \end{frame}
 
 \begin{frame}
   \frametitle{RANKING}
   \onslide<+->
   \begin{itemize}
-    \item simple randomized algorithm due to Karp, Vazirani, and Vazirani is optimal~\cite{karp1990}
+    \item simple randomized algorithm due to Karp, Vazirani, and Vazirani~\cite{karp1990}
   \end{itemize}
   \onslide<+->
   \begin{columns}
@@ -786,6 +797,17 @@
 
 \begin{frame}
   \frametitle{Formalization Outline}
+  \note{
+    \begin{itemize}
+      \item follow simplified proof
+      \item prove competitive ratio $1-\frac{1}{e}$, not that it's best possible
+      \item Combinatorics: fix graph, arrival and ranking
+      \item Prob: use material from comb in randomized setting
+      \item lower bound competitive ratio depending on $\card{M}$
+      \item when $\card{M} \to \infty$, bound goes to $1-\frac{1}{e}$
+      \item focus on combinatorics, a bit on probabilities, skip limit
+    \end{itemize}
+  }
   \begin{itemize}[<+->]
     \item formalization follows proof due to Birnbaum \& Mathieu~\cite{birnbaum2008}
     \item three parts
@@ -801,9 +823,19 @@
 
 \begin{frame}
   \frametitle{Reducing Analysis to Graphs with Perfect Matching}
+  \note{
+    \begin{itemize}
+      \item perfect matching gives additional structure we can exploit in randomized analysis
+      \item consider what happens when removing a single vertex (how do the matchings differ
+        when keeping the same arrival order and ranking)
+      \item cascading \textrightarrow{} $u_3$ is in same situation as $u_1$
+      \item not necessarily always two edges in symm.\ diff
+      \item consequence: matchings can only shrink towards "perfect matching graph"
+    \end{itemize}
+  }
   \begin{itemize}[<+->]
     \item original paper (and earlier simplifications) assume $G$ has a perfect matching
-    \item Birnbaum \& Mathieu state a \alert{\emph{simple structural observation}} which allows to
+    \item Birnbaum \& Mathieu state a lemma which allows to
       generalize to arbitrary graphs:
   \end{itemize}
   \begin{columns}
@@ -985,7 +1017,7 @@
           \end{tikzpicture}
         }
       }%
-      \only<12>{
+      \only<12->{
         \adjustbox{scale=0.8}{
           \begin{tikzpicture}
             \node at (1,0.5){$\oplus$};
@@ -1300,6 +1332,12 @@
       }%
     \end{column}
   \end{columns}
+  \onslide<13>{\color{black} \small 
+    \[
+      \frac{\card{Ranking(G,\pi,\sigma)}}{\card{M}} \geq 
+      \frac{\card{Ranking(G \setminus \{v_2\},\pi,\sigma')}}{\card{M}}
+    \]
+  }
 \end{frame}
 
 \begin{frame}
@@ -1375,14 +1413,16 @@
     \item<3-> \alert{non-recursive} specification of $Ranking(G,\pi,\sigma)$ \textrightarrow interchangeability of $U,V$
     \item<4-> Berge's Lemma~\cite{abdulaziz2019} for repeated application
   \end{itemize}
-  \note[itemize]{
-    \item \emph{non-recursive} specification of matching on $G$ with arrival order $\pi$,
+  \note{
+    \begin{itemize}
+      \item \emph{non-recursive} specification of matching on $G$ with arrival order $\pi$,
           and ranking $\sigma$
-    \item gives interchangeability of offline and online vertices
-    \item symmetry \textrightarrow{} $zig$-$zag$ also works for removing online vertex
-    \item full specification of path with mutually recursive functions \emph{zig} and \emph{zag}
-    \item Berge's Lemma formalized by Abdulaziz~\cite{abdulaziz2019}
-    \item Berge's Lemma not required for Lemma 2, but for consequence
+      \item gives interchangeability of offline and online vertices
+      \item symmetry \textrightarrow{} $zig$-$zag$ also works for removing online vertex
+      \item full specification of path with mutually recursive functions \emph{zig} and \emph{zag}
+      \item Berge's Lemma formalized by Abdulaziz~\cite{abdulaziz2019}
+      \item Berge's Lemma not required for Lemma 2, but for consequence
+    \end{itemize}
   }
 \end{frame}
 
