@@ -6,6 +6,7 @@ theory Ranking_Probabilistic
     "HOL-Probability.Random_Permutations"
     "HOL-Probability.Product_PMF"
     "HOL-Real_Asymp.Real_Asymp"
+    "LP_Duality.Minimum_Maximum"
 begin
 text \<open>
   In this final section we formulate RANKING as a randomized algorithm, and employ the previously
@@ -1056,7 +1057,11 @@ locale wf_ranking =
   assumes max_card_matching: "max_card_matching G M"
 begin
 
-abbreviation "ranking_prob \<equiv> map_pmf (\<lambda>\<sigma>. ranking G \<pi> \<sigma>) (pmf_of_set (permutations_of_set V))"
+definition "ranking_prob \<equiv>
+  do {
+    \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
+    return_pmf (ranking G \<pi> \<sigma>)
+  }"
 
 lemma graph_abs_G[simp]: "graph_abs G"
   using finite_graph bipartite
@@ -1303,7 +1308,7 @@ definition matched_before :: "nat \<Rightarrow> bool pmf" where
       \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
       v \<leftarrow> pmf_of_set V;
       let R = ranking G \<pi> \<sigma>; 
-      let u = (THE u. {u,v} \<in> M);     
+      let u = (THE u. {u,v} \<in> M);
       return_pmf (u \<in> Vs R \<and> index \<sigma> (THE v. {u,v} \<in> R) \<le> t)
     }"
 
@@ -1609,7 +1614,7 @@ abbreviation "matched_before_t_set t \<equiv>
 lemma expected_size_matched_before_sum: "measure_pmf.expectation (matched_before_t_set t) card =
   (\<Sum>\<sigma>\<in>permutations_of_set V. card {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> ranking G \<pi> \<sigma>) \<le> t}) / fact (card V)" (is "?L = ?R")
 proof -
-  have "?L = (\<Sum>\<^sub>ax. (\<Sum>\<^sub>axa. indicat_real (permutations_of_set V) xa * (if x = {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> xa) \<and> index xa (THE v. {u, v} \<in> ranking G \<pi> xa) \<le> t} then 1 else 0) / fact (card V)) * real (card x))"
+  have "?L = (\<Sum>\<^sub>aU. (\<Sum>\<^sub>a\<sigma>. indicat_real (permutations_of_set V) \<sigma> * (if U = {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u, v} \<in> ranking G \<pi> \<sigma>) \<le> t} then 1 else 0) / fact (card V)) * real (card U))"
     using perms_of_V non_empty
     by (simp add: pmf_expectation_eq_infsetsum pmf_bind Let_def indicator_singleton)
 
@@ -1830,7 +1835,8 @@ qed
 lemma expected_size_is_sum_of_matched_ranks: "measure_pmf.expectation ranking_prob card = (\<Sum>s<card V. measure_pmf.prob (rank_matched s) {True})"
 proof -
   from perms_of_V have "measure_pmf.expectation ranking_prob card = (\<Sum>\<sigma>\<in>permutations_of_set V. (card (ranking G \<pi> \<sigma>))) / fact (card V)"
-    by (auto simp: integral_pmf_of_set)
+    unfolding ranking_prob_def
+    by (auto simp: pmf_expectation_bind_pmf_of_set field_simps sum_divide_distrib)    
 
   also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. \<Sum>t<card V. of_bool (\<sigma> ! t \<in> Vs (ranking G \<pi> \<sigma>))) / fact (card V)"
     using ranking_card_is_sum_of_matched_vertices
@@ -1898,20 +1904,21 @@ context wf_ranking
 begin
 
 lemma expectation_make_perfect_matching_le:
-  assumes "G' = make_perfect_matching G M"
-  shows "measure_pmf.expectation (map_pmf (\<lambda>\<sigma>. ranking G' \<pi> \<sigma>) (pmf_of_set (permutations_of_set (V \<inter> Vs G')))) card \<le>
+  defines "G' \<equiv> make_perfect_matching G M"
+  shows "measure_pmf.expectation (do {\<sigma> \<leftarrow> pmf_of_set (permutations_of_set (V \<inter> Vs G')); return_pmf (ranking G' \<pi> \<sigma>)}) card \<le>
     measure_pmf.expectation ranking_prob card" (is "?L \<le> ?R")
 proof -
   have "?R = (\<Sum>\<sigma>\<in>permutations_of_set V. card (ranking G \<pi> \<sigma>) / fact (card V))"
+    unfolding ranking_prob_def
     using perms_of_V
-    by (auto simp: integral_pmf_of_set sum_divide_distrib)
+    by (auto simp: pmf_expectation_bind_pmf_of_set field_simps sum_divide_distrib)
 
   also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. [v <- \<sigma>. v \<in> V \<inter> Vs G'] = \<sigma>'}. card (ranking G \<pi> \<sigma>) / fact (card V)))"
     by (rule sum_split[symmetric], auto; intro permutations_of_setI)
        (auto dest: permutations_of_setD)
 
   also have "\<dots> \<ge> (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. [v <- \<sigma>. v \<in> V \<inter> Vs G'] = \<sigma>'}. card (ranking G' \<pi> \<sigma>) / fact (card V)))" (is "_ \<ge> ?S")
-    unfolding assms
+    unfolding G'_def
   proof (intro sum_mono divide_right_mono, goal_cases)
     case (1 \<sigma>' \<sigma>)
     with bipartite bipartite_subgraph[OF bipartite subgraph_make_perfect_matching, of M]
@@ -1926,7 +1933,7 @@ proof -
        (auto intro!: ranking_filter_vertices_in_graph_ranking[symmetric] dest: permutations_of_setD)
 
   also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (fact (card V) / fact (card (V \<inter> Vs G'))) * real (card (ranking G' \<pi> \<sigma>')) / fact (card V))"
-  proof (rule sum.cong, goal_cases)next
+  proof (rule sum.cong, goal_cases)
     case (2 x)
     then show ?case
       by (simp only: sum_constant times_divide_eq_right, intro arg_cong2[where f = divide] arg_cong2[where f = times] card_restrict_permutation_eq_fact)
@@ -1938,7 +1945,7 @@ proof -
 
   also have "\<dots> = ?L"
     using perms_of_V
-    by (auto simp: integral_pmf_of_set sum_divide_distrib)
+    by (auto simp: pmf_expectation_bind_pmf_of_set field_simps sum_divide_distrib)
 
   finally have "?S = ?L" .
 
@@ -2025,18 +2032,12 @@ next
       using \<open>perfect_matching G' M\<close> by blast
   qed
 
-  from pm.non_empty have non_empty: "V \<noteq> {}" by blast
-
-  have "measure_pmf.expectation pm.ranking_prob card \<le> measure_pmf.expectation ranking_prob card"
-    using G'_def
-    by (simp only: ranking_filter_vs)
-       (rule expectation_make_perfect_matching_le, blast)
-
   have "1 - (1 - (1/(card M + 1)))^(card M) \<le> measure_pmf.expectation pm.ranking_prob card / card M"
     using pm.comp_ratio_no_limit[simplified card_eq]
     by blast
 
   also have "\<dots> \<le> measure_pmf.expectation ranking_prob card / card M"
+    unfolding pm.ranking_prob_def
     using G'_def
     by (simp only: ranking_filter_vs, intro divide_right_mono expectation_make_perfect_matching_le)
        auto
@@ -2052,18 +2053,18 @@ text \<open>
   the online bipartite matching problem with a maximum matching of size \<^term>\<open>n::nat\<close>. Subsequently
   we use that definition to prove that the competitive ratio tends to the famous $1 - \frac{1}{e}$.
 \<close>
-abbreviation matching_instance_nat :: "nat \<Rightarrow> (nat \<times> nat) set set" where
+abbreviation matching_instance_nat :: "nat \<Rightarrow> (nat \<times> nat) graph" where
   "matching_instance_nat n \<equiv> {{(0,k),(Suc 0,k)} |k. k < n}"
 
-definition ranking_instance_nat :: "nat \<Rightarrow> (nat \<times> nat) set set" where
-  "ranking_instance_nat n \<equiv> (SOME G. max_card_matching G (matching_instance_nat n) \<and>
-     finite G \<and> G \<subseteq> {{(0,k),(Suc 0,l)} |k l. True})"
+definition ranking_instances_nat :: "nat \<Rightarrow> (nat \<times> nat) graph set" where
+  "ranking_instances_nat n \<equiv> {G. max_card_matching G (matching_instance_nat n) \<and>
+     finite G \<and> G \<subseteq> {{(0,k),(Suc 0,l)} |k l. k < 2*n \<and> l < 2*n}}"
 
-definition arrival_instance_nat :: "nat \<Rightarrow> (nat \<times> nat) list" where
-  "arrival_instance_nat n \<equiv> (SOME \<pi>. set \<pi> = {(0,k) |k. \<exists>l. {(0,k),(Suc 0,l)} \<in> ranking_instance_nat n})"
+definition arrival_orders :: "(nat \<times> nat) graph \<Rightarrow> (nat \<times> nat) list set" where
+  "arrival_orders G \<equiv> permutations_of_set {(Suc 0,l) |l. \<exists>k. {(0,k),(Suc 0,l)} \<in> G}"
 
-definition offline_instance_nat :: "nat \<Rightarrow> (nat \<times> nat) set" where
-  "offline_instance_nat n \<equiv> {(Suc 0, k) |k. \<exists>l. {(0, l),(Suc 0, k)} \<in> ranking_instance_nat n}"
+definition offline_vertices :: "(nat \<times> nat) graph \<Rightarrow> (nat \<times> nat) set" where
+  "offline_vertices G \<equiv> {(0, k) |k. \<exists>l. {(0, k),(Suc 0, l)} \<in> G}"
 
 lemma matching_matching_instance_nat[simp]:
   "matching (matching_instance_nat n)"
@@ -2075,9 +2076,9 @@ lemma card_matching_instance_nat:
   by (intro bij_betw_same_card[where f = "\<lambda>e. snd (SOME x. x \<in> e)"] bij_betwI[where g = "\<lambda>n. {(0,n),(Suc 0,n)}"])
      (auto simp: snd_some_disj)
 
-lemma ranking_instance_natE:
+lemma ranking_instanceE':
   obtains G where "max_card_matching G (matching_instance_nat n)"
-    "finite G" "G \<subseteq> {{(0,k),(Suc 0,l)} |k l. True}"
+    "finite G" "G \<subseteq> {{(0,k),(Suc 0,l)} |k l. k < 2*n \<and> l < 2*n}"
 proof
   show "max_card_matching (matching_instance_nat n) (matching_instance_nat n)"
     by (auto intro: max_card_matchingI intro!: card_mono)
@@ -2085,77 +2086,174 @@ next
   show "finite (matching_instance_nat n)"
     by auto
 next
-  show "matching_instance_nat n \<subseteq> {{(0,k), (Suc 0,l)} |k l. True}"
-    by auto
+  show "matching_instance_nat n \<subseteq> {{(0,k), (Suc 0,l)} |k l. k < 2*n \<and> l < 2*n}"
+    by force
 qed
 
-lemma 
-  shows max_card_matching_instance: "max_card_matching (ranking_instance_nat n) (matching_instance_nat n)"
-    and finite_instance: "finite (ranking_instance_nat n)"
-    and subset_instance: "ranking_instance_nat n \<subseteq> {{(0,k),(Suc 0,l)} |k l. True}"
-proof -
-  obtain G where "max_card_matching G (matching_instance_nat n)" "finite G" "G \<subseteq> {{(0,k),(Suc 0,l)} |k l. True}"
-    using ranking_instance_natE by blast
+lemma ranking_instanceE:
+  obtains G where "G \<in> ranking_instances_nat n"
+  unfolding ranking_instances_nat_def
+  using ranking_instanceE'[of n thesis]
+  by blast
 
-  then have "max_card_matching (ranking_instance_nat n) (matching_instance_nat n) \<and> finite (ranking_instance_nat n) \<and> ranking_instance_nat n \<subseteq> {{(0,k),(Suc 0,l)} |k l. True}"
-    unfolding ranking_instance_nat_def
-    by (intro someI) auto
+lemma
+  assumes "G \<in> ranking_instances_nat n"
+  shows max_card_matching_instance: "max_card_matching G (matching_instance_nat n)"
+    and finite_instance: "finite G"
+    and subset_instance: "G \<subseteq> {{(0,k),(Suc 0,l)} |k l. k < 2 * n \<and> l < 2 * n}"
+  using assms
+  unfolding ranking_instances_nat_def
+  by auto
 
-  then show "max_card_matching (ranking_instance_nat n) (matching_instance_nat n)" "finite (ranking_instance_nat n)"
-    "ranking_instance_nat n \<subseteq> {{(0,k), (Suc 0,l)} |k l. True}"
-    by blast+
-qed
-
-lemma finite_vs_instance: "finite (Vs (ranking_instance_nat n))"
+lemma finite_vs_instance: "G \<in> ranking_instances_nat n \<Longrightarrow> finite (Vs G)"
   using finite_instance subset_instance
   unfolding Vs_def
   by blast
 
 lemma
-  shows set_arrival_instance: "set (arrival_instance_nat n) = {(0,k) |k. \<exists>l. {(0,k),(Suc 0,l)} \<in> ranking_instance_nat n}"
-  unfolding arrival_instance_nat_def
-  by (rule someI_ex, rule finite_list, rule finite_subset[OF _ finite_vs_instance[where n = n]])
-     (use edges_are_Vs in blast)
+  assumes "\<pi> \<in> arrival_orders G"
+  shows distinct_arrival_order: "distinct \<pi>"
+    and set_arrival_order: "set \<pi> = {(Suc 0,k) |k. \<exists>l. {(0,l),(Suc 0,k)} \<in> G}"
+  using assms
+  unfolding arrival_orders_def
+  by (auto dest: permutations_of_setD)
 
 lemma wf_ranking_nat:
-  shows "wf_ranking (ranking_instance_nat n) (arrival_instance_nat n) (offline_instance_nat n) (matching_instance_nat n)"
+  assumes "G \<in> ranking_instances_nat n"
+  assumes "\<pi> \<in> arrival_orders G"
+  shows "wf_ranking G \<pi> (offline_vertices G) (matching_instance_nat n)"
 proof (unfold_locales, goal_cases)
   case 1
   then show bipartite_instance: ?case
   proof (intro bipartiteI, goal_cases)
     case 1
-    from subset_instance show ?case
-      unfolding offline_instance_nat_def
-      by (auto simp: set_arrival_instance)
+    from assms show ?case
+      unfolding offline_vertices_def
+      by (auto simp: set_arrival_order)
   next
     case (2 e)
-    then show ?case
-      unfolding offline_instance_nat_def
-      using set_arrival_instance subsetD subset_instance by fastforce
+    with assms show ?case
+      unfolding offline_vertices_def ranking_instances_nat_def
+      using set_arrival_order subsetD by blast
   qed
 
   case 3
-  show ?case
+  with assms show ?case
     by (intro equalityI bipartite_vs_subset[OF bipartite_instance])
-       (auto simp add: set_arrival_instance Vs_def offline_instance_nat_def intro: bipartite_vs_subset[OF bipartite_instance])
+       (auto simp add: set_arrival_order Vs_def offline_vertices_def intro: bipartite_vs_subset[OF bipartite_instance])
 next
   case 2
-  from finite_instance show ?case by blast
+  from finite_instance assms show ?case by blast
 next
   case 4
-  from max_card_matching_instance show ?case by blast
+  from max_card_matching_instance assms show ?case by blast
 qed
 
+lemma finite_ranking_instances: "finite (ranking_instances_nat n)"
+proof (rule finite_subset)
+  show "ranking_instances_nat n \<subseteq> {G. G \<subseteq> {{(0, k), (Suc 0, l)} | k l. k < 2 * n \<and> l < 2 * n}}" (is "_ \<subseteq> ?G")
+    unfolding ranking_instances_nat_def
+    by blast
+
+  have finite_P: "finite {P. P \<subseteq> {((0,k), (Suc 0, l)) | k l. k < 2*n \<and> l < 2*n}}" (is "finite ?P")
+  proof (rule finite_subset)
+    show "?P \<subseteq> Pow ({(0,k) | k. k < 2*n} \<times> {(Suc 0, l) | l. l < 2 * n})" (is "?P \<subseteq> Pow ?P'")
+      by blast
+  
+    show "finite (Pow ?P')"
+      by simp
+  qed
+
+  have the_l: "(THE a. (a = (0, k) \<or> a = (Suc 0, l)) \<and> fst a = 0) = (0,k)" for k l
+    by auto
+
+  have the_r: "(THE b. (b = (0, k) \<or> b = (Suc 0, l)) \<and> fst b = Suc 0) = (Suc 0, l)" for k l
+    by auto
+
+  have "bij_betw (\<lambda>P. (\<lambda>(a,b). {a,b}) ` P) ?P ?G"
+  proof (intro bij_betwI[where g = "\<lambda>G. (\<lambda>e. (THE a. a \<in> e \<and> fst a = 0, THE b. b \<in> e \<and> fst b = Suc 0)) ` G"], goal_cases)
+  next
+    case (3 P)
+
+    then show ?case
+      apply (auto simp: the_l the_r image_def)
+      apply (drule subsetD)
+       apply auto
+      subgoal for k l
+        apply (rule exI[of _ "{(0, k), (Suc 0, l)}"])
+        apply (auto simp: the_l the_r)
+        done
+      done
+  next
+    case (4 G)
+    then show ?case
+      apply (auto simp: the_l the_r image_def)
+      apply (drule subsetD)
+       apply auto
+      subgoal for k l
+        apply (rule exI[of _ 0], rule exI[of _ k], rule exI[of _ "Suc 0"], rule exI[of _ l])
+        apply (auto intro: bexI[of _ "{(0, k), (Suc 0, l)}"] simp: the_l the_r)
+        done
+      done
+  qed (auto simp: the_l the_r)
+
+  
+  with finite_P bij_betw_finite show "finite ?G"
+    by blast
+qed
+
+lemma finite_arrival_orders:
+  shows "finite (arrival_orders G)"
+  unfolding arrival_orders_def
+  by simp
+
+lemma non_empty_arrival_orders:
+  assumes "finite (Vs G)"
+  shows "arrival_orders G \<noteq> {}"
+  using assms
+  unfolding arrival_orders_def
+  apply (auto)
+  apply (rule finite_subset[of _ "Vs G"])
+   apply (auto)
+  done
+
 definition comp_ratio_nat where
-  "comp_ratio_nat n \<equiv> measure_pmf.expectation (wf_ranking.ranking_prob (ranking_instance_nat n) (arrival_instance_nat n) (offline_instance_nat n)) card / card (matching_instance_nat n)"
+  "comp_ratio_nat n \<equiv> Min {Min {measure_pmf.expectation (wf_ranking.ranking_prob G \<pi> (offline_vertices G)) card / card (matching_instance_nat n) | \<pi>. \<pi> \<in> arrival_orders G} | G. G \<in> ranking_instances_nat n}"
 
 lemma comp_ratio_nat_bound:
-  "1 - (1 - 1/real (n+1))^n \<le> comp_ratio_nat n"
+  shows "1 - (1 - 1/real (n+1))^n \<le> comp_ratio_nat n"
 proof -
   have "1 - (1 - 1/(card (matching_instance_nat n) + 1))^card (matching_instance_nat n) \<le> comp_ratio_nat n"
     unfolding comp_ratio_nat_def
-    using wf_ranking.ranking_comp_ratio[OF wf_ranking_nat]
-    by blast
+  proof (intro Min.boundedI, goal_cases)
+    case 1
+    then show ?case
+      by (auto intro!: finite_image_set intro: finite_ranking_instances)
+  next
+    case 2
+    obtain G where "G \<in> ranking_instances_nat n"
+      using ranking_instanceE by blast
+
+    then show ?case
+      by blast
+  next
+    case (3 c)
+    then show ?case
+    proof (auto, intro Min.boundedI, goal_cases)
+      case (1 G)
+      then show ?case
+        by (auto intro!: finite_image_set intro: finite_arrival_orders)
+    next
+      case (2 G)
+      then show ?case
+        by (auto dest: finite_vs_instance non_empty_arrival_orders)
+    next
+      case (3 G c')
+      then show ?case
+        using wf_ranking.ranking_comp_ratio[OF wf_ranking_nat]
+        by auto
+    qed
+  qed    
 
   then show ?thesis
     by (auto simp add: card_matching_instance_nat field_simps)
@@ -2171,7 +2269,7 @@ proof (rule LIMSEQ_le)
   from assms show "comp_ratio_nat \<longlonglongrightarrow> cr" by blast
 
   show "\<exists>N. \<forall>n\<ge>N. 1 - (1 - 1 / real (n+1)) ^ n \<le> comp_ratio_nat n"
-    by (intro exI[of _ 0] allI impI comp_ratio_nat_bound)
+    by (intro exI[of _ "Suc 0"] allI impI comp_ratio_nat_bound)
 qed
 
 end
