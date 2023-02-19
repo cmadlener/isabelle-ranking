@@ -6,7 +6,6 @@ theory Ranking_Probabilistic
     "HOL-Probability.Random_Permutations"
     "HOL-Probability.Product_PMF"
     "HOL-Real_Asymp.Real_Asymp"
-    "LP_Duality.Minimum_Maximum"
 begin
 text \<open>
   In this final section we formulate RANKING as a randomized algorithm, and employ the previously
@@ -1057,10 +1056,10 @@ locale wf_ranking =
   assumes max_card_matching: "max_card_matching G M"
 begin
 
-definition "ranking_prob \<equiv>
+definition "ranking \<equiv>
   do {
     \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
-    return_pmf (ranking G \<pi> \<sigma>)
+    return_pmf (online_match G \<pi> \<sigma>)
   }"
 
 lemma graph_abs_G[simp]: "graph_abs G"
@@ -1075,24 +1074,24 @@ lemma finite[simp]: "finite V"
   using finite_graph vertices
   by (metis finite_Un graph_abs_G graph_abs_def)
 
-lemma ranking_edgeE:
-  assumes "e \<in> ranking G \<pi> \<sigma>"
+lemma online_match_edgeE:
+  assumes "e \<in> online_match G \<pi> \<sigma>"
   obtains u v where "e = {u,v}" "u \<in> set \<pi>" "v \<in> V" "v \<in> set \<sigma>"
   using assms bipartite
-  by (smt (verit, best) bipartite_disjointD bipartite_edgeE disjoint_iff_not_equal edges_are_Vs(2) ranking_Vs_subset subgraph_ranking)
+  by (smt (verit, best) bipartite_disjointD bipartite_edgeE disjoint_iff_not_equal edges_are_Vs(2) online_match_Vs_subset subgraph_online_match)
 
 lemma bipartite_matching:
   "bipartite M (set \<pi>) V"
   using bipartite max_card_matching
   by (auto intro: bipartite_subgraph dest: max_card_matchingD)
 
-lemma matching_if_perm: "\<sigma> \<in> permutations_of_set V \<Longrightarrow> matching (ranking G \<pi> \<sigma>)"
+lemma matching_if_perm: "\<sigma> \<in> permutations_of_set V \<Longrightarrow> matching (online_match G \<pi> \<sigma>)"
   using bipartite
-  by (auto intro: matching_ranking dest: permutations_of_setD bipartite_disjointD)
+  by (auto intro: matching_online_match dest: permutations_of_setD bipartite_disjointD)
 
-lemma bipartite_if_perm: "\<sigma> \<in> permutations_of_set V \<Longrightarrow> bipartite (ranking G \<pi> \<sigma>) (set \<pi>) (set \<sigma>)"
+lemma bipartite_if_perm: "\<sigma> \<in> permutations_of_set V \<Longrightarrow> bipartite (online_match G \<pi> \<sigma>) (set \<pi>) (set \<sigma>)"
   using bipartite
-  by (auto dest: permutations_of_setD intro: bipartite_ranking)
+  by (auto dest: permutations_of_setD intro: bipartite_online_match)
 
 lemma perms_of_V:
   shows "permutations_of_set V \<noteq> {}"
@@ -1290,7 +1289,7 @@ abbreviation rank_unmatched :: "nat \<Rightarrow> bool pmf" where
   "rank_unmatched t \<equiv>
     do {
       \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
-      let R = ranking G \<pi> \<sigma>;
+      let R = online_match G \<pi> \<sigma>;
       return_pmf (\<sigma> ! t \<notin> Vs R)
     }"
 
@@ -1298,7 +1297,7 @@ abbreviation rank_matched :: "nat \<Rightarrow> bool pmf" where
   "rank_matched t \<equiv>
     do {
       \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
-      let R = ranking G \<pi> \<sigma>;
+      let R = online_match G \<pi> \<sigma>;
       return_pmf (\<sigma> ! t \<in> Vs R)
     }"
 
@@ -1307,7 +1306,7 @@ definition matched_before :: "nat \<Rightarrow> bool pmf" where
     do {
       \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
       v \<leftarrow> pmf_of_set V;
-      let R = ranking G \<pi> \<sigma>; 
+      let R = online_match G \<pi> \<sigma>; 
       let u = (THE u. {u,v} \<in> M);
       return_pmf (u \<in> Vs R \<and> index \<sigma> (THE v. {u,v} \<in> R) \<le> t)
     }"
@@ -1319,12 +1318,12 @@ lemma rank_matched_False_rank_unmatched_True[simplified]: "measure_pmf.prob (ran
 lemma rank_matched_prob_is_expectation: "measure_pmf.prob (rank_matched t) {True} = measure_pmf.expectation (rank_matched t) of_bool"
   by (simp add: bernoulli_prob_True_expectation)
 
-lemma perms_where_0th_matched_eq_perms: "permutations_of_set V \<inter> {\<sigma>. \<sigma> ! 0 \<in> Vs (ranking G \<pi> \<sigma>)} = permutations_of_set V"
+lemma perms_where_0th_matched_eq_perms: "permutations_of_set V \<inter> {\<sigma>. \<sigma> ! 0 \<in> Vs (online_match G \<pi> \<sigma>)} = permutations_of_set V"
 proof (intro equalityI subsetI IntI CollectI)
   fix \<sigma>
   assume perm: "\<sigma> \<in> permutations_of_set V"
-  show "\<sigma> ! 0 \<in> Vs (ranking G \<pi> \<sigma>)"
-  proof (intro first_rank_always_matched[where G = G and \<pi> = \<pi> and M = "ranking G \<pi> \<sigma>"] ranking_matching_ranking)
+  show "\<sigma> ! 0 \<in> Vs (online_match G \<pi> \<sigma>)"
+  proof (intro first_rank_always_matched[where G = G and \<pi> = \<pi> and M = "online_match G \<pi> \<sigma>"] ranking_matching_online_match)
     show "bipartite G (set \<pi>) (set \<sigma>)"
       using bipartite perm
       by (auto dest: permutations_of_setD)
@@ -1361,8 +1360,8 @@ lemma the_t_for_edge:
 lemma v_unmatched_u_matched_before_Ex:
   assumes perm: "\<sigma> \<in> permutations_of_set V"
   assumes v: "v \<in> V"
-  assumes "v \<notin> Vs (ranking G \<pi> \<sigma>[v \<mapsto> t])"
-  shows "\<exists>v'. {(THE u. {u,v} \<in> M),v'} \<in> ranking G \<pi> \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v] \<and> index \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v] v' \<le> index \<sigma>[v \<mapsto> t] v"
+  assumes "v \<notin> Vs (online_match G \<pi> \<sigma>[v \<mapsto> t])"
+  shows "\<exists>v'. {(THE u. {u,v} \<in> M),v'} \<in> online_match G \<pi> \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v] \<and> index \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v] v' \<le> index \<sigma>[v \<mapsto> t] v"
 proof (rule v_unmatched_edge_matched_earlier)
   show "(THE u. {u,v} \<in> M) \<in> set \<pi>"
     using v perfect_matching
@@ -1375,108 +1374,108 @@ next
     using v perfect_matching
     by (auto elim!: the_match_offlineE dest: perfect_matchingD the_match)
 next
-  show "v \<notin> Vs (ranking G \<pi> \<sigma>[v \<mapsto> t])"
+  show "v \<notin> Vs (online_match G \<pi> \<sigma>[v \<mapsto> t])"
     using assms by blast
 next
-  show "ranking_matching G (ranking G \<pi> \<sigma>[v \<mapsto> t]) \<pi> \<sigma>[v \<mapsto> t]"
+  show "ranking_matching G (online_match G \<pi> \<sigma>[v \<mapsto> t]) \<pi> \<sigma>[v \<mapsto> t]"
     using perm v bipartite
-    by (auto intro!: ranking_matching_ranking simp: move_to_set insert_absorb dest: permutations_of_setD)
+    by (auto intro!: ranking_matching_online_match simp: move_to_set insert_absorb dest: permutations_of_setD)
 next
-  show "ranking_matching G (ranking G \<pi> \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v]) \<pi> \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v]"
+  show "ranking_matching G (online_match G \<pi> \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v]) \<pi> \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v]"
     using perm v bipartite
-    by (auto intro!: ranking_matching_ranking simp: move_to_set insert_absorb dest: permutations_of_setD)
+    by (auto intro!: ranking_matching_online_match simp: move_to_set insert_absorb dest: permutations_of_setD)
 qed
 
 lemma v_unmatched_u_matched_before_the:
   assumes perm: "\<sigma> \<in> permutations_of_set V"
   assumes v: "v \<in> V"
-  assumes "\<sigma>[v \<mapsto> t] ! t \<notin> Vs (ranking G \<pi> \<sigma>[v \<mapsto> t])"
+  assumes "\<sigma>[v \<mapsto> t] ! t \<notin> Vs (online_match G \<pi> \<sigma>[v \<mapsto> t])"
   assumes "t < length \<sigma>"
-  shows "(THE u. {u, v} \<in> M) \<in> Vs (ranking G \<pi> \<sigma>)"
-    and "index \<sigma> (THE v'. {THE u. {u, v} \<in> M, v'} \<in> ranking G \<pi> \<sigma>) \<le> t"
+  shows "(THE u. {u, v} \<in> M) \<in> Vs (online_match G \<pi> \<sigma>)"
+    and "index \<sigma> (THE v'. {THE u. {u, v} \<in> M, v'} \<in> online_match G \<pi> \<sigma>) \<le> t"
 proof -
   let ?u = "THE u. {u,v} \<in> M"
   have "\<sigma>[v \<mapsto> t] ! t = v"
     using assms
     by (auto intro: move_to_index_nth dest: permutations_of_setD)
 
-  with assms obtain v' where v': "{?u, v'} \<in> ranking G \<pi> \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v]"
+  with assms obtain v' where v': "{?u, v'} \<in> online_match G \<pi> \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v]"
     "index \<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v] v' \<le> index \<sigma>[v \<mapsto> t] v"
     by (auto dest: v_unmatched_u_matched_before_Ex)
 
   from perm v have move_to_move_to: "\<sigma>[v \<mapsto> t][v \<mapsto> index \<sigma> v] = \<sigma>"
     by (auto intro!: move_to_move_back_id dest: permutations_of_setD)
 
-  with v' show "?u \<in> Vs (ranking G \<pi> \<sigma>)"
+  with v' show "?u \<in> Vs (online_match G \<pi> \<sigma>)"
     by auto
 
-  from v' perm have the_v': "(THE v'. {?u, v'} \<in> ranking G \<pi> \<sigma>) = v'"
+  from v' perm have the_v': "(THE v'. {?u, v'} \<in> online_match G \<pi> \<sigma>) = v'"
     by (auto intro!: the_match' matching_if_perm simp: move_to_move_to)
   
   from assms have "index \<sigma>[v \<mapsto> t] v = t"
     by (auto intro: move_to_index_v dest: permutations_of_setD)
 
-  with v' show "index \<sigma> (THE v'. {?u,v'} \<in> ranking G \<pi> \<sigma>) \<le> t"
+  with v' show "index \<sigma> (THE v'. {?u,v'} \<in> online_match G \<pi> \<sigma>) \<le> t"
     by (auto simp: the_v' move_to_move_to)
 qed
 
-lemma ranking_card_is_sum_of_matched_vertices:
+lemma online_match_card_is_sum_of_matched_vertices:
   assumes \<sigma>: "\<sigma> \<in> permutations_of_set V"
-  shows "card (ranking G \<pi> \<sigma>) = sum (\<lambda>t. of_bool (\<sigma> ! t \<in> Vs (ranking G \<pi> \<sigma>))) {..<card V}"
+  shows "card (online_match G \<pi> \<sigma>) = sum (\<lambda>t. of_bool (\<sigma> ! t \<in> Vs (online_match G \<pi> \<sigma>))) {..<card V}"
 proof -
   have card_length: "card V = length \<sigma>"
     using assms
     by (simp add: length_finite_permutations_of_set)
 
-  from \<sigma> have matching: "matching (ranking G \<pi> \<sigma>)"
+  from \<sigma> have matching: "matching (online_match G \<pi> \<sigma>)"
     by (auto intro: matching_if_perm)
 
-  from \<sigma> have bipartite': "bipartite (ranking G \<pi> \<sigma>) (set \<pi>) (set \<sigma>)"
+  from \<sigma> have bipartite': "bipartite (online_match G \<pi> \<sigma>) (set \<pi>) (set \<sigma>)"
     by (auto intro: bipartite_if_perm)
 
-  have "card (ranking G \<pi> \<sigma>) = card (index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>))"
+  have "card (online_match G \<pi> \<sigma>) = card (index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` online_match G \<pi> \<sigma>))"
   proof (rule bij_betw_same_card[of "\<lambda>e. (THE t. \<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> e)"],
-         rule bij_betwI[where g = "\<lambda>t. (THE e. e \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e)"])
-    show "(\<lambda>e. THE t. \<exists>v\<in>set \<sigma>. index \<sigma> v = t \<and> v \<in> e) \<in> ranking G \<pi> \<sigma> \<rightarrow> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>)"
+         rule bij_betwI[where g = "\<lambda>t. (THE e. e \<in> online_match G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e)"])
+    show "(\<lambda>e. THE t. \<exists>v\<in>set \<sigma>. index \<sigma> v = t \<and> v \<in> e) \<in> online_match G \<pi> \<sigma> \<rightarrow> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` online_match G \<pi> \<sigma>)"
     proof (rule Pi_I)
       fix e
-      assume edge: "e \<in> ranking G \<pi> \<sigma>"
+      assume edge: "e \<in> online_match G \<pi> \<sigma>"
 
       then obtain u v where uv: "e = {u,v}" "u \<in> set \<pi>" "v \<in> set \<sigma>"
-        by (auto elim: ranking_edgeE)
+        by (auto elim: online_match_edgeE)
 
       with \<sigma> edge have "(THE t. \<exists>v' \<in> set \<sigma>. index \<sigma> v' = t \<and> v' \<in> e) = index \<sigma> v"
-        by (auto intro!: the_t_for_edge[simplified] dest: subgraph_ranking)
+        by (auto intro!: the_t_for_edge[simplified] dest: subgraph_online_match)
 
-      with edge uv show "(THE t. \<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> e) \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>)"
+      with edge uv show "(THE t. \<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> e) \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` online_match G \<pi> \<sigma>)"
         by (auto intro!: imageI)
     qed
   next
-    show "(\<lambda>t. THE e. e \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e) \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>) \<rightarrow> ranking G \<pi> \<sigma>"
+    show "(\<lambda>t. THE e. e \<in> online_match G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e) \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` online_match G \<pi> \<sigma>) \<rightarrow> online_match G \<pi> \<sigma>"
     proof (rule Pi_I)
       fix t
-      assume t: "t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>)"
+      assume t: "t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` online_match G \<pi> \<sigma>)"
 
-      then obtain v where v: "index \<sigma> v = t" "v \<in> set \<sigma>" "v \<in> Vs (ranking G \<pi> \<sigma>)"
+      then obtain v where v: "index \<sigma> v = t" "v \<in> set \<sigma>" "v \<in> Vs (online_match G \<pi> \<sigma>)"
         by blast
 
-      then obtain e where e: "e \<in> ranking G \<pi> \<sigma>" "v \<in> e"
+      then obtain e where e: "e \<in> online_match G \<pi> \<sigma>" "v \<in> e"
         by (auto elim: vs_member_elim)
 
-      with assms matching have the_e: "\<And>e'. e' \<in> ranking G \<pi> \<sigma> \<and> v \<in> e' \<Longrightarrow> e' = e"
+      with assms matching have the_e: "\<And>e'. e' \<in> online_match G \<pi> \<sigma> \<and> v \<in> e' \<Longrightarrow> e' = e"
         by (auto dest: matching_unique_match)
 
-      with e v show "(THE e. e \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e) \<in> ranking G \<pi> \<sigma>"
+      with e v show "(THE e. e \<in> online_match G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e) \<in> online_match G \<pi> \<sigma>"
         by (metis (no_types, lifting) nth_index theI')
     qed
   next
-    show "\<And>e. e \<in> ranking G \<pi> \<sigma> \<Longrightarrow> (THE e'. e' \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! (THE t. \<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> e) \<in> e') = e"
+    show "\<And>e. e \<in> online_match G \<pi> \<sigma> \<Longrightarrow> (THE e'. e' \<in> online_match G \<pi> \<sigma> \<and> \<sigma> ! (THE t. \<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> e) \<in> e') = e"
     proof -
       fix e
-      assume e: "e \<in> ranking G \<pi> \<sigma>"
+      assume e: "e \<in> online_match G \<pi> \<sigma>"
 
       then obtain u v where uv: "u \<in> set \<pi>" "v \<in> set \<sigma>" "e = {u,v}"
-        by (auto elim: ranking_edgeE)
+        by (auto elim: online_match_edgeE)
 
       then obtain t where t: "t = index \<sigma> v"
         by blast
@@ -1484,27 +1483,27 @@ proof -
       with uv \<sigma> bipartite have the_t: "(THE t. \<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> e) = t"
         by (auto dest: bipartite_disjointD permutations_of_setD)
 
-      from \<sigma> uv matching \<open>e \<in> ranking G \<pi> \<sigma>\<close> have the_e: "\<And>e'. e' \<in> ranking G \<pi> \<sigma> \<and> v \<in> e' \<Longrightarrow> e' = e"
+      from \<sigma> uv matching \<open>e \<in> online_match G \<pi> \<sigma>\<close> have the_e: "\<And>e'. e' \<in> online_match G \<pi> \<sigma> \<and> v \<in> e' \<Longrightarrow> e' = e"
         by (metis insertCI matching_unique_match)
 
-      with e t \<open>v \<in> set \<sigma>\<close> show "(THE e'. e' \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! (THE t. \<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> e) \<in> e') = e" 
+      with e t \<open>v \<in> set \<sigma>\<close> show "(THE e'. e' \<in> online_match G \<pi> \<sigma> \<and> \<sigma> ! (THE t. \<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> e) \<in> e') = e" 
         by (auto simp: the_t intro!: the_equality)
            (use \<open>e = {u,v}\<close> in blast)
     qed
   next
-    show "\<And>t. t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>) \<Longrightarrow> (THE t'. \<exists>v \<in> set \<sigma>. index \<sigma> v = t' \<and> v \<in> (THE e. e \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e)) = t"
+    show "\<And>t. t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` online_match G \<pi> \<sigma>) \<Longrightarrow> (THE t'. \<exists>v \<in> set \<sigma>. index \<sigma> v = t' \<and> v \<in> (THE e. e \<in> online_match G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e)) = t"
     proof (rule the_equality)
       fix t
-      assume t: "t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>)"
+      assume t: "t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` online_match G \<pi> \<sigma>)"
 
-      with matching show "\<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> (THE e. e \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e)"
+      with matching show "\<exists>v \<in> set \<sigma>. index \<sigma> v = t \<and> v \<in> (THE e. e \<in> online_match G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e)"
         by (auto simp: the_edge)
     next
-      show "\<And>t t'. t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>) \<Longrightarrow> \<exists>v \<in> set \<sigma>. index \<sigma> v = t' \<and> v \<in> (THE e. e \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e) \<Longrightarrow> t' = t"
+      show "\<And>t t'. t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` online_match G \<pi> \<sigma>) \<Longrightarrow> \<exists>v \<in> set \<sigma>. index \<sigma> v = t' \<and> v \<in> (THE e. e \<in> online_match G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e) \<Longrightarrow> t' = t"
       proof -
         fix t t'
-        assume t: "t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` ranking G \<pi> \<sigma>)"
-          and t': "\<exists>v \<in> set \<sigma>. index \<sigma> v = t' \<and> v \<in> (THE e. e \<in> ranking G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e)"
+        assume t: "t \<in> index \<sigma> ` \<Union> ((\<inter>) (set \<sigma>) ` online_match G \<pi> \<sigma>)"
+          and t': "\<exists>v \<in> set \<sigma>. index \<sigma> v = t' \<and> v \<in> (THE e. e \<in> online_match G \<pi> \<sigma> \<and> \<sigma> ! t \<in> e)"
 
         with \<sigma> matching bipartite' show "t' = t"
           by (auto simp: the_edge intro: bipartite_eqI)
@@ -1529,7 +1528,7 @@ proof -
     do {
       \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
       v \<leftarrow> pmf_of_set V;
-      let R = ranking G \<pi> \<sigma>[v \<mapsto> t];
+      let R = online_match G \<pi> \<sigma>[v \<mapsto> t];
       return_pmf (\<sigma>[v \<mapsto> t] ! t \<notin> Vs R)
     }) {True}"
     by (subst move_to_t_eq_uniform[symmetric, of t])
@@ -1554,18 +1553,18 @@ lemma matched_before_uniform_u: "matched_before t = do
     {
       \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
       u \<leftarrow> pmf_of_set (set \<pi>);
-      let R = ranking G \<pi> \<sigma>;
+      let R = online_match G \<pi> \<sigma>;
       return_pmf (u \<in> Vs R \<and> index \<sigma> (THE v. {u,v} \<in> R) \<le> t)
     }" (is "?L = ?R")
 proof (rule pmf_eqI)
   fix i
 
   from finite non_empty have "pmf ?L i =
-  (\<Sum>\<sigma>\<in>permutations_of_set V. real (card (V \<inter> {v'. i = ((THE u. {u, v'} \<in> M) \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {THE u. {u, v'} \<in> M, v} \<in> ranking G \<pi> \<sigma>) \<le> t)})) / real (card V)) / fact (card V)"
+  (\<Sum>\<sigma>\<in>permutations_of_set V. real (card (V \<inter> {v'. i = ((THE u. {u, v'} \<in> M) \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {THE u. {u, v'} \<in> M, v} \<in> online_match G \<pi> \<sigma>) \<le> t)})) / real (card V)) / fact (card V)"
     unfolding matched_before_def Let_def
     by (simp add: pmf_bind_pmf_of_set indicator_singleton card_online_eq_offline sum.If_cases)
 
-  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. real (card (set \<pi> \<inter> {u. i = (u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u, v} \<in> ranking G \<pi> \<sigma>) \<le> t)})) / real (card V)) / fact (card V)"
+  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. real (card (set \<pi> \<inter> {u. i = (u \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u, v} \<in> online_match G \<pi> \<sigma>) \<le> t)})) / real (card V)) / fact (card V)"
   proof (intro arg_cong2[where f = divide] sum.cong; simp, goal_cases)
     case (1 \<sigma>)
     then show ?case
@@ -1607,18 +1606,18 @@ qed
 abbreviation "matched_before_t_set t \<equiv> 
   do {
     \<sigma> \<leftarrow> pmf_of_set (permutations_of_set V);
-    let R = ranking G \<pi> \<sigma>;
+    let R = online_match G \<pi> \<sigma>;
     return_pmf {u \<in> set \<pi>. u \<in> Vs R \<and> index \<sigma> (THE v. {u,v} \<in> R) \<le> t}
   }"
 
 lemma expected_size_matched_before_sum: "measure_pmf.expectation (matched_before_t_set t) card =
-  (\<Sum>\<sigma>\<in>permutations_of_set V. card {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> ranking G \<pi> \<sigma>) \<le> t}) / fact (card V)" (is "?L = ?R")
+  (\<Sum>\<sigma>\<in>permutations_of_set V. card {u \<in> set \<pi>. u \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> online_match G \<pi> \<sigma>) \<le> t}) / fact (card V)" (is "?L = ?R")
 proof -
-  have "?L = (\<Sum>\<^sub>aU. (\<Sum>\<^sub>a\<sigma>. indicat_real (permutations_of_set V) \<sigma> * (if U = {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u, v} \<in> ranking G \<pi> \<sigma>) \<le> t} then 1 else 0) / fact (card V)) * real (card U))"
+  have "?L = (\<Sum>\<^sub>aU. (\<Sum>\<^sub>a\<sigma>. indicat_real (permutations_of_set V) \<sigma> * (if U = {u \<in> set \<pi>. u \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u, v} \<in> online_match G \<pi> \<sigma>) \<le> t} then 1 else 0) / fact (card V)) * real (card U))"
     using perms_of_V non_empty
     by (simp add: pmf_expectation_eq_infsetsum pmf_bind Let_def indicator_singleton)
 
-  also have "\<dots> = (\<Sum>\<^sub>aU. (\<Sum>\<sigma>\<in>permutations_of_set V. (if U = {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u, v} \<in> ranking G \<pi> \<sigma>) \<le> t} then 1 else 0) / fact (card V)) * (card U))"
+  also have "\<dots> = (\<Sum>\<^sub>aU. (\<Sum>\<sigma>\<in>permutations_of_set V. (if U = {u \<in> set \<pi>. u \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u, v} \<in> online_match G \<pi> \<sigma>) \<le> t} then 1 else 0) / fact (card V)) * (card U))"
   proof (intro infsetsum_cong arg_cong2[where f = "(*)"] infsetsum_sum_cong, goal_cases)
     case (1 x)
     show ?case
@@ -1630,15 +1629,15 @@ proof -
       by (auto simp: indicator_eq_0_iff)
   qed simp_all
 
-  also have "\<dots> = (\<Sum>U\<in>Pow(set \<pi>). (\<Sum>\<sigma>\<in>permutations_of_set V. (if U = {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> ranking G \<pi> \<sigma>) \<le> t} then 1 else 0) / fact (card V)) * (card U))"
+  also have "\<dots> = (\<Sum>U\<in>Pow(set \<pi>). (\<Sum>\<sigma>\<in>permutations_of_set V. (if U = {u \<in> set \<pi>. u \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> online_match G \<pi> \<sigma>) \<le> t} then 1 else 0) / fact (card V)) * (card U))"
     by (intro infsetsum_sum_cong)
        (auto intro!: finite_subset[where B = "Pow(set \<pi>)"] elim: sum.not_neutral_contains_not_neutral split: if_splits)
 
-  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. (\<Sum>U\<in>Pow(set \<pi>). (if U = {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> ranking G \<pi> \<sigma>) \<le> t} then 1 else 0) / fact (card V) * (card U)))"
+  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. (\<Sum>U\<in>Pow(set \<pi>). (if U = {u \<in> set \<pi>. u \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> online_match G \<pi> \<sigma>) \<le> t} then 1 else 0) / fact (card V) * (card U)))"
     by (subst sum.swap)
        (simp add:  sum_distrib_right)
 
-  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. card {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> ranking G \<pi> \<sigma>) \<le> t} / fact (card V))"
+  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. card {u \<in> set \<pi>. u \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> online_match G \<pi> \<sigma>) \<le> t} / fact (card V))"
     by (auto simp: mult_delta_left simp flip: sum_divide_distrib)
 
   finally show ?thesis
@@ -1656,29 +1655,29 @@ lemma matched_before_prob_is_expected_size_div: "measure_pmf.prob (matched_befor
        card_online_eq_offline indicator_singleton sum.If_cases simp flip: sum_divide_distrib 
        intro!: sum.cong arg_cong2[where f = divide] bij_betw_same_card[where f = id] bij_betwI[where g = id])
 
-lemma matched_before_card_eq: "\<sigma> \<in> permutations_of_set V \<Longrightarrow> card {u\<in>set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> ranking G \<pi> \<sigma>) \<le> t} = card {v\<in>V. v \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t}"
-proof (rule bij_betw_same_card[where f = "\<lambda>u. (THE v. {u,v} \<in> ranking G \<pi> \<sigma>)"],
-       rule bij_betwI[where g = "\<lambda>v. (THE u. {u,v} \<in> ranking G \<pi> \<sigma>)"],
+lemma matched_before_card_eq: "\<sigma> \<in> permutations_of_set V \<Longrightarrow> card {u\<in>set \<pi>. u \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> online_match G \<pi> \<sigma>) \<le> t} = card {v\<in>V. v \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t}"
+proof (rule bij_betw_same_card[where f = "\<lambda>u. (THE v. {u,v} \<in> online_match G \<pi> \<sigma>)"],
+       rule bij_betwI[where g = "\<lambda>v. (THE u. {u,v} \<in> online_match G \<pi> \<sigma>)"],
        goal_cases)
   case 1
   then show ?case
   proof (intro funcsetI)
     fix u
-    assume "u \<in> {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u, v} \<in> ranking G \<pi> \<sigma>) \<le> t}"
+    assume "u \<in> {u \<in> set \<pi>. u \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u, v} \<in> online_match G \<pi> \<sigma>) \<le> t}"
 
-    then have u: "u \<in> set \<pi>" "u \<in> Vs (ranking G \<pi> \<sigma>)" "index \<sigma> (THE v. {u,v} \<in> ranking G \<pi> \<sigma>) \<le> t"
+    then have u: "u \<in> set \<pi>" "u \<in> Vs (online_match G \<pi> \<sigma>)" "index \<sigma> (THE v. {u,v} \<in> online_match G \<pi> \<sigma>) \<le> t"
       by blast+
 
-    then obtain e where e: "e \<in> ranking G \<pi> \<sigma>" "u \<in> e"
+    then obtain e where e: "e \<in> online_match G \<pi> \<sigma>" "u \<in> e"
       by (auto elim: vs_member_elim)
 
-    with u bipartite obtain v where v: "{u,v} \<in> ranking G \<pi> \<sigma>" "v \<in> V"
-      by (metis bipartite_vertex(2) empty_iff insert_iff online_subset_vs ranking_edgeE)
+    with u bipartite obtain v where v: "{u,v} \<in> online_match G \<pi> \<sigma>" "v \<in> V"
+      by (metis bipartite_vertex(2) empty_iff insert_iff online_subset_vs online_match_edgeE)
 
-    with 1 have "(THE v. {u,v} \<in> ranking G \<pi> \<sigma>) = v"
+    with 1 have "(THE v. {u,v} \<in> online_match G \<pi> \<sigma>) = v"
       by (auto intro: the_match' dest: matching_if_perm)
 
-    with u v show "(THE v. {u, v} \<in> ranking G \<pi> \<sigma>) \<in> {v \<in> V. v \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t}"
+    with u v show "(THE v. {u, v} \<in> online_match G \<pi> \<sigma>) \<in> {v \<in> V. v \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t}"
       by auto
   qed
 next
@@ -1686,51 +1685,51 @@ next
   then show ?case
   proof (intro funcsetI)
     fix v
-    assume "v \<in> {v \<in> V. v \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t}"
+    assume "v \<in> {v \<in> V. v \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t}"
 
-    then have v: "v \<in> V" "v \<in> Vs (ranking G \<pi> \<sigma>)" "index \<sigma> v \<le> t"
+    then have v: "v \<in> V" "v \<in> Vs (online_match G \<pi> \<sigma>)" "index \<sigma> v \<le> t"
       by blast+
 
-    then obtain e where e: "e \<in> ranking G \<pi> \<sigma>" " v \<in> e"
+    then obtain e where e: "e \<in> online_match G \<pi> \<sigma>" " v \<in> e"
       by (auto elim: vs_member_elim)
 
-    with v bipartite obtain u where u: "{u,v} \<in> ranking G \<pi> \<sigma>" "u \<in> set \<pi>"
-      by (metis bipartite_vertex(2) doubleton_eq_iff graph_abs_G graph_abs_no_edge_no_vertex graph_abs_ranking offline_subset_vs ranking_edgeE)
+    with v bipartite obtain u where u: "{u,v} \<in> online_match G \<pi> \<sigma>" "u \<in> set \<pi>"
+      by (metis bipartite_vertex(2) doubleton_eq_iff graph_abs_G graph_abs_no_edge_no_vertex graph_abs_online_match offline_subset_vs online_match_edgeE)
 
-    with 2 have "(THE u. {u,v} \<in> ranking G \<pi> \<sigma>) = u" "(THE v. {u,v} \<in> ranking G \<pi> \<sigma>) = v"
+    with 2 have "(THE u. {u,v} \<in> online_match G \<pi> \<sigma>) = u" "(THE v. {u,v} \<in> online_match G \<pi> \<sigma>) = v"
       by (auto intro: the_match the_match' dest: matching_if_perm)
 
-    with u v show "(THE u. {u, v} \<in> ranking G \<pi> \<sigma>) \<in> {u \<in> set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u, v} \<in> ranking G \<pi> \<sigma>) \<le> t}"
+    with u v show "(THE u. {u, v} \<in> online_match G \<pi> \<sigma>) \<in> {u \<in> set \<pi>. u \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u, v} \<in> online_match G \<pi> \<sigma>) \<le> t}"
       by auto
   qed
 next
   case (3 u)
-  then have u: "u \<in> set \<pi>" "u \<in> Vs (ranking G \<pi> \<sigma>)"
+  then have u: "u \<in> set \<pi>" "u \<in> Vs (online_match G \<pi> \<sigma>)"
     by blast+
 
-  then obtain e where e: "e \<in> ranking G \<pi> \<sigma>" "u \<in> e"
+  then obtain e where e: "e \<in> online_match G \<pi> \<sigma>" "u \<in> e"
     by (auto elim: vs_member_elim)
 
-  with u bipartite obtain v where "{u,v} \<in> ranking G \<pi> \<sigma>"
-    by (meson graph_abs_G graph_abs_no_edge_no_vertex graph_abs_ranking)
+  with u bipartite obtain v where "{u,v} \<in> online_match G \<pi> \<sigma>"
+    by (meson graph_abs_G graph_abs_no_edge_no_vertex graph_abs_online_match)
 
-  with 3 have "(THE u. {u,v} \<in> ranking G \<pi> \<sigma>) = u" "(THE v. {u,v} \<in> ranking G \<pi> \<sigma>) = v"
+  with 3 have "(THE u. {u,v} \<in> online_match G \<pi> \<sigma>) = u" "(THE v. {u,v} \<in> online_match G \<pi> \<sigma>) = v"
     by (auto intro: the_match the_match' dest: matching_if_perm)
 
   then show ?case
     by simp
 next
   case (4 v)
-  then have v: "v \<in> V" "v \<in> Vs (ranking G \<pi> \<sigma>)"
+  then have v: "v \<in> V" "v \<in> Vs (online_match G \<pi> \<sigma>)"
     by blast+
 
-  then obtain e where e: "e \<in> ranking G \<pi> \<sigma>" "v \<in> e"
+  then obtain e where e: "e \<in> online_match G \<pi> \<sigma>" "v \<in> e"
     by (auto elim: vs_member_elim)
 
-  with v obtain u where u: "{u,v} \<in> ranking G \<pi> \<sigma>"
-    by (meson graph_abs_G graph_abs_ranking graph_abs_vertex_edgeE')
+  with v obtain u where u: "{u,v} \<in> online_match G \<pi> \<sigma>"
+    by (meson graph_abs_G graph_abs_online_match graph_abs_vertex_edgeE')
 
-  with 4 have "(THE u. {u,v} \<in> ranking G \<pi> \<sigma>) = u" "(THE v. {u,v} \<in> ranking G \<pi> \<sigma>) = v"
+  with 4 have "(THE u. {u,v} \<in> online_match G \<pi> \<sigma>) = u" "(THE v. {u,v} \<in> online_match G \<pi> \<sigma>) = v"
     by (auto intro: the_match the_match' dest: matching_if_perm)
 
   then show ?case
@@ -1745,19 +1744,19 @@ lemma expected_size_matched_before_is_sum_of_probs: "t < card V \<Longrightarrow
 proof -
   assume t: "t < card V"
 
-  have "?L = (\<Sum>\<sigma>\<in>permutations_of_set V. (card {u\<in>set \<pi>. u \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> ranking G \<pi> \<sigma>) \<le> t})) / fact (card V)"
+  have "?L = (\<Sum>\<sigma>\<in>permutations_of_set V. (card {u\<in>set \<pi>. u \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> (THE v. {u,v} \<in> online_match G \<pi> \<sigma>) \<le> t})) / fact (card V)"
     by (simp add: expected_size_matched_before_sum)
 
-  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. (card {v\<in>V. v \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t})) / fact (card V)"
+  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. (card {v\<in>V. v \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t})) / fact (card V)"
     by (simp add: matched_before_card_eq)
 
-  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. (\<Sum>s\<le>t. if (\<sigma> ! s \<in> Vs (ranking G \<pi> \<sigma>)) then 1 else 0)) / fact (card V)"
+  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. (\<Sum>s\<le>t. if (\<sigma> ! s \<in> Vs (online_match G \<pi> \<sigma>)) then 1 else 0)) / fact (card V)"
   proof (intro arg_cong2[where f = divide], goal_cases)
     case 1
-    have "(\<Sum>\<sigma>\<in>permutations_of_set V. card {v \<in> V. v \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t}) = (\<Sum>\<sigma>\<in>permutations_of_set V. \<Sum>s\<le>t. if \<sigma> ! s \<in> Vs (ranking G \<pi> \<sigma>) then 1 else 0)"
+    have "(\<Sum>\<sigma>\<in>permutations_of_set V. card {v \<in> V. v \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t}) = (\<Sum>\<sigma>\<in>permutations_of_set V. \<Sum>s\<le>t. if \<sigma> ! s \<in> Vs (online_match G \<pi> \<sigma>) then 1 else 0)"
     proof (intro sum.cong, goal_cases)
       case (2 \<sigma>)
-      then have "card {v \<in> V. v \<in> Vs (ranking G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t} = card ({..t} \<inter> {s. \<sigma> ! s \<in> Vs (ranking G \<pi> \<sigma>)})"
+      then have "card {v \<in> V. v \<in> Vs (online_match G \<pi> \<sigma>) \<and> index \<sigma> v \<le> t} = card ({..t} \<inter> {s. \<sigma> ! s \<in> Vs (online_match G \<pi> \<sigma>)})"
       proof (intro bij_betw_same_card[where f = "index \<sigma>"] bij_betwI[where g = "(!) \<sigma>"] funcsetI CollectI IntI, goal_cases)
         case (1 x)
         then show ?case by blast
@@ -1832,21 +1831,21 @@ proof -
   finally show "?L \<le> ?R" .
 qed
 
-lemma expected_size_is_sum_of_matched_ranks: "measure_pmf.expectation ranking_prob card = (\<Sum>s<card V. measure_pmf.prob (rank_matched s) {True})"
+lemma expected_size_is_sum_of_matched_ranks: "measure_pmf.expectation ranking card = (\<Sum>s<card V. measure_pmf.prob (rank_matched s) {True})"
 proof -
-  from perms_of_V have "measure_pmf.expectation ranking_prob card = (\<Sum>\<sigma>\<in>permutations_of_set V. (card (ranking G \<pi> \<sigma>))) / fact (card V)"
-    unfolding ranking_prob_def
+  from perms_of_V have "measure_pmf.expectation ranking card = (\<Sum>\<sigma>\<in>permutations_of_set V. (card (online_match G \<pi> \<sigma>))) / fact (card V)"
+    unfolding ranking_def
     by (auto simp: pmf_expectation_bind_pmf_of_set field_simps sum_divide_distrib)    
 
-  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. \<Sum>t<card V. of_bool (\<sigma> ! t \<in> Vs (ranking G \<pi> \<sigma>))) / fact (card V)"
-    using ranking_card_is_sum_of_matched_vertices
+  also have "\<dots> = (\<Sum>\<sigma>\<in>permutations_of_set V. \<Sum>t<card V. of_bool (\<sigma> ! t \<in> Vs (online_match G \<pi> \<sigma>))) / fact (card V)"
+    using online_match_card_is_sum_of_matched_vertices
     by auto
 
-  also have "\<dots> = measure_pmf.expectation (pmf_of_set (permutations_of_set V)) (\<lambda>\<sigma>. \<Sum>t<card V. of_bool (\<sigma> ! t \<in> Vs (ranking G \<pi> \<sigma>)))"
+  also have "\<dots> = measure_pmf.expectation (pmf_of_set (permutations_of_set V)) (\<lambda>\<sigma>. \<Sum>t<card V. of_bool (\<sigma> ! t \<in> Vs (online_match G \<pi> \<sigma>)))"
     using perms_of_V
     by (auto simp: integral_pmf_of_set)
 
-  also have "\<dots> = (\<Sum>t<card V. measure_pmf.expectation (pmf_of_set (permutations_of_set V)) (\<lambda>\<sigma>. of_bool (\<sigma> ! t \<in> Vs (ranking G \<pi> \<sigma>))))"
+  also have "\<dots> = (\<Sum>t<card V. measure_pmf.expectation (pmf_of_set (permutations_of_set V)) (\<lambda>\<sigma>. of_bool (\<sigma> ! t \<in> Vs (online_match G \<pi> \<sigma>))))"
     using expectation_sum_pmf_of_set[OF perms_of_V]
     by fast
 
@@ -1862,7 +1861,7 @@ text \<open>
   used to lower bound the ratio between the expected size of the matching RANKING produces
   and the size of the perfect matching (i.e.\ the competitive ratio).
 \<close>
-lemma comp_ratio_no_limit: "measure_pmf.expectation ranking_prob card / (card V) \<ge> 1 - (1 - 1/(card V + 1)) ^ (card V)" (is "?L \<ge> ?R")
+lemma comp_ratio_no_limit: "measure_pmf.expectation ranking card / (card V) \<ge> 1 - (1 - 1/(card V + 1)) ^ (card V)" (is "?L \<ge> ?R")
 proof -
   have "?R = ((card V) - (card V) * (1 - 1 / (card V + 1))^(card V)) / card V"
     by (auto simp: diff_divide_distrib)
@@ -1905,34 +1904,34 @@ begin
 
 lemma expectation_make_perfect_matching_le:
   defines "G' \<equiv> make_perfect_matching G M"
-  shows "measure_pmf.expectation (do {\<sigma> \<leftarrow> pmf_of_set (permutations_of_set (V \<inter> Vs G')); return_pmf (ranking G' \<pi> \<sigma>)}) card \<le>
-    measure_pmf.expectation ranking_prob card" (is "?L \<le> ?R")
+  shows "measure_pmf.expectation (do {\<sigma> \<leftarrow> pmf_of_set (permutations_of_set (V \<inter> Vs G')); return_pmf (online_match G' \<pi> \<sigma>)}) card \<le>
+    measure_pmf.expectation ranking card" (is "?L \<le> ?R")
 proof -
-  have "?R = (\<Sum>\<sigma>\<in>permutations_of_set V. card (ranking G \<pi> \<sigma>) / fact (card V))"
-    unfolding ranking_prob_def
+  have "?R = (\<Sum>\<sigma>\<in>permutations_of_set V. card (online_match G \<pi> \<sigma>) / fact (card V))"
+    unfolding ranking_def
     using perms_of_V
     by (auto simp: pmf_expectation_bind_pmf_of_set field_simps sum_divide_distrib)
 
-  also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. [v <- \<sigma>. v \<in> V \<inter> Vs G'] = \<sigma>'}. card (ranking G \<pi> \<sigma>) / fact (card V)))"
+  also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. [v <- \<sigma>. v \<in> V \<inter> Vs G'] = \<sigma>'}. card (online_match G \<pi> \<sigma>) / fact (card V)))"
     by (rule sum_split[symmetric], auto; intro permutations_of_setI)
        (auto dest: permutations_of_setD)
 
-  also have "\<dots> \<ge> (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. [v <- \<sigma>. v \<in> V \<inter> Vs G'] = \<sigma>'}. card (ranking G' \<pi> \<sigma>) / fact (card V)))" (is "_ \<ge> ?S")
+  also have "\<dots> \<ge> (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. [v <- \<sigma>. v \<in> V \<inter> Vs G'] = \<sigma>'}. card (online_match G' \<pi> \<sigma>) / fact (card V)))" (is "_ \<ge> ?S")
     unfolding G'_def
   proof (intro sum_mono divide_right_mono, goal_cases)
     case (1 \<sigma>' \<sigma>)
     with bipartite bipartite_subgraph[OF bipartite subgraph_make_perfect_matching, of M]
     show ?case
-      by (auto intro!: ranking_matching_card_leq_on_perfect_matching_graph[of G _ \<pi> \<sigma> M] ranking_matching_ranking dest: permutations_of_setD)
+      by (auto intro!: ranking_matching_card_leq_on_perfect_matching_graph[of G _ \<pi> \<sigma> M] ranking_matching_online_match dest: permutations_of_setD)
   qed simp
 
   finally have "?S \<le> ?R" .
   note equalityI[rule del]
-  have "?S = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. [v <- \<sigma>. v \<in> V \<inter> Vs G'] = \<sigma>'}. card (ranking G' \<pi> \<sigma>') / fact (card V)))"
+  have "?S = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (\<Sum>\<sigma>\<in>{\<sigma>\<in>permutations_of_set V. [v <- \<sigma>. v \<in> V \<inter> Vs G'] = \<sigma>'}. card (online_match G' \<pi> \<sigma>') / fact (card V)))"
     by (intro sum.cong arg_cong2[where f = "(/)"] arg_cong[where f = card] arg_cong[where f = real])
-       (auto intro!: ranking_filter_vertices_in_graph_ranking[symmetric] dest: permutations_of_setD)
+       (auto intro!: online_match_filter_vertices_in_graph_online_match[symmetric] dest: permutations_of_setD)
 
-  also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (fact (card V) / fact (card (V \<inter> Vs G'))) * real (card (ranking G' \<pi> \<sigma>')) / fact (card V))"
+  also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). (fact (card V) / fact (card (V \<inter> Vs G'))) * real (card (online_match G' \<pi> \<sigma>')) / fact (card V))"
   proof (rule sum.cong, goal_cases)
     case (2 x)
     then show ?case
@@ -1940,7 +1939,7 @@ proof -
          auto
   qed simp
 
-  also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). card (ranking G' \<pi> \<sigma>') / fact (card (V \<inter> Vs G')))"
+  also have "\<dots> = (\<Sum>\<sigma>'\<in>permutations_of_set (V \<inter> Vs G'). card (online_match G' \<pi> \<sigma>') / fact (card (V \<inter> Vs G')))"
     by simp
 
   also have "\<dots> = ?L"
@@ -1957,7 +1956,7 @@ text \<open>
   What remains is to leverage the repeated application of Lemma 2 to obtain the bound for the
   competitive ratio for all instances.
 \<close>
-theorem\<^marker>\<open>tag important\<close> ranking_comp_ratio: "measure_pmf.expectation ranking_prob card / (card M) \<ge> 1 - (1 - 1/(card M + 1)) ^ (card M)"
+theorem\<^marker>\<open>tag important\<close> ranking_comp_ratio: "measure_pmf.expectation ranking card / (card M) \<ge> 1 - (1 - 1/(card M + 1)) ^ (card M)"
 proof (cases "G = {}")
   case True
   with max_card_matching have "M = {}"
@@ -2032,14 +2031,14 @@ next
       using \<open>perfect_matching G' M\<close> by blast
   qed
 
-  have "1 - (1 - (1/(card M + 1)))^(card M) \<le> measure_pmf.expectation pm.ranking_prob card / card M"
+  have "1 - (1 - (1/(card M + 1)))^(card M) \<le> measure_pmf.expectation pm.ranking card / card M"
     using pm.comp_ratio_no_limit[simplified card_eq]
     by blast
 
-  also have "\<dots> \<le> measure_pmf.expectation ranking_prob card / card M"
-    unfolding pm.ranking_prob_def
+  also have "\<dots> \<le> measure_pmf.expectation ranking card / card M"
+    unfolding pm.ranking_def
     using G'_def
-    by (simp only: ranking_filter_vs, intro divide_right_mono expectation_make_perfect_matching_le)
+    by (simp only: online_match_filter_vs, intro divide_right_mono expectation_make_perfect_matching_le)
        auto
   
   finally show ?thesis .
@@ -2218,7 +2217,7 @@ lemma non_empty_arrival_orders:
   done
 
 definition comp_ratio_nat where
-  "comp_ratio_nat n \<equiv> Min {Min {measure_pmf.expectation (wf_ranking.ranking_prob G \<pi> (offline_vertices G)) card / card (matching_instance_nat n) | \<pi>. \<pi> \<in> arrival_orders G} | G. G \<in> ranking_instances_nat n}"
+  "comp_ratio_nat n \<equiv> Min {Min {measure_pmf.expectation (wf_ranking.ranking G \<pi> (offline_vertices G)) card / card (matching_instance_nat n) | \<pi>. \<pi> \<in> arrival_orders G} | G. G \<in> ranking_instances_nat n}"
 
 lemma comp_ratio_nat_bound:
   shows "1 - (1 - 1/real (n+1))^n \<le> comp_ratio_nat n"
