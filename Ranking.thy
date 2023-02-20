@@ -36,20 +36,20 @@ fun step :: "'a graph \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a gr
       else step G u vs M
     )"
 
-fun ranking' :: "'a graph \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> 'a graph \<Rightarrow> 'a graph" where
-  "ranking' _ [] _ M = M"
-| "ranking' G (u#us) \<sigma> M = ranking' G us \<sigma> (step G u \<sigma> M)"
+fun online_match' :: "'a graph \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> 'a graph \<Rightarrow> 'a graph" where
+  "online_match' _ [] _ M = M"
+| "online_match' G (u#us) \<sigma> M = online_match' G us \<sigma> (step G u \<sigma> M)"
 
-lemma ranking_foldl: "ranking' G \<pi> \<sigma> M = foldl (\<lambda>M u. step G u \<sigma> M) M \<pi>"
-  by (induction G \<pi> \<sigma> M rule: ranking'.induct) auto
+lemma online_match_foldl: "online_match' G \<pi> \<sigma> M = foldl (\<lambda>M u. step G u \<sigma> M) M \<pi>"
+  by (induction G \<pi> \<sigma> M rule: online_match'.induct) auto
 
-abbreviation "ranking G \<pi> \<sigma> \<equiv> ranking' G \<pi> \<sigma> {}"
+abbreviation "online_match G \<pi> \<sigma> \<equiv> online_match' G \<pi> \<sigma> {}"
 
-lemma ranking'_append: "ranking' G (us@us') \<sigma> M = ranking' G us' \<sigma> (ranking' G us \<sigma> M)"
-  by (simp add: ranking_foldl)
+lemma online_match'_append: "online_match' G (us@us') \<sigma> M = online_match' G us' \<sigma> (online_match' G us \<sigma> M)"
+  by (simp add: online_match_foldl)
 
-lemma ranking_append: "ranking G (us@us') \<sigma> = ranking' G us' \<sigma> (ranking G us \<sigma>)"
-  by (simp add: ranking'_append)
+lemma online_match_append: "online_match G (us@us') \<sigma> = online_match' G us' \<sigma> (online_match G us \<sigma>)"
+  by (simp add: online_match'_append)
 
 text \<open>
   The following predicate fully specifies a matching \<^term>\<open>M::'a graph\<close> resulting from RANKING
@@ -57,7 +57,7 @@ text \<open>
   It also includes a wellformedness condition for \<^term>\<open>G::'a graph\<close> wrt.\ the inputs \<^term>\<open>\<pi>::'a list\<close>
   and \<^term>\<open>\<sigma>::'a list\<close>.
   The predicate is useful as many of the proofs where we are arguing about removing vertices don't
-  follow the induction scheme provided by \<^term>\<open>ranking'\<close>.
+  follow the induction scheme provided by \<^term>\<open>online_match'\<close>.
 \<close>
 definition ranking_matching :: "'a graph \<Rightarrow> 'a graph \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> bool" where
   "ranking_matching G M \<pi> \<sigma> \<equiv> graph_matching G M \<and>
@@ -362,19 +362,19 @@ lemma step_matches_graph_edge:
   using assms
   by (induction \<sigma>) auto
 
-lemma ranking_mono: "e \<in> M \<Longrightarrow> e \<in> ranking' G \<pi> \<sigma> M"
-  by (induction G \<pi> \<sigma> M rule: ranking'.induct)
+lemma online_match_mono: "e \<in> M \<Longrightarrow> e \<in> online_match' G \<pi> \<sigma> M"
+  by (induction G \<pi> \<sigma> M rule: online_match'.induct)
      (auto simp: step_mono)
 
-lemma ranking_mono_vs: "x \<in> Vs M \<Longrightarrow> x \<in> Vs (ranking' G \<pi> \<sigma> M)"
-  by (meson ranking_mono vs_member)
+lemma online_match_mono_vs: "x \<in> Vs M \<Longrightarrow> x \<in> Vs (online_match' G \<pi> \<sigma> M)"
+  by (meson online_match_mono vs_member)
 
-lemma ranking'_Vs_subset: "x \<in> Vs (ranking' G \<pi> \<sigma> M) \<Longrightarrow> x \<in> Vs M \<or> x \<in> set \<pi> \<or> x \<in> set \<sigma>"
-  by (induction G \<pi> \<sigma> M rule: ranking'.induct)
+lemma online_match'_Vs_subset: "x \<in> Vs (online_match' G \<pi> \<sigma> M) \<Longrightarrow> x \<in> Vs M \<or> x \<in> set \<pi> \<or> x \<in> set \<sigma>"
+  by (induction G \<pi> \<sigma> M rule: online_match'.induct)
      (auto dest: step_Vs_subset)
 
-lemma ranking_Vs_subset: "x \<in> Vs (ranking G \<pi> \<sigma>) \<Longrightarrow> x \<in> set \<pi> \<or> x \<in> set \<sigma>"
-  by (auto dest: ranking'_Vs_subset)
+lemma online_match_Vs_subset: "x \<in> Vs (online_match G \<pi> \<sigma>) \<Longrightarrow> x \<in> set \<pi> \<or> x \<in> set \<sigma>"
+  by (auto dest: online_match'_Vs_subset)
 
 lemma bipartite_step:
   assumes "bipartite G (set \<pi>) (set \<sigma>)"
@@ -383,88 +383,88 @@ lemma bipartite_step:
   using assms
   by (auto dest: step_matches_graph_edge intro: bipartite_subgraph)
 
-lemma graph_abs_ranking':
+lemma graph_abs_online_match':
   assumes "graph_abs G"
   assumes "graph_abs M"
-  shows "graph_abs (ranking' G \<pi> \<sigma> M)"
+  shows "graph_abs (online_match' G \<pi> \<sigma> M)"
   using assms
   by (induction \<pi> arbitrary: M) (auto dest: graph_abs_step)
 
-lemma graph_abs_ranking:
+lemma graph_abs_online_match:
   assumes "graph_abs G"
-  shows "graph_abs (ranking G \<pi> \<sigma>)"
+  shows "graph_abs (online_match G \<pi> \<sigma>)"
   using assms
-  by (auto intro: graph_abs_ranking')
+  by (auto intro: graph_abs_online_match')
 
-lemma matching_ranking':
+lemma matching_online_match':
   assumes "matching M"
   assumes "set \<pi> \<inter> set \<sigma> = {}"
-  shows "matching (ranking' G \<pi> \<sigma> M)"
+  shows "matching (online_match' G \<pi> \<sigma> M)"
   using assms
   by (induction \<pi> arbitrary: M) (auto dest: matching_step)
 
-lemma matching_ranking: "set \<pi> \<inter> set \<sigma> = {} \<Longrightarrow> matching (ranking G \<pi> \<sigma>)"
-  by (auto intro: matching_ranking')
+lemma matching_online_match: "set \<pi> \<inter> set \<sigma> = {} \<Longrightarrow> matching (online_match G \<pi> \<sigma>)"
+  by (auto intro: matching_online_match')
 
-lemma subgraph_ranking':
+lemma subgraph_online_match':
   assumes "M \<subseteq> G"
-  shows "e \<in> ranking' G \<pi> \<sigma> M \<Longrightarrow> e \<in> G"
+  shows "e \<in> online_match' G \<pi> \<sigma> M \<Longrightarrow> e \<in> G"
   using assms
   by (induction \<pi> arbitrary: M) (auto simp: step_matches_graph_edge)
 
-lemma subgraph_ranking: "e \<in> ranking G \<pi> \<sigma> \<Longrightarrow> e \<in> G"
-  by (auto intro: subgraph_ranking')
+lemma subgraph_online_match: "e \<in> online_match G \<pi> \<sigma> \<Longrightarrow> e \<in> G"
+  by (auto intro: subgraph_online_match')
 
-lemma bipartite_ranking':
+lemma bipartite_online_match':
   assumes "bipartite G (set \<pi>) (set \<sigma>)"
   assumes "M \<subseteq> G"
-  shows "bipartite (ranking' G \<pi> \<sigma> M) (set \<pi>) (set \<sigma>)"
+  shows "bipartite (online_match' G \<pi> \<sigma> M) (set \<pi>) (set \<sigma>)"
   using assms
-  by (auto intro: bipartite_subgraph dest: subgraph_ranking')
+  by (auto intro: bipartite_subgraph dest: subgraph_online_match')
 
-lemma bipartite_ranking:
+lemma bipartite_online_match:
   assumes "bipartite G (set \<pi>) (set \<sigma>)"
-  shows "bipartite (ranking G \<pi> \<sigma>) (set \<pi>) (set \<sigma>)"
+  shows "bipartite (online_match G \<pi> \<sigma>) (set \<pi>) (set \<sigma>)"
   using assms
-  by (auto intro: bipartite_ranking')
+  by (auto intro: bipartite_online_match')
 
 lemma not_matched_in_prefix:
-  assumes "x \<notin> Vs (ranking G \<pi> \<sigma>)"
+  assumes "x \<notin> Vs (online_match G \<pi> \<sigma>)"
   assumes "\<pi> = us @ us'"
-  shows "x \<notin> Vs (ranking G us \<sigma>)"
+  shows "x \<notin> Vs (online_match G us \<sigma>)"
   using assms
-  by (auto simp: ranking_append dest: ranking_mono_vs)
+  by (auto simp: online_match_append dest: online_match_mono_vs)
 
-lemma maximal_ranking_aux:
+lemma maximal_online_match_aux:
   assumes "{u,v} \<in> G"
   assumes "u \<in> set \<pi>" "v \<in> set \<sigma>"
   assumes "set \<pi> \<inter> set \<sigma> = {}"
-  assumes "u \<notin> Vs (ranking G \<pi> \<sigma>)" "v \<notin> Vs (ranking G \<pi> \<sigma>)"
+  assumes "u \<notin> Vs (online_match G \<pi> \<sigma>)" "v \<notin> Vs (online_match G \<pi> \<sigma>)"
   shows False
 proof -
   from \<open>u \<in> set \<pi>\<close> obtain us us' where split_pi: "\<pi> = us @ u # us'"
     by (auto dest: split_list)
 
-  with \<open>u \<notin> Vs (ranking G \<pi> \<sigma>)\<close> \<open>v \<notin> Vs (ranking G \<pi> \<sigma>)\<close> have "u \<notin> Vs (ranking G us \<sigma>)" "v \<notin> Vs (ranking G us \<sigma>)"
+  with \<open>u \<notin> Vs (online_match G \<pi> \<sigma>)\<close> \<open>v \<notin> Vs (online_match G \<pi> \<sigma>)\<close> have "u \<notin> Vs (online_match G us \<sigma>)" "v \<notin> Vs (online_match G us \<sigma>)"
     by (auto dest: not_matched_in_prefix)
 
-  with \<open>{u,v} \<in> G\<close> \<open>u \<in> set \<pi>\<close> \<open>v \<in> set \<sigma>\<close> obtain v' where "{u,v'} \<in> step G u \<sigma> (ranking G us \<sigma>)"
+  with \<open>{u,v} \<in> G\<close> \<open>u \<in> set \<pi>\<close> \<open>v \<in> set \<sigma>\<close> obtain v' where "{u,v'} \<in> step G u \<sigma> (online_match G us \<sigma>)"
     by (auto dest: step_matches_if_possible)
 
-  with split_pi have "{u,v'} \<in> ranking G \<pi> \<sigma>"
-    by (simp add: ranking_append ranking_mono)
+  with split_pi have "{u,v'} \<in> online_match G \<pi> \<sigma>"
+    by (simp add: online_match_append online_match_mono)
 
-  with \<open>u \<notin> Vs (ranking G \<pi> \<sigma>)\<close> show False by auto
+  with \<open>u \<notin> Vs (online_match G \<pi> \<sigma>)\<close> show False by auto
 qed
 
-lemma maximal_ranking:
+lemma maximal_online_match:
   assumes bipartite: "bipartite G (set \<pi>) (set \<sigma>)"
-  shows "maximal_matching G (ranking G \<pi> \<sigma>)"
+  shows "maximal_matching G (online_match G \<pi> \<sigma>)"
 proof (rule ccontr)
-  assume "\<not>maximal_matching G (ranking G \<pi> \<sigma>)"
+  assume "\<not>maximal_matching G (online_match G \<pi> \<sigma>)"
 
-  with bipartite_disjointD[OF assms] matching_ranking[of \<pi> \<sigma> G]
-  obtain u v where unmatched: "{u,v} \<in> G" "u \<notin> Vs (ranking G \<pi> \<sigma>)" "v \<notin> Vs (ranking G \<pi> \<sigma>)"
+  with bipartite_disjointD[OF assms] matching_online_match[of \<pi> \<sigma> G]
+  obtain u v where unmatched: "{u,v} \<in> G" "u \<notin> Vs (online_match G \<pi> \<sigma>)" "v \<notin> Vs (online_match G \<pi> \<sigma>)"
     by (auto elim: not_maximal_matchingE)
 
   with bipartite consider "u \<in> set \<pi>" "v \<in> set \<sigma>" | "u \<in> set \<sigma>" "v \<in> set \<pi>"
@@ -472,47 +472,47 @@ proof (rule ccontr)
 
   then show False
     by cases 
-       (use unmatched \<open>set \<pi> \<inter> set \<sigma> = {}\<close> in \<open>auto intro: maximal_ranking_aux dest: edge_commute\<close>)
+       (use unmatched \<open>set \<pi> \<inter> set \<sigma> = {}\<close> in \<open>auto intro: maximal_online_match_aux dest: edge_commute\<close>)
 qed
 
-lemma ranking_matched_together:
+lemma online_match_matched_together:
   assumes bipartite: "bipartite G (set \<pi>) (set \<sigma>)"
-  assumes "{u,v} \<in> ranking G \<pi> \<sigma>"
+  assumes "{u,v} \<in> online_match G \<pi> \<sigma>"
   assumes "u \<in> set \<pi>" "u \<notin> set us" "\<pi> = us @ us'"
-  shows "v \<notin> Vs (ranking G us \<sigma>)"
+  shows "v \<notin> Vs (online_match G us \<sigma>)"
 proof
-  assume "v \<in> Vs (ranking G us \<sigma>)"
+  assume "v \<in> Vs (online_match G us \<sigma>)"
 
   from bipartite have "graph_abs G"
     by (auto intro: finite_parts_bipartite_graph_abs)
 
-  with \<open>v \<in> Vs (ranking G us \<sigma>)\<close> obtain u' where u': "{u',v} \<in> ranking G us \<sigma>"
-    by (meson graph_abs_ranking graph_abs_vertex_edgeE')
+  with \<open>v \<in> Vs (online_match G us \<sigma>)\<close> obtain u' where u': "{u',v} \<in> online_match G us \<sigma>"
+    by (meson graph_abs_online_match graph_abs_vertex_edgeE')
     
 
-  with \<open>\<pi> = us @ us'\<close> have "{u',v} \<in> ranking G \<pi> \<sigma>"
-    by (simp add: ranking_append ranking_mono)
+  with \<open>\<pi> = us @ us'\<close> have "{u',v} \<in> online_match G \<pi> \<sigma>"
+    by (simp add: online_match_append online_match_mono)
 
-  from bipartite \<open>u \<notin> set us\<close> \<open>u \<in> set \<pi>\<close> have "u \<notin> Vs (ranking G us \<sigma>)"
-    by (auto dest: ranking_Vs_subset bipartite_disjointD)
+  from bipartite \<open>u \<notin> set us\<close> \<open>u \<in> set \<pi>\<close> have "u \<notin> Vs (online_match G us \<sigma>)"
+    by (auto dest: online_match_Vs_subset bipartite_disjointD)
 
   with u' have "u \<noteq> u'" by auto
 
-  with bipartite \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> \<open>{u',v} \<in> ranking G \<pi> \<sigma>\<close> show False
-    by (auto dest!: bipartite_disjointD dest: matching_ranking the_match)
+  with bipartite \<open>{u,v} \<in> online_match G \<pi> \<sigma>\<close> \<open>{u',v} \<in> online_match G \<pi> \<sigma>\<close> show False
+    by (auto dest!: bipartite_disjointD dest: matching_online_match the_match)
 qed
 
-lemma ranking_lowest_free_rank_match:
+lemma online_match_lowest_free_rank_match:
   assumes bipartite: "bipartite G (set \<pi>) (set \<sigma>)"
-  assumes "{u,v} \<in> ranking G \<pi> \<sigma>"
+  assumes "{u,v} \<in> online_match G \<pi> \<sigma>"
   assumes "{u,v'} \<in> G"
   assumes v'_before_v: "index \<sigma> v' < index \<sigma> v"
-  shows "\<exists>u'. {u',v'} \<in> ranking G \<pi> \<sigma> \<and> index \<pi> u' < index \<pi> u"
+  shows "\<exists>u'. {u',v'} \<in> online_match G \<pi> \<sigma> \<and> index \<pi> u' < index \<pi> u"
 proof (rule ccontr)
-  assume contr: "\<nexists>u'. {u', v'} \<in> ranking G \<pi> \<sigma> \<and> index \<pi> u' < index \<pi> u"
+  assume contr: "\<nexists>u'. {u', v'} \<in> online_match G \<pi> \<sigma> \<and> index \<pi> u' < index \<pi> u"
 
-  from \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> have "{u,v} \<in> G"
-    by (auto intro: subgraph_ranking)
+  from \<open>{u,v} \<in> online_match G \<pi> \<sigma>\<close> have "{u,v} \<in> G"
+    by (auto intro: subgraph_online_match)
 
   from v'_before_v have "v' \<in> set \<sigma>"
     by (auto dest: index_less_in_set)
@@ -520,52 +520,52 @@ proof (rule ccontr)
   with bipartite \<open>{u,v'} \<in> G\<close> have "u \<in> set \<pi>"
     by (auto dest: bipartite_edgeD edge_commute)
 
-  with bipartite \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> have "v \<in> set \<sigma>"
-    by (auto dest: bipartite_edgeD bipartite_ranking)
+  with bipartite \<open>{u,v} \<in> online_match G \<pi> \<sigma>\<close> have "v \<in> set \<sigma>"
+    by (auto dest: bipartite_edgeD bipartite_online_match)
 
   from \<open>u \<in> set \<pi>\<close> obtain us us' where split_pi: "\<pi> = us @ u # us' \<and> u \<notin> set us"
     by (auto dest: split_list_first)
 
-  with bipartite \<open>u \<in> set \<pi>\<close> \<open>{u,v} \<in> G\<close> have "u \<notin> Vs (ranking G us \<sigma>)"
-    by (auto dest: ranking_Vs_subset bipartite_edgeD)
+  with bipartite \<open>u \<in> set \<pi>\<close> \<open>{u,v} \<in> G\<close> have "u \<notin> Vs (online_match G us \<sigma>)"
+    by (auto dest: online_match_Vs_subset bipartite_edgeD)
 
-  then have no_v': "\<And>v'. {u,v'} \<notin> ranking G us \<sigma>"
+  then have no_v': "\<And>v'. {u,v'} \<notin> online_match G us \<sigma>"
     by (auto dest: edges_are_Vs)
 
-  from bipartite \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> \<open>u \<in> set \<pi>\<close> split_pi have "v \<notin> Vs (ranking G us \<sigma>)"
-    by (intro ranking_matched_together) auto
+  from bipartite \<open>{u,v} \<in> online_match G \<pi> \<sigma>\<close> \<open>u \<in> set \<pi>\<close> split_pi have "v \<notin> Vs (online_match G us \<sigma>)"
+    by (intro online_match_matched_together) auto
 
-  with \<open>u \<notin> Vs (ranking G us \<sigma>)\<close> \<open>v \<in> set \<sigma>\<close> \<open>{u,v} \<in> G\<close>
-  obtain v'' where v'': "{u,v''} \<in> step G u \<sigma> (ranking G us \<sigma>)"
+  with \<open>u \<notin> Vs (online_match G us \<sigma>)\<close> \<open>v \<in> set \<sigma>\<close> \<open>{u,v} \<in> G\<close>
+  obtain v'' where v'': "{u,v''} \<in> step G u \<sigma> (online_match G us \<sigma>)"
     by (auto dest: step_matches_if_possible)
 
   show False
   proof (cases "v = v''")
     case True
 
-    from v'' no_v' have v_lowest_rank: "\<forall>v'\<in>set \<sigma> \<inter> {v''. {u, v''} \<in> G} - Vs (ranking G us \<sigma>) - {v''}. index \<sigma> v'' < index \<sigma> v'"
+    from v'' no_v' have v_lowest_rank: "\<forall>v'\<in>set \<sigma> \<inter> {v''. {u, v''} \<in> G} - Vs (online_match G us \<sigma>) - {v''}. index \<sigma> v'' < index \<sigma> v'"
       by (auto elim!: edge_matched_in_stepE simp: doubleton_eq_iff)
 
     from v'_before_v have "v \<noteq> v'" by blast
 
-    have "v' \<notin> Vs (ranking G us \<sigma>)"
+    have "v' \<notin> Vs (online_match G us \<sigma>)"
     proof
-      assume "v' \<in> Vs (ranking G us \<sigma>)"
-      then obtain e where "e \<in> ranking G us \<sigma>" "v' \<in> e"
+      assume "v' \<in> Vs (online_match G us \<sigma>)"
+      then obtain e where "e \<in> online_match G us \<sigma>" "v' \<in> e"
         by (auto elim: vs_member_elim)
 
       with \<open>v' \<in> set \<sigma>\<close> bipartite obtain u' where "e = {u',v'}" "u' \<in> set us"
-        by (auto elim!: bipartite_edgeE dest!: subgraph_ranking dest: bipartite_disjointD)
-           (metis \<open>e \<in> ranking G us \<sigma>\<close> bipartite_vertex(2) edges_are_Vs(1) ranking_Vs_subset subgraph_ranking)
+        by (auto elim!: bipartite_edgeE dest!: subgraph_online_match dest: bipartite_disjointD)
+           (metis \<open>e \<in> online_match G us \<sigma>\<close> bipartite_vertex(2) edges_are_Vs(1) online_match_Vs_subset subgraph_online_match)
 
       with split_pi have "index \<pi> u' < index \<pi> u"
         by (auto simp: index_append)
 
-      with contr split_pi \<open>e \<in> ranking G us \<sigma>\<close> \<open>e = {u',v'}\<close> show False
-        using ranking_append ranking_mono by blast
+      with contr split_pi \<open>e \<in> online_match G us \<sigma>\<close> \<open>e = {u',v'}\<close> show False
+        using online_match_append online_match_mono by blast
     qed
 
-    with True \<open>v' \<in> set \<sigma>\<close> \<open>{u,v'} \<in> G\<close> \<open>v \<noteq> v'\<close> have "v'\<in>set \<sigma> \<inter> {v''. {u, v''} \<in> G} - Vs (ranking G us \<sigma>) - {v''}"
+    with True \<open>v' \<in> set \<sigma>\<close> \<open>{u,v'} \<in> G\<close> \<open>v \<noteq> v'\<close> have "v'\<in>set \<sigma> \<inter> {v''. {u, v''} \<in> G} - Vs (online_match G us \<sigma>) - {v''}"
       by blast
 
     with True v_lowest_rank v'_before_v show ?thesis
@@ -573,25 +573,25 @@ proof (rule ccontr)
   next
     case False
 
-    from split_pi have "ranking G \<pi> \<sigma> = ranking' G us' \<sigma> (step G u \<sigma> (ranking G us \<sigma>))"
-      by (simp add: ranking_foldl)
+    from split_pi have "online_match G \<pi> \<sigma> = online_match' G us' \<sigma> (step G u \<sigma> (online_match G us \<sigma>))"
+      by (simp add: online_match_foldl)
 
-    with \<open>{u,v''} \<in> step G u \<sigma> (ranking G us \<sigma>)\<close> have "{u,v''} \<in> ranking G \<pi> \<sigma>"
-      by (auto intro: ranking_mono)
+    with \<open>{u,v''} \<in> step G u \<sigma> (online_match G us \<sigma>)\<close> have "{u,v''} \<in> online_match G \<pi> \<sigma>"
+      by (auto intro: online_match_mono)
 
-    with bipartite False \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> the_match' show ?thesis
-      by (metis bipartite_disjointD matching_ranking)
+    with bipartite False \<open>{u,v} \<in> online_match G \<pi> \<sigma>\<close> the_match' show ?thesis
+      by (metis bipartite_disjointD matching_online_match)
   qed
 qed
 
-lemma ranking_earliest_match:
+lemma online_match_earliest_match:
   assumes bipartite: "bipartite G (set \<pi>) (set \<sigma>)"
-  assumes "{u,v} \<in> ranking G \<pi> \<sigma>"
+  assumes "{u,v} \<in> online_match G \<pi> \<sigma>"
   assumes "{u',v} \<in> G"
   assumes u'_before_u: "index \<pi> u' < index \<pi> u"
-  shows "\<exists>v'. {u',v'} \<in> ranking G \<pi> \<sigma> \<and> index \<sigma> v' < index \<sigma> v"
+  shows "\<exists>v'. {u',v'} \<in> online_match G \<pi> \<sigma> \<and> index \<sigma> v' < index \<sigma> v"
 proof (rule ccontr)
-  assume contr: "\<nexists>v'. {u',v'} \<in> ranking G \<pi> \<sigma> \<and> index \<sigma> v' < index \<sigma> v"
+  assume contr: "\<nexists>v'. {u',v'} \<in> online_match G \<pi> \<sigma> \<and> index \<sigma> v' < index \<sigma> v"
 
   from u'_before_u have "u' \<in> set \<pi>"
     by (auto intro: index_less_in_set)
@@ -599,8 +599,8 @@ proof (rule ccontr)
   with bipartite \<open>{u',v} \<in> G\<close> have "v \<in> set \<sigma>"
     by (auto dest: bipartite_edgeD)
 
-  with bipartite \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> have "u \<in> set \<pi>"
-    by (auto dest: bipartite_ranking bipartite_edgeD)
+  with bipartite \<open>{u,v} \<in> online_match G \<pi> \<sigma>\<close> have "u \<in> set \<pi>"
+    by (auto dest: bipartite_online_match bipartite_edgeD)
 
   from \<open>u' \<in> set \<pi>\<close> obtain us us' where split_pi: "\<pi> = us @ u' # us' \<and> u' \<notin> set us"
     by (auto dest: split_list_first)
@@ -608,17 +608,17 @@ proof (rule ccontr)
   with u'_before_u have "u \<notin> set us"
     by (auto simp: index_append index_le_size leD)
 
-  with bipartite \<open>u \<in> set \<pi>\<close> have  "u \<notin> Vs (ranking G us \<sigma>)"
-    by (auto dest: bipartite_disjointD ranking_Vs_subset)
+  with bipartite \<open>u \<in> set \<pi>\<close> have  "u \<notin> Vs (online_match G us \<sigma>)"
+    by (auto dest: bipartite_disjointD online_match_Vs_subset)
 
-  with bipartite \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> \<open>u \<in> set \<pi>\<close> \<open>u \<notin> set us\<close> split_pi have "v \<notin> Vs (ranking G us \<sigma>)"
-    by (meson ranking_matched_together)
+  with bipartite \<open>{u,v} \<in> online_match G \<pi> \<sigma>\<close> \<open>u \<in> set \<pi>\<close> \<open>u \<notin> set us\<close> split_pi have "v \<notin> Vs (online_match G us \<sigma>)"
+    by (meson online_match_matched_together)
 
-  from bipartite \<open>u' \<in> set \<pi>\<close> split_pi have "u' \<notin> Vs (ranking G us \<sigma>)"
-    by (auto dest: bipartite_disjointD ranking_Vs_subset)
+  from bipartite \<open>u' \<in> set \<pi>\<close> split_pi have "u' \<notin> Vs (online_match G us \<sigma>)"
+    by (auto dest: bipartite_disjointD online_match_Vs_subset)
 
-  with \<open>v \<notin> Vs (ranking G us \<sigma>)\<close> \<open>v \<in> set \<sigma>\<close> \<open>{u',v} \<in> G\<close>
-  obtain v' where v': "{u',v'} \<in> step G u' \<sigma> (ranking G us \<sigma>)"
+  with \<open>v \<notin> Vs (online_match G us \<sigma>)\<close> \<open>v \<in> set \<sigma>\<close> \<open>{u',v} \<in> G\<close>
+  obtain v' where v': "{u',v'} \<in> step G u' \<sigma> (online_match G us \<sigma>)"
     by (auto dest: step_matches_if_possible)
 
   show False
@@ -626,61 +626,61 @@ proof (rule ccontr)
     case True
     from u'_before_u have "u \<noteq> u'" by blast
 
-    from v' split_pi have "{u',v'} \<in> ranking G \<pi> \<sigma>"
-      by (auto simp: ranking_append dest: ranking_mono)
+    from v' split_pi have "{u',v'} \<in> online_match G \<pi> \<sigma>"
+      by (auto simp: online_match_append dest: online_match_mono)
 
-    with True bipartite \<open>{u,v} \<in> ranking G \<pi> \<sigma>\<close> \<open>u \<noteq> u'\<close> show ?thesis
-      by (metis bipartite_disjointD matching_ranking the_match)
+    with True bipartite \<open>{u,v} \<in> online_match G \<pi> \<sigma>\<close> \<open>u \<noteq> u'\<close> show ?thesis
+      by (metis bipartite_disjointD matching_online_match the_match)
   next
     case False
 
-    from \<open>u' \<notin> Vs (ranking G us \<sigma>)\<close> have "{u',v'} \<notin> ranking G us \<sigma>"
+    from \<open>u' \<notin> Vs (online_match G us \<sigma>)\<close> have "{u',v'} \<notin> online_match G us \<sigma>"
       by (auto dest: edges_are_Vs)
 
-    with v' have v'_lowest_rank: "\<forall>v\<in>set \<sigma> \<inter> {v''. {u', v''} \<in> G} - Vs (ranking G us \<sigma>) - {v'}. index \<sigma> v' < index \<sigma> v"
+    with v' have v'_lowest_rank: "\<forall>v\<in>set \<sigma> \<inter> {v''. {u', v''} \<in> G} - Vs (online_match G us \<sigma>) - {v'}. index \<sigma> v' < index \<sigma> v"
       by (auto elim!: edge_matched_in_stepE simp: doubleton_eq_iff)
 
-    from False \<open>v \<in> set \<sigma>\<close> \<open>{u',v} \<in> G\<close> \<open>v \<notin> Vs (ranking G us \<sigma>)\<close>
-    have "v \<in> set \<sigma> \<inter> {v''. {u',v''} \<in> G} - Vs (ranking G us \<sigma>) - {v'}" by blast
+    from False \<open>v \<in> set \<sigma>\<close> \<open>{u',v} \<in> G\<close> \<open>v \<notin> Vs (online_match G us \<sigma>)\<close>
+    have "v \<in> set \<sigma> \<inter> {v''. {u',v''} \<in> G} - Vs (online_match G us \<sigma>) - {v'}" by blast
 
     with v'_lowest_rank have "index \<sigma> v' < index \<sigma> v" by blast
 
-    with contr split_pi \<open>{u',v'} \<in> step G u' \<sigma> (ranking G us \<sigma>)\<close> show ?thesis
-      by (auto simp: ranking_append dest: ranking_mono)
+    with contr split_pi \<open>{u',v'} \<in> step G u' \<sigma> (online_match G us \<sigma>)\<close> show ?thesis
+      by (auto simp: online_match_append dest: online_match_mono)
   qed
 qed
 
 text \<open>
   The algorithm produces a matching which satisfies \<^term>\<open>ranking_matching\<close>.
 \<close>
-lemma\<^marker>\<open>tag important\<close> ranking_matching_ranking:
-  "bipartite G (set \<pi>) (set \<sigma>) \<Longrightarrow> ranking_matching G (ranking G \<pi> \<sigma>) \<pi> \<sigma>"
+lemma\<^marker>\<open>tag important\<close> ranking_matching_online_match:
+  "bipartite G (set \<pi>) (set \<sigma>) \<Longrightarrow> ranking_matching G (online_match G \<pi> \<sigma>) \<pi> \<sigma>"
   unfolding ranking_matching_def
-  by (auto dest: bipartite_disjointD ranking_lowest_free_rank_match ranking_earliest_match
-           intro: matching_ranking subgraph_ranking maximal_ranking)
+  by (auto dest: bipartite_disjointD online_match_lowest_free_rank_match online_match_earliest_match
+           intro: matching_online_match subgraph_online_match maximal_online_match)
 
 text \<open>
   From this fact and the uniqueness of \<^term>\<open>ranking_matching\<close> we can easily prove the
   interchangeability of the online and offline vertices also for the algorithm.
 \<close>
-lemma ranking_commute:
+lemma online_match_commute:
   assumes "bipartite G (set \<pi>) (set \<sigma>)"
-  shows "ranking G \<pi> \<sigma> = ranking G \<sigma> \<pi>"
+  shows "online_match G \<pi> \<sigma> = online_match G \<sigma> \<pi>"
   using assms
-  by (auto intro!: ranking_matching_unique intro: ranking_matching_commute dest: ranking_matching_ranking bipartite_commute)
+  by (auto intro!: ranking_matching_unique intro: ranking_matching_commute dest: ranking_matching_online_match bipartite_commute)
 
 lemma ranking_matchingE:
   assumes "bipartite G (set \<pi>) (set \<sigma>)"
   obtains M where "ranking_matching G M \<pi> \<sigma>"
   using assms
-  by (auto dest: ranking_matching_ranking)
+  by (auto dest: ranking_matching_online_match)
 
 subsection \<open>Removing a Vertex (Lemma 2)\label{sec:ranking-zigzag}\<close>
 text \<open>
   Lemma 2 from~\cite{birnbaum2008} describes what happens when we remove a vertex \<^term>\<open>x::'a\<close> from
   a graph \<^term>\<open>G::'a graph\<close>, resulting in \<^term>\<open>G'::'a graph\<close>, and run RANKING on them with
   the same arrival order \<^term>\<open>\<pi>::'a set\<close>, and ranking \<^term>\<open>\<sigma>::'a set\<close> (removing \<^term>\<open>x::'a\<close> from
-  them as well for the run on \<^term>\<open>G'\<close>\<^footnote>\<open>For the given definition of \<^term>\<open>ranking\<close> removing a vertex
+  them as well for the run on \<^term>\<open>G'\<close>\<^footnote>\<open>For the given definition of \<^term>\<open>online_match\<close> removing a vertex
   from any of the inputs (i.e.\ graph, arrival order, or ranking) is equivalent to removing it
   from all of them.\<close>). It states that the run
   on \<^term>\<open>G::'a graph\<close> and \<^term>\<open>G'::'a graph\<close> differ by at most one \<^emph>\<open>alternating\<close> (not
@@ -1496,28 +1496,28 @@ lemma step_u_not_in_graph:
   by (induction G u \<sigma> M rule: step.induct)
      (auto dest: edges_are_Vs)
 
-lemma ranking'_remove_vertices_graph_remove_vertices_arrival:
-  "ranking' (G \<setminus> X) [u <- \<pi>. u \<notin> X] \<sigma> M = ranking' (G \<setminus> X) \<pi> \<sigma> M"
-  by (induction "G \<setminus> X" \<pi> \<sigma> M rule: ranking'.induct)
+lemma online_match'_remove_vertices_graph_remove_vertices_arrival:
+  "online_match' (G \<setminus> X) [u <- \<pi>. u \<notin> X] \<sigma> M = online_match' (G \<setminus> X) \<pi> \<sigma> M"
+  by (induction "G \<setminus> X" \<pi> \<sigma> M rule: online_match'.induct)
      (auto simp: remove_vertices_not_vs step_u_not_in_graph)
 
-lemma ranking_remove_vertices_graph_remove_vertices_arrival:
-  "ranking (G \<setminus> X) [u <- \<pi>. u \<notin> X] \<sigma> = ranking (G \<setminus> X) \<pi> \<sigma>"
-  using ranking'_remove_vertices_graph_remove_vertices_arrival
+lemma online_match_remove_vertices_graph_remove_vertices_arrival:
+  "online_match (G \<setminus> X) [u <- \<pi>. u \<notin> X] \<sigma> = online_match (G \<setminus> X) \<pi> \<sigma>"
+  using online_match'_remove_vertices_graph_remove_vertices_arrival
   by blast
 
-lemma ranking'_remove_vertices_not_in_graph_arrival:
+lemma online_match'_remove_vertices_not_in_graph_arrival:
   assumes "\<And>x. x \<in> X \<Longrightarrow> x \<notin> Vs G"
-  shows "ranking' G [u <- \<pi>. u \<notin> X] \<sigma> M = ranking' G \<pi> \<sigma> M"
+  shows "online_match' G [u <- \<pi>. u \<notin> X] \<sigma> M = online_match' G \<pi> \<sigma> M"
   using assms
-  by (induction G \<pi> \<sigma> M rule: ranking'.induct)
+  by (induction G \<pi> \<sigma> M rule: online_match'.induct)
      (auto simp: step_u_not_in_graph)
 
-lemma ranking_remove_vertices_not_in_graph_arrival:
+lemma online_match_remove_vertices_not_in_graph_arrival:
   assumes "\<And>x. x \<in> X \<Longrightarrow> x \<notin> Vs G"
-  shows "ranking G [u <- \<pi>. u \<notin> X] \<sigma> = ranking G \<pi> \<sigma>"
+  shows "online_match G [u <- \<pi>. u \<notin> X] \<sigma> = online_match G \<pi> \<sigma>"
   using assms
-  by (auto intro!: ranking'_remove_vertices_not_in_graph_arrival)
+  by (auto intro!: online_match'_remove_vertices_not_in_graph_arrival)
 
 lemma step_remove_vertices_not_in_graph:
   assumes "\<And>x. x \<in> X \<Longrightarrow> x \<notin> Vs G"
@@ -1526,18 +1526,18 @@ lemma step_remove_vertices_not_in_graph:
   by (induction G u \<sigma> M rule: step.induct)
      (auto dest: edges_are_Vs)
 
-lemma ranking'_remove_vertices_not_in_graph_ranking:
+lemma online_match'_remove_vertices_not_in_graph_online_match:
   assumes "\<And>x. x \<in> X \<Longrightarrow> x \<notin> Vs G"
-  shows "ranking' G \<pi> [v <- \<sigma>. v \<notin> X] M = ranking' G \<pi> \<sigma> M"
+  shows "online_match' G \<pi> [v <- \<sigma>. v \<notin> X] M = online_match' G \<pi> \<sigma> M"
   using assms
-  by (induction G \<pi> \<sigma> M rule: ranking'.induct)
+  by (induction G \<pi> \<sigma> M rule: online_match'.induct)
      (simp_all add: step_remove_vertices_not_in_graph)
 
-lemma ranking_remove_vertices_not_in_graph_ranking:
+lemma online_match_remove_vertices_not_in_graph_online_match:
   assumes "\<And>x. x \<in> X \<Longrightarrow> x \<notin> Vs G"
-  shows "ranking G \<pi> [v <- \<sigma>. v \<notin> X] = ranking G \<pi> \<sigma>"
+  shows "online_match G \<pi> [v <- \<sigma>. v \<notin> X] = online_match G \<pi> \<sigma>"
   using assms
-  by (rule ranking'_remove_vertices_not_in_graph_ranking)
+  by (rule online_match'_remove_vertices_not_in_graph_online_match)
 
 lemma step_filter_vertices_in_graph:
   assumes "\<And>x. x \<in> Vs G \<inter> set \<sigma> \<Longrightarrow> P x"
@@ -1546,11 +1546,11 @@ lemma step_filter_vertices_in_graph:
   by (induction G u \<sigma> M rule: step.induct)
      (auto dest: edges_are_Vs)
 
-lemma ranking'_filter_vertices_in_graph_ranking':
+lemma online_match'_filter_vertices_in_graph_online_match':
   assumes "\<And>x. x \<in> Vs G \<inter> set \<sigma> \<Longrightarrow> P x"
-  shows "ranking' G \<pi> [v <- \<sigma>. P v] M = ranking' G \<pi> \<sigma> M"
+  shows "online_match' G \<pi> [v <- \<sigma>. P v] M = online_match' G \<pi> \<sigma> M"
   using assms
-proof (induction G \<pi> \<sigma> M rule: ranking'.induct)
+proof (induction G \<pi> \<sigma> M rule: online_match'.induct)
   case (2 G u us \<sigma> M)
   then have "step G u (filter P \<sigma>) M = step G u \<sigma> M"
     by (auto intro!: step_filter_vertices_in_graph)
@@ -1559,25 +1559,25 @@ proof (induction G \<pi> \<sigma> M rule: ranking'.induct)
     by auto
 qed simp
 
-lemma ranking_filter_vertices_in_graph_ranking:
+lemma online_match_filter_vertices_in_graph_online_match:
   assumes "\<And>x. x \<in> Vs G \<inter> set \<sigma> \<Longrightarrow> P x"
-  shows "ranking G \<pi> [v <- \<sigma>. P v] = ranking G \<pi> \<sigma>"
+  shows "online_match G \<pi> [v <- \<sigma>. P v] = online_match G \<pi> \<sigma>"
   using assms
-  by (rule ranking'_filter_vertices_in_graph_ranking')
+  by (rule online_match'_filter_vertices_in_graph_online_match')
 
 lemma step_remove_vertices_graph_remove_vertices_rank:
   "step (G \<setminus> X) u [v <- \<sigma>. v \<notin> X] M = step (G \<setminus> X) u \<sigma> M"
   by (induction "G \<setminus> X" u \<sigma> M rule: step.induct)
      (simp_all add: remove_vertices_graph_def)
 
-lemma ranking'_remove_vertices_graph_remove_vertices_rank:
-  "ranking' (G \<setminus> X) \<pi> [v <- \<sigma>. v \<notin> X] M = ranking' (G \<setminus> X) \<pi> \<sigma> M"
-  by (induction "G \<setminus> X" \<pi> \<sigma> M rule: ranking'.induct)
+lemma online_match'_remove_vertices_graph_remove_vertices_rank:
+  "online_match' (G \<setminus> X) \<pi> [v <- \<sigma>. v \<notin> X] M = online_match' (G \<setminus> X) \<pi> \<sigma> M"
+  by (induction "G \<setminus> X" \<pi> \<sigma> M rule: online_match'.induct)
      (simp_all add: step_remove_vertices_graph_remove_vertices_rank)
 
-lemma ranking_remove_vertices_graph_remove_vertices_rank:
-  "ranking (G \<setminus> X) \<pi> [v <- \<sigma>. v \<notin> X] = ranking (G \<setminus> X) \<pi> \<sigma>"
-  using ranking'_remove_vertices_graph_remove_vertices_rank
+lemma online_match_remove_vertices_graph_remove_vertices_rank:
+  "online_match (G \<setminus> X) \<pi> [v <- \<sigma>. v \<notin> X] = online_match (G \<setminus> X) \<pi> \<sigma>"
+  using online_match'_remove_vertices_graph_remove_vertices_rank
   by blast
 
 lemma step_remove_unmatched_vertex_same:
@@ -1600,24 +1600,24 @@ proof (induction G u \<sigma> M rule: step.induct)
 qed simp
 
 text \<open>
-  Removing an unmatched vertex does not change the result of \<^term>\<open>ranking\<close>.
+  Removing an unmatched vertex does not change the result of \<^term>\<open>online_match\<close>.
 \<close>
-lemma ranking_remove_unmatched_vertex_same:
-  assumes "x \<notin> Vs (ranking' G \<pi> \<sigma> M)"
-  shows "ranking' G \<pi> \<sigma> M = ranking' (G \<setminus> {x}) \<pi> \<sigma> M"
+lemma online_match_remove_unmatched_vertex_same:
+  assumes "x \<notin> Vs (online_match' G \<pi> \<sigma> M)"
+  shows "online_match' G \<pi> \<sigma> M = online_match' (G \<setminus> {x}) \<pi> \<sigma> M"
   using assms
-proof (induction G \<pi> \<sigma> M rule: ranking'.induct)
+proof (induction G \<pi> \<sigma> M rule: online_match'.induct)
   case (2 G u us \<sigma> M)
-  then have IH_assm: "x \<notin> Vs (ranking' G us \<sigma> (step G u \<sigma> M))" by simp
+  then have IH_assm: "x \<notin> Vs (online_match' G us \<sigma> (step G u \<sigma> M))" by simp
   then have "x \<notin> Vs (step G u \<sigma> M)"
-    by (auto dest: ranking_mono_vs)
+    by (auto dest: online_match_mono_vs)
 
   with 2 IH_assm show ?case
     by (simp add: step_remove_unmatched_vertex_same)
 qed simp
 
-lemma ranking_filter_vs: "ranking' G [u <- \<pi>. u \<in> Vs G] \<sigma> M = ranking' G \<pi> \<sigma> M"
-  by (induction G \<pi> \<sigma> M rule: ranking'.induct)
+lemma online_match_filter_vs: "online_match' G [u <- \<pi>. u \<in> Vs G] \<sigma> M = online_match' G \<pi> \<sigma> M"
+  by (induction G \<pi> \<sigma> M rule: online_match'.induct)
      (auto simp: step_u_not_in_graph)
 
 lemma shifts_to_mono: 
@@ -3242,7 +3242,7 @@ proof (induction "card G" arbitrary: G M M' \<pi> \<sigma> x rule: less_induct)
       by (auto dest: edges_are_Vs)
 
     from unmatched less.prems have "M = M'"
-      by (metis ranking_matchingD ranking_matching_ranking ranking_matching_unique ranking_remove_unmatched_vertex_same)
+      by (metis ranking_matchingD ranking_matching_online_match ranking_matching_unique online_match_remove_unmatched_vertex_same)
 
     with less.prems \<open>\<nexists>u. {u,x} \<in> M\<close> \<open>matching M\<close> show ?thesis
       by (auto simp: zig.simps)
@@ -3422,7 +3422,7 @@ proof (cases "x \<in> Vs M")
 next
   case False
   with assms have "M = M'"
-    by (metis ranking_matchingD ranking_matching_ranking ranking_matching_unique ranking_remove_unmatched_vertex_same)
+    by (metis ranking_matchingD ranking_matching_online_match ranking_matching_unique online_match_remove_unmatched_vertex_same)
   then show ?thesis
     by blast
 qed
