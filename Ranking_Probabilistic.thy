@@ -1808,7 +1808,10 @@ qed
 text \<open>
   That closes the circle and yields the bound as shown in Lemma 5 in the paper.
 \<close>
-lemma rank_t_unmatched_prob_bound: "t < card V \<Longrightarrow> 1 - measure_pmf.prob (rank_matched t) {True} \<le> 1 / (card V) * (\<Sum>s\<le>t. measure_pmf.prob (rank_matched s) {True})" (is "_ \<Longrightarrow> ?L \<le> ?R")
+lemma rank_t_unmatched_prob_bound: 
+  "t < card V \<Longrightarrow> 
+     1 - measure_pmf.prob (rank_matched t) {True} \<le> 
+        1 / (card V) * (\<Sum>s\<le>t. measure_pmf.prob (rank_matched s) {True})" (is "_ \<Longrightarrow> ?L \<le> ?R")
 proof -
   assume t: "t < card V"
 
@@ -2259,6 +2262,12 @@ proof -
     by (auto simp add: card_matching_instance_nat field_simps)
 qed
 
+find_theorems Cauchy
+
+find_theorems "convergent"
+find_theorems "lim _"
+find_theorems "_ \<longlonglongrightarrow> _" "THE X. _"
+
 theorem\<^marker>\<open>tag important\<close> comp_ratio_limit:
   assumes "comp_ratio_nat \<longlonglongrightarrow> cr"
   shows "1 - exp(-1) \<le> cr"
@@ -2269,7 +2278,13 @@ proof (rule LIMSEQ_le)
   from assms show "comp_ratio_nat \<longlonglongrightarrow> cr" by blast
 
   show "\<exists>N. \<forall>n\<ge>N. 1 - (1 - 1 / real (n+1)) ^ n \<le> comp_ratio_nat n"
-    by (intro exI[of _ "Suc 0"] allI impI comp_ratio_nat_bound)
+    by (intro exI[of _ "0"] allI impI comp_ratio_nat_bound)
 qed
+
+theorem\<^marker>\<open>tag important\<close> comp_ratio_limit':
+  assumes "convergent comp_ratio_nat"
+  shows "1 - exp(-1) \<le> (lim comp_ratio_nat)"
+  using assms comp_ratio_limit convergent_LIMSEQ_iff
+  by blast
 
 end

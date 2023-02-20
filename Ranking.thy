@@ -1979,8 +1979,16 @@ lemma
   assumes "bipartite M (set \<pi>) (set \<sigma>)"
   assumes "matching M"
   shows 
-   remove_online_vertices_zig_zig_eq: "v \<in> set \<sigma> \<Longrightarrow>  \<forall>x \<in> X. ((\<exists>v'. {x,v'} \<in> M) \<longrightarrow> index \<sigma> (THE v'. {x,v'} \<in> M) < index \<sigma> v) \<Longrightarrow> zig (G \<setminus> X) (M \<setminus> X) v \<pi> \<sigma> = zig G M v \<pi> \<sigma>" and
-   remove_online_vertices_zag_zag_eq: "u \<in> set \<pi> \<Longrightarrow> ((\<exists>v. {u,v} \<in> M \<Longrightarrow> \<forall>x \<in> X. ((\<exists>v. {x,v} \<in> M) \<longrightarrow> index \<sigma> (THE v. {x,v} \<in> M) < index \<sigma> (THE v. {u,v} \<in> M)))) \<Longrightarrow> zag (G \<setminus> X) (M \<setminus> X) u \<pi> \<sigma> = zag G M u \<pi> \<sigma>"
+   remove_online_vertices_zig_zig_eq: 
+     "v \<in> set \<sigma> \<Longrightarrow> 
+        \<forall>x \<in> X. ((\<exists>v'. {x,v'} \<in> M) \<longrightarrow> index \<sigma> (THE v'. {x,v'} \<in> M) < index \<sigma> v) \<Longrightarrow> 
+                  zig (G \<setminus> X) (M \<setminus> X) v \<pi> \<sigma> = zig G M v \<pi> \<sigma>" and
+   remove_online_vertices_zag_zag_eq:
+     "u \<in> set \<pi> \<Longrightarrow>
+     ((\<exists>v. {u,v} \<in> M \<Longrightarrow> 
+           \<forall>x \<in> X. ((\<exists>v. {x,v} \<in> M) \<longrightarrow> 
+                  index \<sigma> (THE v. {x,v} \<in> M) < index \<sigma> (THE v. {u,v} \<in> M)))) \<Longrightarrow>
+         zag (G \<setminus> X) (M \<setminus> X) u \<pi> \<sigma> = zag G M u \<pi> \<sigma>"
   using assms
 proof (induction G M v \<pi> \<sigma> and G M u \<pi> \<sigma> rule: zig_zag_induct)
   case (zig_matched G M v \<pi> \<sigma> u)
